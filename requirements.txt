@@ -1,0 +1,4 @@
+pyside6
+python-docx
+beautifulsoup4
+openai
