@@ -1,3 +1,5 @@
+![Logo](images/wallo.png "Logo")
+
 # WALLO - Writing Assistant based on Large Language mOdels
 
 
