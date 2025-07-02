@@ -20,7 +20,7 @@ Usage:
 ```
 
 ## Things I might/might not add
-- select prompts, services
+- Word wrap does not work with long copy-paste content
 - configuration GUI: currently you have to manually modify the .wallo.json file in your home folder
 - pyInstaller to easily install on windows
 - pip
