@@ -1,13 +1,15 @@
 import sys, json
 from pathlib import Path
-from PySide6.QtWidgets import QApplication, QMainWindow, QToolBar, QFileDialog, QMessageBox, QComboBox, QFileDialog
+from PySide6.QtWidgets import (QApplication, QMainWindow, QToolBar, QFileDialog, QMessageBox, QComboBox,
+                               QFileDialog, QProgressBar)
 from PySide6.QtGui import QTextCursor, QTextCharFormat, QFont, QAction
+from PySide6.QtCore import QThread
 import qtawesome as qta
-import pdfplumber
 import pypandoc
 from openai import OpenAI
 from .fixedStrings import defaultConfiguration
 from .editor import TextEdit
+from .worker import Worker
 
 
 class Wallo(QMainWindow):
@@ -25,6 +27,11 @@ class Wallo(QMainWindow):
                 confFile.write(json.dumps(defaultConfiguration, indent=2))
         self._create_toolbar()
         self.updateStatusBar()
+        # progress bar
+        self.progressBar = QProgressBar()
+        self.progressBar.setMaximumWidth(200)
+        self.progressBar.setVisible(False)
+        self.statusBar().addPermanentWidget(self.progressBar)
 
     def _create_toolbar(self):
         toolbar = QToolBar("Formatting")
@@ -50,37 +57,29 @@ class Wallo(QMainWindow):
         toolbar.addWidget(self.llmCB)
 
     def useLLM(self, _):
-        """use llm
-        Args:
-            _ (int): index
-        """
         cursor = self.editor.textCursor()
         conf = json.load(open(self.configFile, 'r', encoding='utf-8'))
         service = conf['services']['openAI']
         client = OpenAI(api_key=service['api'], base_url=service['url'])
         confPrompt = [i for i in conf['prompts'] if i['name']==self.llmCB.currentData()][0]
-        print('LLM: Create prompt') #TODO add progress-bar
+
         if confPrompt['attachment'] == 'selection':
             if not cursor.hasSelection():
                 QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
                 return
             prompt = confPrompt['user-prompt'] + '\n' + self.editor.textCursor().selectedText()
-        if confPrompt['attachment'] == 'pdf':
+            self.runWorker('chatAPI', {'client':client, 'model':service['model'], 'prompt':prompt})
+
+        elif confPrompt['attachment'] == 'pdf':
             res = QFileDialog.getOpenFileName(self, "Open pdf file", str(Path.home()), '*.pdf')
-            if res is None:
+            if not res or not res[0]:
                 return
-            with pdfplumber.open(res[0]) as pdf:  #TODO chunking
-                text = "\n".join(page.extract_text() or "" for page in pdf.pages)
-            if not text.strip():
-                QMessageBox.warning(self, "PDF Error", "No text found in the PDF.")
-                return
-            prompt = confPrompt['user-prompt'] + '\n' + text
-        print('LLM: ask remote service')
-        messages =  [{'role':'system', 'content': 'You are a helpful assistant.'},{'role': 'user', 'content': prompt}]
-        response = client.chat.completions.create(model=service['model'], messages=messages)
-        print('LLM: got response')
-        cursor.setPosition(cursor.selectionEnd())
-        cursor.insertText(f'\n{"-"*10}Start LLM generated\n{response.choices[0].message.content.strip()}\n{"-"*10}End LLM generated\n')
+            self.runWorker('pdfExtraction', {'client':client, 'model':service['model'],
+                                             'prompt':confPrompt['user-prompt']+'\n', 'fileName':res[0]})
+
+        else:
+            print('ERROR unknown attachment')
+            return
         return
 
 
@@ -136,6 +135,36 @@ class Wallo(QMainWindow):
             text = self.editor.textCursor().selectedText()
             message += f"  |  Selection: words {len(text.split())}; characters {len(text)}"
         self.statusBar().showMessage(message)
+
+    def runWorker(self, workType, work):
+        # Start worker thread
+        self.progressBar.setRange(0, 0)  # Indeterminate/bouncing
+        self.progressBar.setVisible(True)
+        self.statusBar().showMessage("Working...")
+        self.thread = QThread()
+        self.worker = Worker(workType, work)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.onLLMFinished)
+        self.worker.error.connect(self.onLLMError)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
+
+    def onLLMFinished(self, content):
+        self.progressBar.setVisible(False)
+        self.statusBar().clearMessage()
+        cursor = self.editor.textCursor()
+        cursor.setPosition(cursor.selectionEnd())
+        cursor.insertText(f'\n{"-"*10}Start LLM generated\n{content}\n{"-"*10}End LLM generated\n')
+
+    def onLLMError(self, error_msg):
+        self.progressBar.setVisible(False)
+        self.statusBar().clearMessage()
+        QMessageBox.critical(self, "Worker Error", error_msg)
+
+
 
 
 if __name__ == "__main__":

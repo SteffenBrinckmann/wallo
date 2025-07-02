@@ -20,6 +20,7 @@ Usage:
   . .venv/bin/activate
   python -m wallo.main
 ```
+**Important:** Prompts and services are currently modified via the .wallo.json file in your home folder.
 
 ## Things I might/might not add
 - Word wrap does not work with long copy-paste content
