@@ -1,4 +1,5 @@
 import sys, json
+from typing import Any
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication, QMainWindow, QToolBar, QFileDialog, QMessageBox, QComboBox,
                                QFileDialog, QProgressBar)
@@ -7,9 +8,10 @@ from PySide6.QtCore import QThread
 import qtawesome as qta
 import pypandoc
 from openai import OpenAI
-from .fixedStrings import defaultConfiguration
+from .fixedStrings import defaultConfiguration, progressbarInStatusbar, header, footer
 from .editor import TextEdit
 from .worker import Worker
+from .busyDialog import BusyDialog
 
 
 class Wallo(QMainWindow):
@@ -27,13 +29,15 @@ class Wallo(QMainWindow):
                 confFile.write(json.dumps(defaultConfiguration, indent=2))
         self._create_toolbar()
         self.updateStatusBar()
-        # progress bar
-        self.progressBar = QProgressBar()
-        self.progressBar.setMaximumWidth(200)
-        self.progressBar.setVisible(False)
-        self.statusBar().addPermanentWidget(self.progressBar)
+        if progressbarInStatusbar:
+            # progress bar
+            self.progressBar = QProgressBar()
+            self.progressBar.setMaximumWidth(200)
+            self.progressBar.setVisible(False)
+            self.statusBar().addPermanentWidget(self.progressBar)
 
     def _create_toolbar(self):
+        """ Create the toolbar with formatting actions and LLM selection"""
         toolbar = QToolBar("Formatting")
         self.addToolBar(toolbar)
         boldAction = QAction('', self, icon=qta.icon('fa5s.bold'))           # Bold
@@ -56,7 +60,11 @@ class Wallo(QMainWindow):
         self.llmCB.activated.connect(self.useLLM)
         toolbar.addWidget(self.llmCB)
 
-    def useLLM(self, _):
+    def useLLM(self, _:int):
+        """ Use the selected LLM to process the text in the editor
+        Args:
+            _ (int): The index of the selected item in the combo box.
+        """
         cursor = self.editor.textCursor()
         conf = json.load(open(self.configFile, 'r', encoding='utf-8'))
         service = conf['services']['openAI']
@@ -84,21 +92,28 @@ class Wallo(QMainWindow):
 
 
     def toggleBold(self):
+        """ Toggle bold formatting for the selected text or the word under the cursor. """
         fmt = QTextCharFormat()
         fmt.setFontWeight(QFont.Bold if not self.editor.fontWeight() == QFont.Bold else QFont.Normal)
         self.mergeFormat(fmt)
 
     def toggleItalic(self):
+        """ Toggle italic formatting for the selected text or the word under the cursor. """
         fmt = QTextCharFormat()
         fmt.setFontItalic(not self.editor.fontItalic())
         self.mergeFormat(fmt)
 
     def toggleUnderline(self):
+        """ Toggle underline formatting for the selected text or the word under the cursor. """
         fmt = QTextCharFormat()
         fmt.setFontUnderline(not self.editor.fontUnderline())
         self.mergeFormat(fmt)
 
     def mergeFormat(self, fmt: QTextCharFormat):
+        """ Merge the given character format with the current text cursor.
+        Args:
+            fmt (QTextCharFormat): The character format to merge.
+        """
         cursor = self.editor.textCursor()
         if not cursor.hasSelection():
             cursor.select(QTextCursor.WordUnderCursor)
@@ -106,6 +121,7 @@ class Wallo(QMainWindow):
         self.editor.mergeCurrentCharFormat(fmt)
 
     def saveDocx(self):
+        """ Save the content of the editor as a .docx file."""
         filename, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Word Files (*.docx)")
         if filename:
             html = self.editor.toHtml()
@@ -114,21 +130,8 @@ class Wallo(QMainWindow):
             # pypandoc.download_pandoc()
             # pypandoc.convert_text(html, 'docx', format='html', outputfile=filename)
 
-    def _add_runs_with_formatting(self, docx_paragraph, html_element):
-        for elem in html_element.descendants:
-            if isinstance(elem, str):
-                docx_paragraph.add_run(elem)
-            elif elem.name in ['b', 'strong']:
-                run = docx_paragraph.add_run(elem.get_text())
-                run.bold = True
-            elif elem.name in ['i', 'em']:
-                run = docx_paragraph.add_run(elem.get_text())
-                run.italic = True
-            elif elem.name == 'u':
-                run = docx_paragraph.add_run(elem.get_text())
-                run.underline = True
-
     def updateStatusBar(self):
+        """ Update the status bar with the current word and character count."""
         text = self.editor.toPlainText()
         message = f"Total: words {len(text.split())}; characters {len(text)}"
         if self.editor.textCursor().hasSelection():
@@ -136,11 +139,20 @@ class Wallo(QMainWindow):
             message += f"  |  Selection: words {len(text.split())}; characters {len(text)}"
         self.statusBar().showMessage(message)
 
-    def runWorker(self, workType, work):
-        # Start worker thread
-        self.progressBar.setRange(0, 0)  # Indeterminate/bouncing
-        self.progressBar.setVisible(True)
-        self.statusBar().showMessage("Working...")
+    def runWorker(self, workType:str, work:dict[str, Any]):
+        """ Run a worker thread to perform the specified work -> keep GUI responsive.
+        Args:
+            workType (str): The type of work to be performed (e.g., 'chatAPI', 'pdfExtraction').
+            work (dict): The work parameters, such as client, model, prompt, and fileName.
+        """
+        if progressbarInStatusbar:
+            self.progressBar.setRange(0, 0)  # Indeterminate/bouncing
+            self.progressBar.setVisible(True)
+            self.statusBar().showMessage("Working...")
+        else:                           # Show progress dialog
+            self.progressDialog = BusyDialog(parent=self)
+            self.progressDialog.show()
+            QApplication.processEvents()  # Ensure dialog is shown
         self.thread = QThread()
         self.worker = Worker(workType, work)
         self.worker.moveToThread(self.thread)
@@ -152,19 +164,31 @@ class Wallo(QMainWindow):
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
 
-    def onLLMFinished(self, content):
-        self.progressBar.setVisible(False)
+    def onLLMFinished(self, content:str):
+        """ Handle the completion of the LLM worker.
+        Args:
+            content (str): The content generated by the LLM worker.
+        """
+        if progressbarInStatusbar:
+            self.progressBar.setVisible(False)
+        else:
+            self.progressDialog.close()
         self.statusBar().clearMessage()
         cursor = self.editor.textCursor()
         cursor.setPosition(cursor.selectionEnd())
-        cursor.insertText(f'\n{"-"*10}Start LLM generated\n{content}\n{"-"*10}End LLM generated\n')
+        cursor.insertText(f'{header}\n{content}{footer}\n')
 
-    def onLLMError(self, error_msg):
-        self.progressBar.setVisible(False)
+    def onLLMError(self, error_msg:str):
+        """ Handle errors from the LLM worker.
+        Args:
+            error_msg (str): The error message from the worker.
+        """
+        if progressbarInStatusbar:
+            self.progressBar.setVisible(False)
+        else:
+            self.progressDialog.close()
         self.statusBar().clearMessage()
         QMessageBox.critical(self, "Worker Error", error_msg)
-
-
 
 
 if __name__ == "__main__":

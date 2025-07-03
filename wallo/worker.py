@@ -1,3 +1,4 @@
+from typing import Any
 from PySide6.QtCore import Signal, QObject
 import pdfplumber
 
@@ -5,7 +6,12 @@ class Worker(QObject):
     finished = Signal(str)
     error = Signal(str)
 
-    def __init__(self, workType, objects):
+    def __init__(self, workType:str, objects:dict[str, Any]):
+        """ Initialize the Worker with the type of work and necessary objects.
+        Args:
+            workType (str): The type of work to be performed (e.g., 'chatAPI', 'pdfExtraction').
+            objects (dict): A dictionary containing the necessary objects for the work, such as client, model, prompt, and fileName.
+        """
         super().__init__()
         self.workType = workType
         self.client   = objects['client']
@@ -15,6 +21,7 @@ class Worker(QObject):
 
 
     def run(self):
+        """ Run the worker based on the specified work type."""
         try:
             content = ''
             # Work before LLM
