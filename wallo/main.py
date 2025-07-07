@@ -2,13 +2,13 @@ import sys, json
 from typing import Any
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication, QMainWindow, QToolBar, QFileDialog, QMessageBox, QComboBox,
-                               QFileDialog, QProgressBar)
+                               QFileDialog, QProgressBar, QInputDialog)
 from PySide6.QtGui import QTextCursor, QTextCharFormat, QFont, QAction
 from PySide6.QtCore import QThread
 import qtawesome as qta
 import pypandoc
 from openai import OpenAI
-from .fixedStrings import defaultConfiguration, progressbarInStatusbar, header, footer
+from .fixedStrings import defaultConfiguration, progressbarInStatusbar, header, footer, defaultPromptFooter
 from .editor import TextEdit
 from .worker import Worker
 from .busyDialog import BusyDialog
@@ -36,6 +36,54 @@ class Wallo(QMainWindow):
             self.progressBar.setVisible(False)
             self.statusBar().addPermanentWidget(self.progressBar)
 
+
+    def useLLM(self, _:int):
+        """ Use the selected LLM to process the text in the editor
+        Args:
+            _ (int): The index of the selected item in the combo box.
+        """
+        cursor = self.editor.textCursor()
+        conf = json.load(open(self.configFile, 'r', encoding='utf-8'))
+        promptFooter = conf.get('promptFooter', defaultPromptFooter)
+        service = conf['services'][self.serviceCB.currentText()]
+        client = OpenAI(api_key=service['api'], base_url=service['url'])
+        confPrompt = [i for i in conf['prompts'] if i['name']==self.llmCB.currentData()][0]
+
+        if confPrompt['attachment'] == 'selection':
+            if not cursor.hasSelection():
+                QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
+                return
+            prompt = confPrompt['user-prompt'] + '\n' + self.editor.textCursor().selectedText() + promptFooter
+            print(prompt)
+            self.runWorker('chatAPI', {'client':client, 'model':service['model'], 'prompt':prompt})
+
+        elif confPrompt['attachment'] == 'pdf':
+            res = QFileDialog.getOpenFileName(self, "Open pdf file", str(Path.home()), '*.pdf')
+            if not res or not res[0]:
+                return
+            prompt = confPrompt['user-prompt']+ promptFooter+'\n'
+            print(prompt)
+            self.runWorker('pdfExtraction', {'client':client, 'model':service['model'],'prompt':prompt, 'fileName':res[0]})
+
+        elif confPrompt['attachment'] == 'inquiry':
+            if not cursor.hasSelection():
+                QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
+                return
+            inquiryText = confPrompt['user-prompt'].split('|')[1]
+            text, ok = QInputDialog.getText(self, "Enter number", f"Please enter {inquiryText}")
+            if ok and text:
+              prompt = confPrompt['user-prompt'].replace('|'+inquiryText+'|',text) + '\n\n' + \
+                self.editor.textCursor().selectedText() +'\n'+promptFooter
+            print(prompt)
+            self.runWorker('chatAPI', {'client':client, 'model':service['model'], 'prompt':prompt})
+
+        else:
+            print('ERROR unknown attachment')
+            return
+        return
+
+
+
     def _create_toolbar(self):
         """ Create the toolbar with formatting actions and LLM selection"""
         toolbar = QToolBar("Formatting")
@@ -52,6 +100,7 @@ class Wallo(QMainWindow):
         saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='save as docx')# Save as docx
         saveAction.triggered.connect(self.saveDocx)
         toolbar.addAction(saveAction)
+        # add LLM selections
         toolbar.addSeparator()
         prompts = json.load(open(self.configFile, 'r', encoding='utf-8'))['prompts']
         self.llmCB = QComboBox()
@@ -59,36 +108,12 @@ class Wallo(QMainWindow):
             self.llmCB.addItem(i['description'], i['name'])
         self.llmCB.activated.connect(self.useLLM)
         toolbar.addWidget(self.llmCB)
-
-    def useLLM(self, _:int):
-        """ Use the selected LLM to process the text in the editor
-        Args:
-            _ (int): The index of the selected item in the combo box.
-        """
-        cursor = self.editor.textCursor()
-        conf = json.load(open(self.configFile, 'r', encoding='utf-8'))
-        service = conf['services']['openAI']
-        client = OpenAI(api_key=service['api'], base_url=service['url'])
-        confPrompt = [i for i in conf['prompts'] if i['name']==self.llmCB.currentData()][0]
-
-        if confPrompt['attachment'] == 'selection':
-            if not cursor.hasSelection():
-                QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
-                return
-            prompt = confPrompt['user-prompt'] + '\n' + self.editor.textCursor().selectedText()
-            self.runWorker('chatAPI', {'client':client, 'model':service['model'], 'prompt':prompt})
-
-        elif confPrompt['attachment'] == 'pdf':
-            res = QFileDialog.getOpenFileName(self, "Open pdf file", str(Path.home()), '*.pdf')
-            if not res or not res[0]:
-                return
-            self.runWorker('pdfExtraction', {'client':client, 'model':service['model'],
-                                             'prompt':confPrompt['user-prompt']+'\n', 'fileName':res[0]})
-
-        else:
-            print('ERROR unknown attachment')
-            return
-        return
+        # add service selection
+        toolbar.addSeparator()
+        services = json.load(open(self.configFile, 'r', encoding='utf-8'))['services']
+        self.serviceCB = QComboBox()
+        self.serviceCB.addItems([k for k,_ in services.items()])
+        toolbar.addWidget(self.serviceCB)
 
 
     def toggleBold(self):
@@ -130,6 +155,7 @@ class Wallo(QMainWindow):
             # pypandoc.download_pandoc()
             # pypandoc.convert_text(html, 'docx', format='html', outputfile=filename)
 
+
     def updateStatusBar(self):
         """ Update the status bar with the current word and character count."""
         text = self.editor.toPlainText()
@@ -138,6 +164,7 @@ class Wallo(QMainWindow):
             text = self.editor.textCursor().selectedText()
             message += f"  |  Selection: words {len(text.split())}; characters {len(text)}"
         self.statusBar().showMessage(message)
+
 
     def runWorker(self, workType:str, work:dict[str, Any]):
         """ Run a worker thread to perform the specified work -> keep GUI responsive.
@@ -176,7 +203,12 @@ class Wallo(QMainWindow):
         self.statusBar().clearMessage()
         cursor = self.editor.textCursor()
         cursor.setPosition(cursor.selectionEnd())
-        cursor.insertText(f'{header}\n{content}{footer}\n')
+        content = content.strip()
+        if content.endswith('```'):
+            content = content[:-3].strip()
+        if content.startswith('```'):
+            content = content.split('\n', 1)[-1].strip()
+        cursor.insertHtml(f'{header}\n{content}{footer}\n')
 
     def onLLMError(self, error_msg:str):
         """ Handle errors from the LLM worker.
