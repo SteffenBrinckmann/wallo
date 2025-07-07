@@ -1,16 +1,19 @@
+""" Worker class to handle background tasks such as LLM processing or PDF extraction."""
 from typing import Any
-from PySide6.QtCore import Signal, QObject
+from PySide6.QtCore import Signal, QObject  # pylint: disable=no-name-in-module
 import pdfplumber
 
 class Worker(QObject):
+    """ Worker class to handle background tasks such as LLM processing or PDF extraction."""
     finished = Signal(str)
     error = Signal(str)
 
-    def __init__(self, workType:str, objects:dict[str, Any]):
+    def __init__(self, workType:str, objects:dict[str, Any]) -> None:
         """ Initialize the Worker with the type of work and necessary objects.
         Args:
             workType (str): The type of work to be performed (e.g., 'chatAPI', 'pdfExtraction').
-            objects (dict): A dictionary containing the necessary objects for the work, such as client, model, prompt, and fileName.
+            objects (dict): A dictionary containing the necessary objects for the work, such as
+                client, model, prompt, and fileName.
         """
         super().__init__()
         self.workType = workType
@@ -20,7 +23,7 @@ class Worker(QObject):
         self.fileName = objects.get('fileName','')
 
 
-    def run(self):
+    def run(self) -> None:
         """ Run the worker based on the specified work type."""
         try:
             content = ''
@@ -38,4 +41,3 @@ class Worker(QObject):
             self.finished.emit(content)
         except Exception as e:
             self.error.emit(str(e))
-

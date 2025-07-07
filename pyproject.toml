@@ -1,0 +1,37 @@
+[project]
+name = "wallo"
+version = "0.1.0"
+description = "WALLO - Writing Assistance by Large Language mOdel"
+authors = [
+    { name = "Steffen", email = "sbrinckm@gmail.com" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6",
+    "qtawesome",
+    "openai",
+    "pypandoc",
+    "pdfplumber"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pylint",
+    "mypy"
+]
+
+[tool.setuptools]
+packages = ["wallo"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.mypy]
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_return_any = true
+show_error_codes = true
+ignore_missing_imports = true

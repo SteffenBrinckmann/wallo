@@ -1,12 +1,13 @@
+""" Main window for the Wallo application, providing a text editor with LLM assistance. """
 import sys, json
 from typing import Any
 from pathlib import Path
-from PySide6.QtWidgets import (QApplication, QMainWindow, QToolBar, QFileDialog, QMessageBox, QComboBox,
-                               QFileDialog, QProgressBar, QInputDialog)
-from PySide6.QtGui import QTextCursor, QTextCharFormat, QFont, QAction
-from PySide6.QtCore import QThread
+from PySide6.QtWidgets import (QApplication, QMainWindow, QToolBar, QFileDialog, QMessageBox, QComboBox, # pylint: disable=no-name-in-module
+                               QProgressBar, QInputDialog)
+from PySide6.QtGui import QTextCursor, QTextCharFormat, QFont, QAction     # pylint: disable=no-name-in-module
+from PySide6.QtCore import QThread                                         # pylint: disable=no-name-in-module
 import qtawesome as qta
-import pypandoc
+# import pypandoc
 from openai import OpenAI
 from .fixedStrings import defaultConfiguration, progressbarInStatusbar, header, footer, defaultPromptFooter
 from .editor import TextEdit
@@ -15,10 +16,14 @@ from .busyDialog import BusyDialog
 
 
 class Wallo(QMainWindow):
-    def __init__(self):
+    """ Main window for the Wallo application, providing a text editor with LLM assistance. """
+    def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("WALLO - Writing Assistance by Large Language mOdel")
         self.editor = TextEdit()
+        self.worker: Worker | None = None
+        self.subThread: QThread | None = None
+        self.progressDialog: BusyDialog | None = None
         self.setCentralWidget(self.editor)
         self.statusBar()  # Initialize the status bar
         self.editor.textChanged.connect(self.updateStatusBar)
@@ -27,7 +32,7 @@ class Wallo(QMainWindow):
         if not self.configFile.is_file():
             with open(self.configFile, 'w', encoding='utf-8') as confFile:
                 confFile.write(json.dumps(defaultConfiguration, indent=2))
-        self._create_toolbar()
+        self.createToolbar()
         self.updateStatusBar()
         if progressbarInStatusbar:
             # progress bar
@@ -37,13 +42,14 @@ class Wallo(QMainWindow):
             self.statusBar().addPermanentWidget(self.progressBar)
 
 
-    def useLLM(self, _:int):
+    def useLLM(self, _:int) -> None:
         """ Use the selected LLM to process the text in the editor
         Args:
             _ (int): The index of the selected item in the combo box.
         """
         cursor = self.editor.textCursor()
-        conf = json.load(open(self.configFile, 'r', encoding='utf-8'))
+        with open(self.configFile, 'r', encoding='utf-8') as fIn:
+            conf = json.load(fIn)
         promptFooter = conf.get('promptFooter', defaultPromptFooter)
         service = conf['services'][self.serviceCB.currentText()]
         client = OpenAI(api_key=service['api'], base_url=service['url'])
@@ -63,7 +69,8 @@ class Wallo(QMainWindow):
                 return
             prompt = confPrompt['user-prompt']+ promptFooter+'\n'
             print(prompt)
-            self.runWorker('pdfExtraction', {'client':client, 'model':service['model'],'prompt':prompt, 'fileName':res[0]})
+            self.runWorker('pdfExtraction', {'client':client, 'model':service['model'],'prompt':prompt,
+                                             'fileName':res[0]})
 
         elif confPrompt['attachment'] == 'inquiry':
             if not cursor.hasSelection():
@@ -72,8 +79,8 @@ class Wallo(QMainWindow):
             inquiryText = confPrompt['user-prompt'].split('|')[1]
             text, ok = QInputDialog.getText(self, "Enter number", f"Please enter {inquiryText}")
             if ok and text:
-              prompt = confPrompt['user-prompt'].replace('|'+inquiryText+'|',text) + '\n\n' + \
-                self.editor.textCursor().selectedText() +'\n'+promptFooter
+                prompt = confPrompt['user-prompt'].replace('|'+inquiryText+'|',text) + '\n\n' + \
+                         self.editor.textCursor().selectedText() +'\n'+promptFooter
             print(prompt)
             self.runWorker('chatAPI', {'client':client, 'model':service['model'], 'prompt':prompt})
 
@@ -84,7 +91,7 @@ class Wallo(QMainWindow):
 
 
 
-    def _create_toolbar(self):
+    def createToolbar(self) -> None:
         """ Create the toolbar with formatting actions and LLM selection"""
         toolbar = QToolBar("Formatting")
         self.addToolBar(toolbar)
@@ -102,7 +109,8 @@ class Wallo(QMainWindow):
         toolbar.addAction(saveAction)
         # add LLM selections
         toolbar.addSeparator()
-        prompts = json.load(open(self.configFile, 'r', encoding='utf-8'))['prompts']
+        with open(self.configFile, 'r', encoding='utf-8') as fIn:
+            prompts = json.load(fIn)['prompts']
         self.llmCB = QComboBox()
         for i in prompts:
             self.llmCB.addItem(i['description'], i['name'])
@@ -110,42 +118,43 @@ class Wallo(QMainWindow):
         toolbar.addWidget(self.llmCB)
         # add service selection
         toolbar.addSeparator()
-        services = json.load(open(self.configFile, 'r', encoding='utf-8'))['services']
+        with open(self.configFile, 'r', encoding='utf-8') as fIn:
+            services = json.load(fIn)['services']
         self.serviceCB = QComboBox()
         self.serviceCB.addItems([k for k,_ in services.items()])
         toolbar.addWidget(self.serviceCB)
 
 
-    def toggleBold(self):
+    def toggleBold(self) -> None:
         """ Toggle bold formatting for the selected text or the word under the cursor. """
         fmt = QTextCharFormat()
-        fmt.setFontWeight(QFont.Bold if not self.editor.fontWeight() == QFont.Bold else QFont.Normal)
+        fmt.setFontWeight(QFont.Bold if not self.editor.fontWeight() == QFont.Bold else QFont.Normal)# type: ignore[attr-defined]
         self.mergeFormat(fmt)
 
-    def toggleItalic(self):
+    def toggleItalic(self) -> None:
         """ Toggle italic formatting for the selected text or the word under the cursor. """
         fmt = QTextCharFormat()
         fmt.setFontItalic(not self.editor.fontItalic())
         self.mergeFormat(fmt)
 
-    def toggleUnderline(self):
+    def toggleUnderline(self) -> None:
         """ Toggle underline formatting for the selected text or the word under the cursor. """
         fmt = QTextCharFormat()
         fmt.setFontUnderline(not self.editor.fontUnderline())
         self.mergeFormat(fmt)
 
-    def mergeFormat(self, fmt: QTextCharFormat):
+    def mergeFormat(self, fmt: QTextCharFormat) -> None:
         """ Merge the given character format with the current text cursor.
         Args:
             fmt (QTextCharFormat): The character format to merge.
         """
         cursor = self.editor.textCursor()
         if not cursor.hasSelection():
-            cursor.select(QTextCursor.WordUnderCursor)
+            cursor.select(QTextCursor.WordUnderCursor)              # type: ignore[attr-defined]
         cursor.mergeCharFormat(fmt)
         self.editor.mergeCurrentCharFormat(fmt)
 
-    def saveDocx(self):
+    def saveDocx(self) -> None:
         """ Save the content of the editor as a .docx file."""
         filename, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Word Files (*.docx)")
         if filename:
@@ -156,7 +165,7 @@ class Wallo(QMainWindow):
             # pypandoc.convert_text(html, 'docx', format='html', outputfile=filename)
 
 
-    def updateStatusBar(self):
+    def updateStatusBar(self) -> None:
         """ Update the status bar with the current word and character count."""
         text = self.editor.toPlainText()
         message = f"Total: words {len(text.split())}; characters {len(text)}"
@@ -166,7 +175,7 @@ class Wallo(QMainWindow):
         self.statusBar().showMessage(message)
 
 
-    def runWorker(self, workType:str, work:dict[str, Any]):
+    def runWorker(self, workType:str, work:dict[str, Any]) -> None:
         """ Run a worker thread to perform the specified work -> keep GUI responsive.
         Args:
             workType (str): The type of work to be performed (e.g., 'chatAPI', 'pdfExtraction').
@@ -180,18 +189,18 @@ class Wallo(QMainWindow):
             self.progressDialog = BusyDialog(parent=self)
             self.progressDialog.show()
             QApplication.processEvents()  # Ensure dialog is shown
-        self.thread = QThread()
+        self.subThread = QThread()
         self.worker = Worker(workType, work)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
+        self.worker.moveToThread(self.subThread)
+        self.subThread.started.connect(self.worker.run)
         self.worker.finished.connect(self.onLLMFinished)
         self.worker.error.connect(self.onLLMError)
-        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.subThread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+        self.subThread.finished.connect(self.subThread.deleteLater)
+        self.subThread.start()
 
-    def onLLMFinished(self, content:str):
+    def onLLMFinished(self, content:str) -> None:
         """ Handle the completion of the LLM worker.
         Args:
             content (str): The content generated by the LLM worker.
@@ -210,17 +219,17 @@ class Wallo(QMainWindow):
             content = content.split('\n', 1)[-1].strip()
         cursor.insertHtml(f'{header}\n{content}{footer}\n')
 
-    def onLLMError(self, error_msg:str):
+    def onLLMError(self, errorMsg:str) -> None:
         """ Handle errors from the LLM worker.
         Args:
-            error_msg (str): The error message from the worker.
+            errorMsg (str): The error message from the worker.
         """
         if progressbarInStatusbar:
             self.progressBar.setVisible(False)
         else:
             self.progressDialog.close()
         self.statusBar().clearMessage()
-        QMessageBox.critical(self, "Worker Error", error_msg)
+        QMessageBox.critical(self, "Worker Error", errorMsg)
 
 
 if __name__ == "__main__":

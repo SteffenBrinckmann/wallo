@@ -1,3 +1,5 @@
+""" Default configuration for the wallo application. """
+
 defaultConfiguration = {
     'prompts': [
         {
