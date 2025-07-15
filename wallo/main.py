@@ -9,7 +9,7 @@ from PySide6.QtCore import QThread                                         # pyl
 import qtawesome as qta
 # import pypandoc
 from openai import OpenAI
-from .fixedStrings import defaultConfiguration, progressbarInStatusbar, header, footer, defaultPromptFooter
+from .fixedStrings import defaultConfiguration, progressbarInStatusbar, defaultHeader, defaultFooter, defaultPromptFooter
 from .editor import TextEdit
 from .worker import Worker
 from .busyDialog import BusyDialog
@@ -93,6 +93,8 @@ class Wallo(QMainWindow):
 
     def createToolbar(self) -> None:
         """ Create the toolbar with formatting actions and LLM selection"""
+        with open(self.configFile, 'r', encoding='utf-8') as fIn:
+            conf = json.load(fIn)
         toolbar = QToolBar("Formatting")
         self.addToolBar(toolbar)
         boldAction = QAction('', self, icon=qta.icon('fa5s.bold'))           # Bold
@@ -109,19 +111,15 @@ class Wallo(QMainWindow):
         toolbar.addAction(saveAction)
         # add LLM selections
         toolbar.addSeparator()
-        with open(self.configFile, 'r', encoding='utf-8') as fIn:
-            prompts = json.load(fIn)['prompts']
         self.llmCB = QComboBox()
-        for i in prompts:
+        for i in conf['prompts']:
             self.llmCB.addItem(i['description'], i['name'])
         self.llmCB.activated.connect(self.useLLM)
         toolbar.addWidget(self.llmCB)
         # add service selection
         toolbar.addSeparator()
-        with open(self.configFile, 'r', encoding='utf-8') as fIn:
-            services = json.load(fIn)['services']
         self.serviceCB = QComboBox()
-        self.serviceCB.addItems([k for k,_ in services.items()])
+        self.serviceCB.addItems([k for k,_ in conf['services'].items()])
         toolbar.addWidget(self.serviceCB)
 
 
@@ -209,6 +207,8 @@ class Wallo(QMainWindow):
             self.progressBar.setVisible(False)
         else:
             self.progressDialog.close()
+        with open(self.configFile, 'r', encoding='utf-8') as fIn:
+            conf = json.load(fIn)
         self.statusBar().clearMessage()
         cursor = self.editor.textCursor()
         cursor.setPosition(cursor.selectionEnd())
@@ -217,7 +217,7 @@ class Wallo(QMainWindow):
             content = content[:-3].strip()
         if content.startswith('```'):
             content = content.split('\n', 1)[-1].strip()
-        cursor.insertHtml(f'{header}\n{content}{footer}\n')
+        cursor.insertHtml(f'{conf.get('header','') or defaultHeader}\n{content}{conf.get('footer','') or defaultFooter}\n')
 
     def onLLMError(self, errorMsg:str) -> None:
         """ Handle errors from the LLM worker.

@@ -17,11 +17,14 @@ defaultConfiguration = {
     ],
     'services': {
         'openAI': {'url':'', 'api':None, 'model': 'gpt-4o'}
-    }
+    },
+  "promptFooter": "\nPlease reply with the html formatted string only",
+  "footer": f'\n{"-"*5} Start LLM generated {"-"*5}',
+  "header": f'\n{"-"*5}  End LLM generated  {"-"*5}'
 }
 
 progressbarInStatusbar = True                    # True to show progress bar in status bar, False for dialog
-header = '' # f'\n{"-"*5} Start LLM generated {"-"*5}' # header for LLM generated content
-footer =  ''# f'\n{"-"*5}  End LLM generated  {"-"*5}' # footer for LLM generated content
+defaultHeader = f'\n{"-"*5} Start LLM generated {"-"*5}' # header for LLM generated content
+defaultFooter = f'\n{"-"*5}  End LLM generated  {"-"*5}' # footer for LLM generated content
 
 defaultPromptFooter = '\n Please reply with html formatted text.'
