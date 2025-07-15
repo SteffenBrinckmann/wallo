@@ -8,7 +8,6 @@ class PdfDocumentProcessor:
 
     def __init__(self) -> None:
         """Initialize the document processor."""
-        pass
 
     def extractTextFromPdf(self, pdfPath: str) -> str:
         """Extract text content from a PDF file.

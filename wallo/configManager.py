@@ -1,7 +1,7 @@
 """Configuration management for the Wallo application."""
 import json
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from .fixedStrings import defaultConfiguration
 
 class ConfigurationManager:
@@ -21,15 +21,15 @@ class ConfigurationManager:
     def loadConfig(self) -> None:
         """Load configuration from file, creating default if it doesn't exist."""
         if not self.configFile.is_file():
-            """Create default configuration file."""
+            # Create default configuration file
             try:
-                with open(self.configFile, 'w', encoding='utf-8') as conf_file:
-                    json.dump(defaultConfiguration, conf_file, indent=2)
+                with open(self.configFile, 'w', encoding='utf-8') as confFile:
+                    json.dump(defaultConfiguration, confFile, indent=2)
             except IOError as e:
                 raise ValueError(f"Error creating default configuration file: {e}") from e
         try:
-            with open(self.configFile, 'r', encoding='utf-8') as conf_file:
-                self._config = json.load(conf_file)
+            with open(self.configFile, 'r', encoding='utf-8') as confFile:
+                self._config = json.load(confFile)
         except (json.JSONDecodeError, IOError) as e:
             raise ValueError(f"Error loading configuration file: {e}") from e
         self.validateConfig()
@@ -88,13 +88,13 @@ class ConfigurationManager:
     def saveConfig(self) -> None:
         """Save current configuration to file."""
         try:
-            with open(self.configFile, 'w', encoding='utf-8') as conf_file:
-                json.dump(self._config, conf_file, indent=2)
+            with open(self.configFile, 'w', encoding='utf-8') as confFile:
+                json.dump(self._config, confFile, indent=2)
         except IOError as e:
             raise ValueError(f"Error saving configuration file: {e}") from e
 
 
-    def update_config(self, updates: Dict[str, Any]) -> None:
+    def updateConfig(self, updates: Dict[str, Any]) -> None:
         """Update configuration with new values."""
         self._config.update(updates)
         self.validateConfig()

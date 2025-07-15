@@ -141,11 +141,11 @@ class Wallo(QMainWindow):
         prompts = self.configManager.get('prompts')
         for i, prompt in enumerate(prompts):
             if i < 10:  # Limit to Ctrl+1 through Ctrl+9 and Ctrl+0
-                shortcut_number = (i + 1) % 10  # 1-9, then 0 for the 10th item
-                shortcut = f"Ctrl+{shortcut_number}"
+                shortcutNumber = (i + 1) % 10  # 1-9, then 0 for the 10th item
+                shortcut = f"Ctrl+{shortcutNumber}"
                 displayText = f"{prompt['description']} ({shortcut})"
                 self.llmCB.addItem(displayText, prompt['name'])
-                
+
                 # Create shortcut action
                 shortcutAction = QAction(self)
                 shortcutAction.setShortcut(QKeySequence(shortcut))
