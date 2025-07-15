@@ -4,7 +4,7 @@ from typing import Any
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication, QMainWindow, QToolBar, QFileDialog, QMessageBox, QComboBox, # pylint: disable=no-name-in-module
                                QProgressBar, QInputDialog)
-from PySide6.QtGui import QTextCursor, QTextCharFormat, QFont, QAction, QColor     # pylint: disable=no-name-in-module
+from PySide6.QtGui import QTextCursor, QTextCharFormat, QFont, QAction, QColor, QKeySequence     # pylint: disable=no-name-in-module
 from PySide6.QtCore import QThread                                         # pylint: disable=no-name-in-module
 import qtawesome as qta
 # import pypandoc
@@ -106,6 +106,15 @@ class Wallo(QMainWindow):
             QMessageBox.critical(self, "Error", f"An unexpected error occurred: {str(e)}")
 
 
+    def useLLMShortcut(self, index: int) -> None:
+        """ Use LLM via keyboard shortcut.
+        Args:
+            index (int): The index of the prompt to use.
+        """
+        if index < self.llmCB.count():
+            self.llmCB.setCurrentIndex(index)
+            self.useLLM(index)
+
 
     def createToolbar(self) -> None:
         """ Create the toolbar with formatting actions and LLM selection"""
@@ -130,8 +139,20 @@ class Wallo(QMainWindow):
         toolbar.addSeparator()
         self.llmCB = QComboBox()
         prompts = self.configManager.get('prompts')
-        for prompt in prompts:
-            self.llmCB.addItem(prompt['description'], prompt['name'])
+        for i, prompt in enumerate(prompts):
+            if i < 10:  # Limit to Ctrl+1 through Ctrl+9 and Ctrl+0
+                shortcut_number = (i + 1) % 10  # 1-9, then 0 for the 10th item
+                shortcut = f"Ctrl+{shortcut_number}"
+                displayText = f"{prompt['description']} ({shortcut})"
+                self.llmCB.addItem(displayText, prompt['name'])
+                
+                # Create shortcut action
+                shortcutAction = QAction(self)
+                shortcutAction.setShortcut(QKeySequence(shortcut))
+                shortcutAction.triggered.connect(lambda checked, index=i: self.useLLMShortcut(index))
+                self.addAction(shortcutAction)
+            else:
+                self.llmCB.addItem(prompt['description'], prompt['name'])
         self.llmCB.activated.connect(self.useLLM)
         toolbar.addWidget(self.llmCB)
         # add service selection
