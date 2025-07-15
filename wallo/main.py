@@ -4,7 +4,7 @@ from typing import Any
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication, QMainWindow, QToolBar, QFileDialog, QMessageBox, QComboBox, # pylint: disable=no-name-in-module
                                QProgressBar, QInputDialog)
-from PySide6.QtGui import QTextCursor, QTextCharFormat, QFont, QAction     # pylint: disable=no-name-in-module
+from PySide6.QtGui import QTextCursor, QTextCharFormat, QFont, QAction, QColor     # pylint: disable=no-name-in-module
 from PySide6.QtCore import QThread                                         # pylint: disable=no-name-in-module
 import qtawesome as qta
 # import pypandoc
@@ -26,6 +26,8 @@ class Wallo(QMainWindow):
         self.worker: Worker | None = None
         self.subThread: QThread | None = None
         self.progressDialog: BusyDialog | None = None
+        self.selectedTextStart: int = 0
+        self.selectedTextEnd: int = 0
         self.setCentralWidget(self.editor)
         self.statusBar()  # Initialize the status bar
         self.editor.textChanged.connect(self.updateStatusBar)
@@ -65,6 +67,8 @@ class Wallo(QMainWindow):
                     QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
                     return
                 selectedText = cursor.selectedText()
+                self.selectedTextStart = cursor.selectionStart()
+                self.selectedTextEnd = cursor.selectionEnd()
                 workParams = self.llmProcessor.processPrompt(promptName, serviceName, selectedText)
                 self.runWorker('chatAPI', workParams)
             elif attachmentType == 'pdf':
@@ -89,6 +93,8 @@ class Wallo(QMainWindow):
                 if not ok or not userInput:
                     return
                 selectedText = cursor.selectedText()
+                self.selectedTextStart = cursor.selectionStart()
+                self.selectedTextEnd = cursor.selectionEnd()
                 workParams = self.llmProcessor.processPrompt(promptName, serviceName, selectedText, userInput)
                 self.runWorker('chatAPI', workParams)
             else:
@@ -114,6 +120,9 @@ class Wallo(QMainWindow):
         underlineAction = QAction('', self, icon=qta.icon('fa5s.underline')) # Underline
         underlineAction.triggered.connect(self.toggleUnderline)
         toolbar.addAction(underlineAction)
+        clearFormatAction = QAction('', self, icon=qta.icon('fa5s.eraser'), toolTip='Clear all formatting')
+        clearFormatAction.triggered.connect(self.clearFormatting)
+        toolbar.addAction(clearFormatAction)
         saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='save as docx')# Save as docx
         saveAction.triggered.connect(self.saveDocx)
         toolbar.addAction(saveAction)
@@ -162,6 +171,16 @@ class Wallo(QMainWindow):
             cursor.select(QTextCursor.WordUnderCursor)              # type: ignore[attr-defined]
         cursor.mergeCharFormat(fmt)
         self.editor.mergeCurrentCharFormat(fmt)
+
+
+    def clearFormatting(self) -> None:
+        """ Clear all formatting from the entire text in the editor. """
+        cursor = self.editor.textCursor()
+        cursor.select(QTextCursor.SelectionType.Document)
+        defaultFormat = QTextCharFormat()
+        cursor.setCharFormat(defaultFormat)
+        cursor.clearSelection()
+
 
     def saveDocx(self) -> None:
         """ Save the content of the editor as a .docx file."""
@@ -223,11 +242,29 @@ class Wallo(QMainWindow):
 
         self.statusBar().clearMessage()
         cursor = self.editor.textCursor()
-        cursor.setPosition(cursor.selectionEnd())
+
+        # Apply blue color to the previously selected text
+        if self.selectedTextStart != self.selectedTextEnd:
+            cursor.setPosition(self.selectedTextStart)
+            cursor.setPosition(self.selectedTextEnd, QTextCursor.MoveMode.KeepAnchor)
+            blueFormat = QTextCharFormat()
+            blueFormat.setForeground(QColor(0, 0, 255))  # Blue color
+            cursor.mergeCharFormat(blueFormat)
+
+        # Position cursor at the end for inserting new content
+        cursor.setPosition(self.selectedTextEnd)
+
         # Process the content using the LLM processor
         processContent = self.llmProcessor.processLLMResponse(content)
-        formattedContent = self.llmProcessor.formatResponseForEditor(processContent)
-        cursor.insertHtml(formattedContent)
+
+        # Insert the formatted content with green color HTML styling
+        header = self.llmProcessor.configManager.get('header')
+        footer = self.llmProcessor.configManager.get('footer')
+
+        # Wrap the content in green color HTML span
+        styledContent = f'<span style="color: rgb(0, 128, 0);">{processContent}</span>'
+        fullContent = f"<br>{header}{styledContent}{footer}<br>"
+        cursor.insertHtml(fullContent)
 
 
     def onLLMError(self, errorMsg:str) -> None:

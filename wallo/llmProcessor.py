@@ -119,17 +119,3 @@ class LLMProcessor:
         if content.startswith('```'):
             content = content.split('\n', 1)[-1].strip()
         return content
-
-
-    def formatResponseForEditor(self, content: str) -> str:
-        """Format the processed content for insertion into the editor.
-
-        Args:
-            content: Processed content from the LLM.
-
-        Returns:
-            Formatted content ready for editor insertion.
-        """
-        header = self.configManager.get('header')
-        footer = self.configManager.get('footer')
-        return f'<br>{header}{content}{footer}<br>'
