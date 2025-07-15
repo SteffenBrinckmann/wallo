@@ -37,76 +37,16 @@ class LLMProcessor:
         return OpenAI(api_key=apiKey, base_url=baseUrl)
 
 
-    def processSelectionPrompt(self, promptName: str, serviceName: str,
-                               selectedText: str) -> Dict[str, Any]:
-        """Process a selection-based prompt.
+    def processPrompt(self, promptName: str, serviceName: str,
+                      selectedText: str = "", pdfFilePath: str = "",
+                      inquiryResponse: str = "") -> Dict[str, Any]:
+        """Process a prompt based on its attachment type.
 
         Args:
             promptName: Name of the prompt to use.
             serviceName: Name of the service to use.
             selectedText: Selected text from the editor.
-
-        Returns:
-            Dictionary with processing parameters for the worker.
-
-        Raises:
-            ValueError: If prompt or service is not found.
-        """
-        promptConfig = self.configManager.getPromptByName(promptName)
-        if not promptConfig:
-            raise ValueError(f"Prompt '{promptName}' not found in configuration")
-        if promptConfig['attachment'] != 'selection':
-            raise ValueError(f"Prompt '{promptName}' is not a selection prompt")
-        client = self.createClient(serviceName)
-        serviceConfig = self.configManager.getServiceByName(serviceName)
-        promptFooter = self.configManager.get('promptFooter')
-        fullPrompt = f"{promptConfig['user-prompt']}\\n{selectedText}{promptFooter}"
-        return {
-            'client': client,
-            'model': serviceConfig['model'],
-            'prompt': fullPrompt
-        }
-
-
-    def processPdfPrompt(self, promptName: str, serviceName: str, pdfFilePath: str) -> Dict[str, Any]:
-        """Process a PDF-based prompt.
-
-        Args:
-            promptName: Name of the prompt to use.
-            serviceName: Name of the service to use.
             pdfFilePath: Path to the PDF file.
-
-        Returns:
-            Dictionary with processing parameters for the worker.
-
-        Raises:
-            ValueError: If prompt or service is not found.
-        """
-        promptConfig = self.configManager.getPromptByName(promptName)
-        if not promptConfig:
-            raise ValueError(f"Prompt '{promptName}' not found in configuration")
-        if promptConfig['attachment'] != 'pdf':
-            raise ValueError(f"Prompt '{promptName}' is not a PDF prompt")
-        client = self.createClient(serviceName)
-        serviceConfig = self.configManager.getServiceByName(serviceName)
-        promptFooter = self.configManager.get('promptFooter')
-        fullPrompt = f"{promptConfig['user-prompt']}{promptFooter}\\n"
-        return {
-            'client': client,
-            'model': serviceConfig['model'],
-            'prompt': fullPrompt,
-            'fileName': pdfFilePath
-        }
-
-
-    def processInquiryPrompt(self, promptName: str, serviceName: str,
-                             selectedText: str, inquiryResponse: str) -> Dict[str, Any]:
-        """Process an inquiry-based prompt.
-
-        Args:
-            promptName: Name of the prompt to use.
-            serviceName: Name of the service to use.
-            selectedText: Selected text from the editor.
             inquiryResponse: User's response to the inquiry.
 
         Returns:
@@ -118,21 +58,28 @@ class LLMProcessor:
         promptConfig = self.configManager.getPromptByName(promptName)
         if not promptConfig:
             raise ValueError(f"Prompt '{promptName}' not found in configuration")
-        if promptConfig['attachment'] != 'inquiry':
-            raise ValueError(f"Prompt '{promptName}' is not an inquiry prompt")
+        attachmentType = promptConfig['attachment']
         client = self.createClient(serviceName)
         serviceConfig = self.configManager.getServiceByName(serviceName)
+        if not serviceConfig:
+            raise ValueError(f"Service '{serviceName}' not found in configuration")
         promptFooter = self.configManager.get('promptFooter')
-        # Extract inquiry text from the prompt
-        inquiryText = promptConfig['user-prompt'].split('|')[1]
-        # Replace the inquiry placeholder with the user's response
-        processedPrompt = promptConfig['user-prompt'].replace(f'|{inquiryText}|', inquiryResponse)
-        fullPrompt = f"{processedPrompt}\\n\\n{selectedText}\\n{promptFooter}"
-        return {
-            'client': client,
-            'model': serviceConfig['model'],
-            'prompt': fullPrompt
-        }
+        result = {'client': client, 'model': serviceConfig['model']}
+        if attachmentType == 'selection':
+            fullPrompt = f"{promptConfig['user-prompt']}\\n{selectedText}{promptFooter}"
+            result['prompt'] = fullPrompt
+        elif attachmentType == 'pdf':
+            fullPrompt = f"{promptConfig['user-prompt']}{promptFooter}\\n"
+            result['prompt'] = fullPrompt
+            result['fileName'] = pdfFilePath
+        elif attachmentType == 'inquiry':
+            inquiryText = promptConfig['user-prompt'].split('|')[1]
+            processedPrompt = promptConfig['user-prompt'].replace(f'|{inquiryText}|', inquiryResponse)
+            fullPrompt = f"{processedPrompt}\\n\\n{selectedText}\\n{promptFooter}"
+            result['prompt'] = fullPrompt
+        else:
+            raise ValueError(f"Unknown attachment type '{attachmentType}' for prompt '{promptName}'")
+        return result
 
 
     def getInquiryText(self, promptName: str) -> Optional[str]:
@@ -148,7 +95,10 @@ class LLMProcessor:
         if not promptConfig or promptConfig['attachment'] != 'inquiry':
             return None
         try:
-            return promptConfig['user-prompt'].split('|')[1]
+            userPrompt = promptConfig['user-prompt']
+            if isinstance(userPrompt, str):
+                return userPrompt.split('|')[1]
+            return None
         except (IndexError, AttributeError):
             return None
 
@@ -167,7 +117,7 @@ class LLMProcessor:
         if content.endswith('```'):
             content = content[:-3].strip()
         if content.startswith('```'):
-            content = content.split('\\n', 1)[-1].strip()
+            content = content.split('\n', 1)[-1].strip()
         return content
 
 
@@ -182,4 +132,4 @@ class LLMProcessor:
         """
         header = self.configManager.get('header')
         footer = self.configManager.get('footer')
-        return f'{header}\\n{content}{footer}\\n'
+        return f'<br>{header}{content}{footer}<br>'

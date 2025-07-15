@@ -49,9 +49,6 @@ class PdfDocumentProcessor:
             pdfFile = Path(pdfPath)
             if not pdfFile.exists() or not pdfFile.is_file():
                 return False
-            # Check file extension
-            if pdfFile.suffix.lower() != '.pdf':
-                return False
             # Try to open the PDF to validate it
             with pdfplumber.open(pdfPath) as pdf:
                 # Check if we can access at least one page
@@ -62,33 +59,6 @@ class PdfDocumentProcessor:
             return True
         except Exception:
             return False
-
-
-    def getPdfInfo(self, pdfPath: str) -> dict:
-        """Get basic information about a PDF file.
-
-        Args:
-            pdfPath: Path to the PDF file.
-
-        Returns:
-            Dictionary containing PDF information.
-
-        Raises:
-            ValueError: If PDF cannot be processed.
-            FileNotFoundError: If PDF file doesn't exist.
-        """
-        if not self.validatePdfFile(pdfPath):
-            raise ValueError(f"Invalid PDF file: {pdfPath}")
-        try:
-            with pdfplumber.open(pdfPath) as pdf:
-                return {
-                    'num_pages': len(pdf.pages),
-                    'metadata': pdf.metadata,
-                    'file_size': Path(pdfPath).stat().st_size,
-                    'file_path': pdfPath
-                }
-        except Exception as e:
-            raise ValueError(f"Error reading PDF information: {e}") from e
 
 
     def extractTextFromPage(self, pdfPath: str, pageNum: int) -> str:

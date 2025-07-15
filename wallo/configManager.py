@@ -27,16 +27,15 @@ class ConfigurationManager:
                     json.dump(defaultConfiguration, conf_file, indent=2)
             except IOError as e:
                 raise ValueError(f"Error creating default configuration file: {e}") from e
-
         try:
             with open(self.configFile, 'r', encoding='utf-8') as conf_file:
                 self._config = json.load(conf_file)
         except (json.JSONDecodeError, IOError) as e:
             raise ValueError(f"Error loading configuration file: {e}") from e
-        self._validateConfig()
+        self.validateConfig()
 
 
-    def _validateConfig(self) -> None:
+    def validateConfig(self) -> None:
         """Validate configuration file format and required fields."""
         requiredFields = ['prompts', 'services']
         for field in requiredFields:
@@ -60,8 +59,8 @@ class ConfigurationManager:
                     raise ValueError(f"Missing required field '{field}' in service '{serviceName}'")
 
 
-    def get(self, info:str) -> List[Dict[str, Any]]:
-        """Get all configured prompts."""
+    def get(self, info:str) -> Any:
+        """Get configuration value by key."""
         if info not in ['prompts', 'services', 'promptFooter', 'header', 'footer']:
             raise ValueError(f"Invalid info type '{info}' requested")
         if info in ['prompts', 'services']:
@@ -73,15 +72,17 @@ class ConfigurationManager:
 
     def getPromptByName(self, name: str) -> Optional[Dict[str, Any]]:
         """Get a specific prompt by name."""
-        for prompt in self._config['prompts']:
+        prompts = self._config['prompts']
+        for prompt in prompts:
             if prompt['name'] == name:
-                return prompt
+                return prompt  # type: ignore
         return None
 
 
     def getServiceByName(self, name: str) -> Optional[Dict[str, Any]]:
         """Get a specific service by name."""
-        return self._config['services'].get(name)
+        services = self._config['services']
+        return services.get(name)  # type: ignore
 
 
     def saveConfig(self) -> None:
@@ -96,5 +97,5 @@ class ConfigurationManager:
     def update_config(self, updates: Dict[str, Any]) -> None:
         """Update configuration with new values."""
         self._config.update(updates)
-        self._validateConfig()
+        self.validateConfig()
         self.saveConfig()

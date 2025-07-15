@@ -65,7 +65,7 @@ class Wallo(QMainWindow):
                     QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
                     return
                 selectedText = cursor.selectedText()
-                workParams = self.llmProcessor.processSelectionPrompt(promptName, serviceName, selectedText)
+                workParams = self.llmProcessor.processPrompt(promptName, serviceName, selectedText)
                 self.runWorker('chatAPI', workParams)
             elif attachmentType == 'pdf':
                 res = QFileDialog.getOpenFileName(self, "Open pdf file", str(Path.home()), '*.pdf')
@@ -75,7 +75,7 @@ class Wallo(QMainWindow):
                 if not self.documentProcessor.validatePdfFile(res[0]):
                     QMessageBox.warning(self, "Error", "Invalid PDF file selected")
                     return
-                workParams = self.llmProcessor.processPdfPrompt(promptName, serviceName, res[0])
+                workParams = self.llmProcessor.processPrompt(promptName, serviceName, res[0])
                 self.runWorker('pdfExtraction', workParams)
             elif attachmentType == 'inquiry':
                 if not cursor.hasSelection():
@@ -89,7 +89,7 @@ class Wallo(QMainWindow):
                 if not ok or not userInput:
                     return
                 selectedText = cursor.selectedText()
-                workParams = self.llmProcessor.processInquiryPrompt(promptName, serviceName, selectedText, userInput)
+                workParams = self.llmProcessor.processPrompt(promptName, serviceName, selectedText, userInput)
                 self.runWorker('chatAPI', workParams)
             else:
                 QMessageBox.warning(self, "Error", f"Unknown attachment type: {attachmentType}")
@@ -129,7 +129,8 @@ class Wallo(QMainWindow):
         toolbar.addSeparator()
         self.serviceCB = QComboBox()
         services = self.configManager.get('services')
-        self.serviceCB.addItems(list(services.keys()))
+        if isinstance(services, dict):
+            self.serviceCB.addItems(list(services.keys()))
         toolbar.addWidget(self.serviceCB)
 
 
@@ -217,7 +218,8 @@ class Wallo(QMainWindow):
         if progressbarInStatusbar:
             self.progressBar.setVisible(False)
         else:
-            self.progressDialog.close()
+            if self.progressDialog:
+                self.progressDialog.close()
 
         self.statusBar().clearMessage()
         cursor = self.editor.textCursor()
@@ -236,7 +238,8 @@ class Wallo(QMainWindow):
         if progressbarInStatusbar:
             self.progressBar.setVisible(False)
         else:
-            self.progressDialog.close()
+            if self.progressDialog:
+                self.progressDialog.close()
         self.statusBar().clearMessage()
         QMessageBox.critical(self, "Worker Error", errorMsg)
 
