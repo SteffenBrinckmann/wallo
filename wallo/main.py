@@ -1,5 +1,5 @@
 """ Main window for the Wallo application, providing a text editor with LLM assistance. """
-import sys, json
+import sys
 from typing import Any
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication, QMainWindow, QToolBar, QFileDialog, QMessageBox, QComboBox, # pylint: disable=no-name-in-module
@@ -8,11 +8,13 @@ from PySide6.QtGui import QTextCursor, QTextCharFormat, QFont, QAction     # pyl
 from PySide6.QtCore import QThread                                         # pylint: disable=no-name-in-module
 import qtawesome as qta
 # import pypandoc
-from openai import OpenAI
-from .fixedStrings import defaultConfiguration, progressbarInStatusbar, defaultHeader, defaultFooter, defaultPromptFooter
+from .fixedStrings import progressbarInStatusbar
 from .editor import TextEdit
 from .worker import Worker
 from .busyDialog import BusyDialog
+from .configManager import ConfigurationManager
+from .llmProcessor import LLMProcessor
+from .pdfDocumentProcessor import PdfDocumentProcessor
 
 
 class Wallo(QMainWindow):
@@ -28,10 +30,12 @@ class Wallo(QMainWindow):
         self.statusBar()  # Initialize the status bar
         self.editor.textChanged.connect(self.updateStatusBar)
         self.editor.selectionChanged.connect(self.updateStatusBar)
-        self.configFile = Path.home()/'.wallo.json'
-        if not self.configFile.is_file():
-            with open(self.configFile, 'w', encoding='utf-8') as confFile:
-                confFile.write(json.dumps(defaultConfiguration, indent=2))
+
+        # Initialize business logic components
+        self.configManager = ConfigurationManager()
+        self.llmProcessor = LLMProcessor(self.configManager)
+        self.documentProcessor = PdfDocumentProcessor()
+
         self.createToolbar()
         self.updateStatusBar()
         if progressbarInStatusbar:
@@ -48,53 +52,57 @@ class Wallo(QMainWindow):
             _ (int): The index of the selected item in the combo box.
         """
         cursor = self.editor.textCursor()
-        with open(self.configFile, 'r', encoding='utf-8') as fIn:
-            conf = json.load(fIn)
-        promptFooter = conf.get('promptFooter', defaultPromptFooter)
-        service = conf['services'][self.serviceCB.currentText()]
-        client = OpenAI(api_key=service['api'], base_url=service['url'])
-        confPrompt = [i for i in conf['prompts'] if i['name']==self.llmCB.currentData()][0]
-
-        if confPrompt['attachment'] == 'selection':
-            if not cursor.hasSelection():
-                QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
+        promptName = self.llmCB.currentData()
+        serviceName = self.serviceCB.currentText()
+        try:
+            promptConfig = self.configManager.getPromptByName(promptName)
+            if not promptConfig:
+                QMessageBox.warning(self, "Error", f"Prompt '{promptName}' not found")
                 return
-            prompt = confPrompt['user-prompt'] + '\n' + self.editor.textCursor().selectedText() + promptFooter
-            print(prompt)
-            self.runWorker('chatAPI', {'client':client, 'model':service['model'], 'prompt':prompt})
-
-        elif confPrompt['attachment'] == 'pdf':
-            res = QFileDialog.getOpenFileName(self, "Open pdf file", str(Path.home()), '*.pdf')
-            if not res or not res[0]:
+            attachmentType = promptConfig['attachment']
+            if attachmentType == 'selection':
+                if not cursor.hasSelection():
+                    QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
+                    return
+                selectedText = cursor.selectedText()
+                workParams = self.llmProcessor.processSelectionPrompt(promptName, serviceName, selectedText)
+                self.runWorker('chatAPI', workParams)
+            elif attachmentType == 'pdf':
+                res = QFileDialog.getOpenFileName(self, "Open pdf file", str(Path.home()), '*.pdf')
+                if not res or not res[0]:
+                    return
+                # Validate PDF file
+                if not self.documentProcessor.validatePdfFile(res[0]):
+                    QMessageBox.warning(self, "Error", "Invalid PDF file selected")
+                    return
+                workParams = self.llmProcessor.processPdfPrompt(promptName, serviceName, res[0])
+                self.runWorker('pdfExtraction', workParams)
+            elif attachmentType == 'inquiry':
+                if not cursor.hasSelection():
+                    QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
+                    return
+                inquiryText = self.llmProcessor.getInquiryText(promptName)
+                if not inquiryText:
+                    QMessageBox.warning(self, "Error", "Invalid inquiry prompt configuration")
+                    return
+                userInput, ok = QInputDialog.getText(self, "Enter input", f"Please enter {inquiryText}")
+                if not ok or not userInput:
+                    return
+                selectedText = cursor.selectedText()
+                workParams = self.llmProcessor.processInquiryPrompt(promptName, serviceName, selectedText, userInput)
+                self.runWorker('chatAPI', workParams)
+            else:
+                QMessageBox.warning(self, "Error", f"Unknown attachment type: {attachmentType}")
                 return
-            prompt = confPrompt['user-prompt']+ promptFooter+'\n'
-            print(prompt)
-            self.runWorker('pdfExtraction', {'client':client, 'model':service['model'],'prompt':prompt,
-                                             'fileName':res[0]})
-
-        elif confPrompt['attachment'] == 'inquiry':
-            if not cursor.hasSelection():
-                QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
-                return
-            inquiryText = confPrompt['user-prompt'].split('|')[1]
-            text, ok = QInputDialog.getText(self, "Enter number", f"Please enter {inquiryText}")
-            if ok and text:
-                prompt = confPrompt['user-prompt'].replace('|'+inquiryText+'|',text) + '\n\n' + \
-                         self.editor.textCursor().selectedText() +'\n'+promptFooter
-            print(prompt)
-            self.runWorker('chatAPI', {'client':client, 'model':service['model'], 'prompt':prompt})
-
-        else:
-            print('ERROR unknown attachment')
-            return
-        return
+        except ValueError as e:
+            QMessageBox.critical(self, "Configuration Error", str(e))
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An unexpected error occurred: {str(e)}")
 
 
 
     def createToolbar(self) -> None:
         """ Create the toolbar with formatting actions and LLM selection"""
-        with open(self.configFile, 'r', encoding='utf-8') as fIn:
-            conf = json.load(fIn)
         toolbar = QToolBar("Formatting")
         self.addToolBar(toolbar)
         boldAction = QAction('', self, icon=qta.icon('fa5s.bold'))           # Bold
@@ -112,14 +120,16 @@ class Wallo(QMainWindow):
         # add LLM selections
         toolbar.addSeparator()
         self.llmCB = QComboBox()
-        for i in conf['prompts']:
-            self.llmCB.addItem(i['description'], i['name'])
+        prompts = self.configManager.get('prompts')
+        for prompt in prompts:
+            self.llmCB.addItem(prompt['description'], prompt['name'])
         self.llmCB.activated.connect(self.useLLM)
         toolbar.addWidget(self.llmCB)
         # add service selection
         toolbar.addSeparator()
         self.serviceCB = QComboBox()
-        self.serviceCB.addItems([k for k,_ in conf['services'].items()])
+        services = self.configManager.get('services')
+        self.serviceCB.addItems(list(services.keys()))
         toolbar.addWidget(self.serviceCB)
 
 
@@ -198,6 +208,7 @@ class Wallo(QMainWindow):
         self.subThread.finished.connect(self.subThread.deleteLater)
         self.subThread.start()
 
+
     def onLLMFinished(self, content:str) -> None:
         """ Handle the completion of the LLM worker.
         Args:
@@ -207,17 +218,15 @@ class Wallo(QMainWindow):
             self.progressBar.setVisible(False)
         else:
             self.progressDialog.close()
-        with open(self.configFile, 'r', encoding='utf-8') as fIn:
-            conf = json.load(fIn)
+
         self.statusBar().clearMessage()
         cursor = self.editor.textCursor()
         cursor.setPosition(cursor.selectionEnd())
-        content = content.strip()
-        if content.endswith('```'):
-            content = content[:-3].strip()
-        if content.startswith('```'):
-            content = content.split('\n', 1)[-1].strip()
-        cursor.insertHtml(f'{conf.get('header','') or defaultHeader}\n{content}{conf.get('footer','') or defaultFooter}\n')
+        # Process the content using the LLM processor
+        processContent = self.llmProcessor.processLLMResponse(content)
+        formattedContent = self.llmProcessor.formatResponseForEditor(processContent)
+        cursor.insertHtml(formattedContent)
+
 
     def onLLMError(self, errorMsg:str) -> None:
         """ Handle errors from the LLM worker.

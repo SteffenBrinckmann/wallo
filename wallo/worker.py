@@ -1,7 +1,7 @@
 """ Worker class to handle background tasks such as LLM processing or PDF extraction."""
 from typing import Any
 from PySide6.QtCore import Signal, QObject  # pylint: disable=no-name-in-module
-import pdfplumber
+from .pdfDocumentProcessor import PdfDocumentProcessor
 
 class Worker(QObject):
     """ Worker class to handle background tasks such as LLM processing or PDF extraction."""
@@ -21,6 +21,7 @@ class Worker(QObject):
         self.model    = objects['model']
         self.prompt   = objects['prompt']
         self.fileName = objects.get('fileName','')
+        self.documentProcessor = PdfDocumentProcessor()
 
 
     def run(self) -> None:
@@ -29,10 +30,7 @@ class Worker(QObject):
             content = ''
             # Work before LLM
             if self.workType == 'pdfExtraction':
-                with pdfplumber.open(self.fileName) as pdf:
-                    content = "\n".join(page.extract_text() or "" for page in pdf.pages)
-                if not content.strip():
-                    raise ValueError("PDF Error: No text found in the PDF.")
+                content = self.documentProcessor.extractTextFromPdf(self.fileName)
             # LLM work
             messages = [{'role': 'system', 'content': 'You are a helpful assistant.'},
                         {'role': 'user', 'content': self.prompt+content}]

@@ -24,7 +24,3 @@ defaultConfiguration = {
 }
 
 progressbarInStatusbar = True                    # True to show progress bar in status bar, False for dialog
-defaultHeader = f'\n{"-"*5} Start LLM generated {"-"*5}' # header for LLM generated content
-defaultFooter = f'\n{"-"*5}  End LLM generated  {"-"*5}' # footer for LLM generated content
-
-defaultPromptFooter = '\n Please reply with html formatted text.'
