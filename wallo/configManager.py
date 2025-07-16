@@ -2,7 +2,30 @@
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
-from .fixedStrings import defaultConfiguration
+
+DEFAULT_CONFIGURATION = {
+    'prompts': [
+        {
+            'name': 'Professional',
+            'description': 'Make the text professional',
+            'user-prompt': 'Can you make the following paragraph more professional and polished:',
+            'attachment':  'selection'
+        },
+        {
+        "name": "summarize_paper",
+        "description": "Summarize pdf after uploading it",
+        "user-prompt": "Can you summarize the following paper:",
+        "attachment":  "pdf"
+        }
+    ],
+    'services': {
+        'openAI': {'url':'', 'api':None, 'model': 'gpt-4o'}
+    },
+  "promptFooter": "\nPlease reply with the html formatted string only",
+  "footer": f'\n{"-"*5} Start LLM generated {"-"*5}',
+  "header": f'\n{"-"*5}  End LLM generated  {"-"*5}'
+}
+
 
 class ConfigurationManager:
     """Handles configuration loading, validation, and management."""
@@ -24,7 +47,7 @@ class ConfigurationManager:
             # Create default configuration file
             try:
                 with open(self.configFile, 'w', encoding='utf-8') as confFile:
-                    json.dump(defaultConfiguration, confFile, indent=2)
+                    json.dump(DEFAULT_CONFIGURATION, confFile, indent=2)
             except IOError as e:
                 raise ValueError(f"Error creating default configuration file: {e}") from e
         try:
@@ -66,7 +89,7 @@ class ConfigurationManager:
         if info in ['prompts', 'services']:
             return self._config[info]
         if info in ['promptFooter', 'header', 'footer']:
-            return self._config.get(info, defaultConfiguration[info])
+            return self._config.get(info, DEFAULT_CONFIGURATION[info])
         return []
 
 
