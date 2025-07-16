@@ -33,4 +33,9 @@ Prompts and services are saved in .wallo.json file in your home folder.
 
 - Word wrap does not work with long copy-paste content
 - pyInstaller to easily install on windows
-- pip
+
+## Upload to pypi
+How to upload to pypi
+- python3 -m build
+- python3 -m twine upload dist/*
+

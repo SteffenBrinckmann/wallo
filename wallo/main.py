@@ -164,7 +164,7 @@ class Wallo(QMainWindow):
                 self.llmCB.addItem(prompt['description'], prompt['name'])
         self.llmCB.activated.connect(self.useLLM)
         toolbar.addWidget(self.llmCB)
-        clearFormatAction = QAction('', self, icon=qta.icon('fa5s.eraser'), toolTip='Clear all formatting')
+        clearFormatAction = QAction('', self, icon=qta.icon('fa5s.eraser'), toolTip='Clear all formatting', shortcut=QKeySequence('Ctrl+Space'))
         clearFormatAction.triggered.connect(self.clearFormatting)
         toolbar.addAction(clearFormatAction)
         wideSep3 = QWidget()
