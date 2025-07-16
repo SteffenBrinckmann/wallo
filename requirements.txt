@@ -2,4 +2,4 @@ pyside6
 QtAwesome
 openai
 pdfplumber
-pypandoc
+python-docx

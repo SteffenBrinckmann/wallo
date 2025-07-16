@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QToolBar, QFileDialog,
 from PySide6.QtGui import QTextCursor, QTextCharFormat, QFont, QAction, QColor, QKeySequence     # pylint: disable=no-name-in-module
 from PySide6.QtCore import QThread                                         # pylint: disable=no-name-in-module
 import qtawesome as qta
-# import pypandoc
 from .editor import TextEdit
 from .worker import Worker
 from .busyDialog import BusyDialog
@@ -15,6 +14,7 @@ from .configManager import ConfigurationManager
 from .llmProcessor import LLMProcessor
 from .pdfDocumentProcessor import PdfDocumentProcessor
 from .configurationWidget import ConfigurationWidget
+from .docxExport import DocxExporter
 
 PROGRESS_BAR_IN_STATUSBAR = True                    # True to show progress bar in status bar, False for dialog
 
@@ -40,6 +40,7 @@ class Wallo(QMainWindow):
         self.llmProcessor = LLMProcessor(self.configManager)
         self.documentProcessor = PdfDocumentProcessor()
         self.configWidget: ConfigurationWidget | None = None
+        self.docxExporter = DocxExporter(self)
 
         self.createToolbar()
         self.updateStatusBar()
@@ -224,11 +225,7 @@ class Wallo(QMainWindow):
         """ Save the content of the editor as a .docx file."""
         filename, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Word Files (*.docx)")
         if filename:
-            html = self.editor.toHtml()
-            print(html)
-            # Does not conserve format
-            # pypandoc.download_pandoc()
-            # pypandoc.convert_text(html, 'docx', format='html', outputfile=filename)
+            self.docxExporter.exportToDocx(self.editor, filename)
 
 
     def updateStatusBar(self) -> None:
