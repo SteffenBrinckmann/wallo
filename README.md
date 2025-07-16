@@ -1,6 +1,6 @@
 ![Logo](images/wallo.png "Logo")
 
-# WALLO - Writing Assistant based on Large Language mOdels
+# WALLO - Writing Assistant leveraging Large Language mOdels
 
 Often you have to write a text and forget all the helpful prompts that you used in the past. This tool helps to reduce the copy-paste from your local prompt-library and into the LLM-tools.
 
