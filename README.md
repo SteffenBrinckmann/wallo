@@ -10,32 +10,49 @@ This program has been heavily written by Claude; at a certain point I let it jus
 
 
 ## Installation and usage
+### Using pypi
+```bash
+  python -m venv .venv
+  . .venv/bin/activate
+  pip install wallo
+```
 
-Installation:
+### Github
 ```bash
   git clone git@github.com:SteffenBrinckmann/wallo.git
   cd wallo/
   python -m venv .venv
+  . .venv/bin/activate
   pip install -r requirements.txt
 ```
+
+### Usage
 Usage:
 ```bash
   . .venv/bin/activate
   python -m wallo.main
 ```
 
+
 ## Configuration
 
 Prompts and services are saved in .wallo.json file in your home folder.
 
-
-## Things I might/might not add
+## Development
+### Things I might/might not add
 
 - Word wrap does not work with long copy-paste content
 - pyInstaller to easily install on windows
 
-## Upload to pypi
+### Upload to pypi
 How to upload to pypi
-- python3 -m build
-- python3 -m twine upload dist/*
+
+1. Update version number in pyproject.toml
+2. Execute commands
+    ``` bash
+      mypy wallo/
+      pylint wallo/
+      python3 -m build
+      python3 -m twine upload dist/*
+    ```
 
