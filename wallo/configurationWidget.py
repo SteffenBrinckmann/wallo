@@ -1,10 +1,9 @@
 """Configuration widget for managing application settings."""
 from typing import Dict, Any, Optional
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QListWidget,
-                               QPushButton, QLineEdit, QLabel, QFormLayout, QComboBox,
-                               QTextEdit, QMessageBox, QDialog, QDialogButtonBox,
-                               QListWidgetItem, QGroupBox)
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QListWidget,  # pylint: disable=no-name-in-module
+                               QPushButton, QLineEdit, QLabel, QFormLayout, QComboBox, QTextEdit, QMessageBox,
+                               QDialog, QDialogButtonBox, QListWidgetItem, QGroupBox)
+from PySide6.QtCore import Qt, Signal                                                       # pylint: disable=no-name-in-module
 from .configManager import ConfigurationManager
 
 
@@ -37,7 +36,7 @@ class PromptEditDialog(QDialog):
         formLayout.addRow("Attachment Type:", self.attachmentCombo)
         layout.addLayout(formLayout)
         # Button box
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
         layout.addWidget(buttonBox)
@@ -83,7 +82,8 @@ class PromptEditDialog(QDialog):
 class ServiceEditDialog(QDialog):
     """Dialog for editing service configuration."""
 
-    def __init__(self, serviceName: str = "", service: Optional[Dict[str, Any]] = None, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, serviceName: str = "", service: Optional[Dict[str, Any]] = None,
+                 parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Edit Service" if service else "Add Service")
         self.setModal(True)
@@ -108,7 +108,7 @@ class ServiceEditDialog(QDialog):
         formLayout.addRow("Model:", self.modelEdit)
         layout.addLayout(formLayout)
         # Button box
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
         layout.addWidget(buttonBox)
@@ -207,17 +207,18 @@ class PromptTab(QWidget):
         prompts = self.configManager.get('prompts')
         for prompt in prompts:
             item = QListWidgetItem(prompt['description'])
-            item.setData(Qt.UserRole, prompt)
+            item.setData(Qt.ItemDataRole.UserRole, prompt)
             self.promptList.addItem(item)
 
 
-    def onPromptSelectionChanged(self, current: Optional[QListWidgetItem], previous: Optional[QListWidgetItem]) -> None:
+    def onPromptSelectionChanged(self, current: Optional[QListWidgetItem],
+                                 _: Optional[QListWidgetItem]) -> None:
         """Handle prompt selection change."""
         hasSelection = current is not None
         self.editPromptBtn.setEnabled(hasSelection)
         self.deletePromptBtn.setEnabled(hasSelection)
         if current:
-            prompt = current.data(Qt.UserRole)
+            prompt = current.data(Qt.ItemDataRole.UserRole)
             self.nameLabel.setText(prompt['name'])
             self.descriptionLabel.setText(prompt['description'])
             self.attachmentLabel.setText(prompt['attachment'])
@@ -232,7 +233,7 @@ class PromptTab(QWidget):
     def addPrompt(self) -> None:
         """Add a new prompt."""
         dialog = PromptEditDialog(parent=self)
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             newPrompt = dialog.getPrompt()
             prompts = self.configManager.get('prompts')
             prompts.append(newPrompt)
@@ -245,9 +246,9 @@ class PromptTab(QWidget):
         current = self.promptList.currentItem()
         if not current:
             return
-        prompt = current.data(Qt.UserRole)
+        prompt = current.data(Qt.ItemDataRole.UserRole)
         dialog = PromptEditDialog(prompt, parent=self)
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             updatedPrompt = dialog.getPrompt()
             prompts = self.configManager.get('prompts')
             for i, p in enumerate(prompts):
@@ -263,15 +264,15 @@ class PromptTab(QWidget):
         current = self.promptList.currentItem()
         if not current:
             return
-        prompt = current.data(Qt.UserRole)
+        prompt = current.data(Qt.ItemDataRole.UserRole)
         result = QMessageBox.question(
             self,
             "Confirm Delete",
             f"Are you sure you want to delete the prompt '{prompt['description']}'?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
-        if result == QMessageBox.Yes:
+        if result == QMessageBox.StandardButton.Yes:
             prompts = self.configManager.get('prompts')
             prompts = [p for p in prompts if p['name'] != prompt['name']]
             self.configManager.updateConfig({'prompts': prompts})
@@ -338,17 +339,18 @@ class ServiceTab(QWidget):
         services = self.configManager.get('services')
         for serviceName, service in services.items():
             item = QListWidgetItem(serviceName)
-            item.setData(Qt.UserRole, (serviceName, service))
+            item.setData(Qt.ItemDataRole.UserRole, (serviceName, service))
             self.serviceList.addItem(item)
 
 
-    def onServiceSelectionChanged(self, current: Optional[QListWidgetItem], previous: Optional[QListWidgetItem]) -> None:
+    def onServiceSelectionChanged(self, current: Optional[QListWidgetItem],
+                                  _: Optional[QListWidgetItem]) -> None:
         """Handle service selection change."""
         hasSelection = current is not None
         self.editServiceBtn.setEnabled(hasSelection)
         self.deleteServiceBtn.setEnabled(hasSelection)
         if current:
-            serviceName, service = current.data(Qt.UserRole)
+            serviceName, service = current.data(Qt.ItemDataRole.UserRole)
             self.nameLabel.setText(serviceName)
             self.urlLabel.setText(service.get('url', ''))
             self.apiLabel.setText('***' if service.get('api') else 'None')
@@ -363,7 +365,7 @@ class ServiceTab(QWidget):
     def addService(self) -> None:
         """Add a new service."""
         dialog = ServiceEditDialog(parent=self)
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             serviceName, service = dialog.getService()
             services = self.configManager.get('services')
             services[serviceName] = service
@@ -376,9 +378,9 @@ class ServiceTab(QWidget):
         current = self.serviceList.currentItem()
         if not current:
             return
-        serviceName, service = current.data(Qt.UserRole)
+        serviceName, service = current.data(Qt.ItemDataRole.UserRole)
         dialog = ServiceEditDialog(serviceName, service, parent=self)
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             newServiceName, updatedService = dialog.getService()
             services = self.configManager.get('services')
             # Remove old service if name changed
@@ -394,15 +396,15 @@ class ServiceTab(QWidget):
         current = self.serviceList.currentItem()
         if not current:
             return
-        serviceName, _ = current.data(Qt.UserRole)
+        serviceName, _ = current.data(Qt.ItemDataRole.UserRole)
         result = QMessageBox.question(
             self,
             "Confirm Delete",
             f"Are you sure you want to delete the service '{serviceName}'?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
-        if result == QMessageBox.Yes:
+        if result == QMessageBox.StandardButton.Yes:
             services = self.configManager.get('services')
             del services[serviceName]
             self.configManager.updateConfig({'services': services})
@@ -490,7 +492,7 @@ class ConfigurationWidget(QWidget):
         layout.addLayout(buttonLayout)
 
 
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, event: Any) -> None:
         """Handle close event."""
         self.configChanged.emit()
         super().closeEvent(event)
