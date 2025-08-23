@@ -18,6 +18,12 @@ DEFAULT_CONFIGURATION = {
         "attachment":  "pdf"
         }
     ],
+    'system-prompts': [
+        {
+            'name': 'Default',
+            'system-prompt': 'You are a helpful assistant.',
+        }
+    ],
     'services': {
         'openAI': {'url':'', 'api':None, 'model': 'gpt-4o'}
     },
@@ -62,7 +68,7 @@ class ConfigurationManager:
 
     def validateConfig(self) -> None:
         """Validate configuration file format and required fields."""
-        requiredFields = ['prompts', 'services']
+        requiredFields = ['prompts', 'services','system-prompts']
         for field in requiredFields:
             if field not in self._config:
                 raise ValueError(f"Missing required field '{field}' in configuration")
@@ -76,6 +82,12 @@ class ConfigurationManager:
             for field in requiredPromptFields:
                 if field not in prompt:
                     raise ValueError(f"Missing required field '{field}' in prompt {i}")
+        # Validate prompt structure
+        for i, prompt in enumerate(self._config['system-prompts']):
+            requiredPromptFields = ['name', 'system-prompt']
+            for field in requiredPromptFields:
+                if field not in prompt:
+                    raise ValueError(f"Missing required field '{field}' in system-prompt {i}")
         # Validate service structure
         for serviceName, serviceConfig in self._config['services'].items():
             requiredServiceFields = ['url', 'api', 'model']
@@ -86,9 +98,10 @@ class ConfigurationManager:
 
     def get(self, info:str) -> Any:
         """Get configuration value by key."""
-        if info not in ['prompts', 'services', 'promptFooter', 'header', 'footer','colorOriginal','colorReply']:
+        if info not in ['prompts', 'system-prompts','services', 'promptFooter', 'header', 'footer',
+                        'colorOriginal','colorReply']:
             raise ValueError(f"Invalid info type '{info}' requested")
-        if info in ['prompts', 'services']:
+        if info in ['prompts', 'system-prompts', 'services']:
             return self._config[info]
         if info in ['promptFooter', 'header', 'footer','colorOriginal','colorReply']:
             return self._config.get(info, DEFAULT_CONFIGURATION[info])

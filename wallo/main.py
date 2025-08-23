@@ -10,10 +10,10 @@ import qtawesome as qta
 from .editor import TextEdit
 from .worker import Worker
 from .busyDialog import BusyDialog
-from .configManager import ConfigurationManager
+from .configFileManager import ConfigurationManager
 from .llmProcessor import LLMProcessor
 from .pdfDocumentProcessor import PdfDocumentProcessor
-from .configurationWidget import ConfigurationWidget
+from .configMain import ConfigurationWidget
 from .docxExport import DocxExporter
 
 progressBarInStatusBar = True  # True to show progress bar in status bar, False for dialog
@@ -164,7 +164,8 @@ class Wallo(QMainWindow):
                 self.llmCB.addItem(prompt['description'], prompt['name'])
         self.llmCB.activated.connect(self.useLLM)
         toolbar.addWidget(self.llmCB)
-        clearFormatAction = QAction('', self, icon=qta.icon('fa5s.eraser'), toolTip='Clear all formatting', shortcut=QKeySequence('Ctrl+Space'))
+        clearFormatAction = QAction('', self, icon=qta.icon('fa5s.eraser'), toolTip='Clear all formatting',
+                                    shortcut=QKeySequence('Ctrl+Space'))
         clearFormatAction.triggered.connect(self.clearFormatting)
         toolbar.addAction(clearFormatAction)
         wideSep3 = QWidget()
@@ -177,7 +178,8 @@ class Wallo(QMainWindow):
         if isinstance(services, dict):
             self.serviceCB.addItems(list(services.keys()))
         toolbar.addWidget(self.serviceCB)
-        configAction = QAction('', self, icon=qta.icon('fa5s.cog'), toolTip='Configuration')
+        configAction = QAction('', self, icon=qta.icon('fa5s.cog'), toolTip='Configuration',
+                               shortcut=QKeySequence('Ctrl+0'))
         configAction.triggered.connect(self.showConfiguration)
         toolbar.addAction(configAction)
 
@@ -297,7 +299,7 @@ class Wallo(QMainWindow):
         footer = self.llmProcessor.configManager.get('footer')
 
         # Wrap the content in green color HTML span
-        replyColor = QColor(self.configManager.get('colorReply')).getRgb()[:3]
+        replyColor = QColor(self.configManager.get('colorReply')).getRgb()[:3] # type: ignore[index]
         styledContent = f'<span style="color: rgb{replyColor};">{processContent}</span>'
         fullContent = f"<br>{header}{styledContent}{footer}<br>"
         cursor.insertHtml(fullContent)

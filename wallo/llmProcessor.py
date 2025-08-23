@@ -1,7 +1,7 @@
 """LLM processing and interaction logic for the Wallo application."""
 from typing import Dict, Any, Optional
 from openai import OpenAI
-from .configManager import ConfigurationManager
+from .configFileManager import ConfigurationManager
 
 class LLMProcessor:
     """Handles LLM API interactions and prompt processing."""
