@@ -2,8 +2,9 @@
 from typing import Dict, Any, Optional
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QListWidget,  # pylint: disable=no-name-in-module
                                QPushButton, QLineEdit, QLabel, QFormLayout, QComboBox, QTextEdit, QMessageBox,
-                               QDialog, QDialogButtonBox, QListWidgetItem, QGroupBox)
+                               QDialog, QDialogButtonBox, QListWidgetItem, QGroupBox, QColorDialog)
 from PySide6.QtCore import Qt, Signal                                                       # pylint: disable=no-name-in-module
+from PySide6.QtGui import QColor                                                            # pylint: disable=no-name-in-module
 from .configManager import ConfigurationManager
 
 
@@ -425,6 +426,29 @@ class StringTab(QWidget):
         """Setup the tab UI."""
         layout = QVBoxLayout(self)
         formLayout = QFormLayout()
+
+        self.colorLabel1 = QLabel()
+        self.colorLabel1.setFixedWidth(60)
+        self.colorLabel1.setAutoFillBackground(True)
+        self.colorBtn1 = QPushButton("Choose original text color")
+        self.colorBtn1.clicked.connect(lambda: self.chooseColor('Original'))
+        colorLayout1 = QHBoxLayout()
+        colorLayout1.addWidget(self.colorBtn1)
+        colorLayout1.addWidget(self.colorLabel1)
+        formLayout.addRow("Original text Color:", colorLayout1)
+
+        self.colorLabel2 = QLabel()
+        self.colorLabel2.setFixedWidth(60)
+        self.colorLabel2.setAutoFillBackground(True)
+        self.colorBtn2 = QPushButton("Choose reply text color")
+        self.colorBtn2.clicked.connect(lambda: self.chooseColor('Reply'))
+        colorLayout2 = QHBoxLayout()
+        colorLayout2.addWidget(self.colorBtn2)
+        colorLayout2.addWidget(self.colorLabel2)
+        formLayout.addRow("Reply text Color:", colorLayout2)
+        self.updateColorLabel()
+
+
         self.headerEdit = QLineEdit()
         formLayout.addRow("Header:", self.headerEdit)
         self.footerEdit = QLineEdit()
@@ -440,6 +464,27 @@ class StringTab(QWidget):
         buttonLayout.addStretch()
         layout.addLayout(buttonLayout)
         layout.addStretch()
+
+    def chooseColor(self, key: str) -> None:
+        """Open color dialog to choose a color."""
+        currentColor = self.configManager.get(f'color{key}')
+        color = QColorDialog.getColor(QColor(currentColor), self, "Select Color")
+        if color.isValid():
+            colorHex = color.name()
+            self.configManager.updateConfig({f'color{key}': colorHex})
+            self.updateColorLabel()
+
+    def updateColorLabel(self) -> None:
+        """Update color labels to show current colors."""
+        color1 = self.configManager.get('colorOriginal')
+        palette1 = self.colorLabel1.palette()
+        palette1.setColor(self.colorLabel1.backgroundRole(), color1)
+        self.colorLabel1.setPalette(palette1)
+
+        color2 = self.configManager.get('colorReply')
+        palette2 = self.colorLabel2.palette()
+        palette2.setColor(self.colorLabel2.backgroundRole(), color2)
+        self.colorLabel2.setPalette(palette2)
 
 
     def loadStrings(self) -> None:

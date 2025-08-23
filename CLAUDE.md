@@ -67,15 +67,7 @@ The application uses a JSON configuration file (`~/.wallo.json`) that includes:
 - **pypandoc**: Document conversion (currently commented out)
 - **pdfplumber**: PDF text extraction
 
-### Style
+### Code Standards
 - use camelCase for everything: no snake_case
-- use to empty lines between each function
+- use two empty lines between each function
 - no empty lines within a function
-
-### Type Checking Configuration
-
-The project uses mypy with strict settings:
-- `disallow_untyped_defs = true`
-- `check_untyped_defs = true`
-- `warn_unused_ignores = true`
-- `ignore_missing_imports = true`

@@ -283,7 +283,7 @@ class Wallo(QMainWindow):
             cursor.setPosition(self.selectedTextStart)
             cursor.setPosition(self.selectedTextEnd, QTextCursor.MoveMode.KeepAnchor)
             blueFormat = QTextCharFormat()
-            blueFormat.setForeground(QColor(0, 0, 255))  # Blue color
+            blueFormat.setForeground(QColor(self.configManager.get('colorOriginal')))
             cursor.mergeCharFormat(blueFormat)
 
         # Position cursor at the end for inserting new content
@@ -297,7 +297,8 @@ class Wallo(QMainWindow):
         footer = self.llmProcessor.configManager.get('footer')
 
         # Wrap the content in green color HTML span
-        styledContent = f'<span style="color: rgb(0, 128, 0);">{processContent}</span>'
+        replyColor = QColor(self.configManager.get('colorReply')).getRgb()[:3]
+        styledContent = f'<span style="color: rgb{replyColor};">{processContent}</span>'
         fullContent = f"<br>{header}{styledContent}{footer}<br>"
         cursor.insertHtml(fullContent)
 

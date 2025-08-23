@@ -23,7 +23,9 @@ DEFAULT_CONFIGURATION = {
     },
   "promptFooter": "\nPlease reply with the html formatted string only",
   "footer": f'\n{"-"*5} Start LLM generated {"-"*5}',
-  "header": f'\n{"-"*5}  End LLM generated  {"-"*5}'
+  "header": f'\n{"-"*5}  End LLM generated  {"-"*5}',
+  "colorOriginal": "#000000",
+  "colorReply":  "#0000FF"
 }
 
 
@@ -84,11 +86,11 @@ class ConfigurationManager:
 
     def get(self, info:str) -> Any:
         """Get configuration value by key."""
-        if info not in ['prompts', 'services', 'promptFooter', 'header', 'footer']:
+        if info not in ['prompts', 'services', 'promptFooter', 'header', 'footer','colorOriginal','colorReply']:
             raise ValueError(f"Invalid info type '{info}' requested")
         if info in ['prompts', 'services']:
             return self._config[info]
-        if info in ['promptFooter', 'header', 'footer']:
+        if info in ['promptFooter', 'header', 'footer','colorOriginal','colorReply']:
             return self._config.get(info, DEFAULT_CONFIGURATION[info])
         return []
 
