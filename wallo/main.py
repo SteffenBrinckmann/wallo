@@ -122,30 +122,38 @@ class Wallo(QMainWindow):
 
     def createToolbar(self) -> None:
         """ Create the toolbar with formatting actions and LLM selection"""
-        toolbar = QToolBar("Main")
+        # Remove existing toolbar if present
+        if getattr(self, 'toolbar', None):
+            try:
+                self.removeToolBar(self.toolbar)
+            except Exception:
+                pass
+            self.toolbar.deleteLater()
+            self.toolbar = None
+        self.toolbar = QToolBar("Main")
         # formats
-        self.addToolBar(toolbar)
+        self.addToolBar(self.toolbar)
         boldAction = QAction('', self, icon=qta.icon('fa5s.bold'))           # Bold
         boldAction.triggered.connect(self.toggleBold)
-        toolbar.addAction(boldAction)
+        self.toolbar.addAction(boldAction)
         italicAction = QAction('', self, icon=qta.icon('fa5s.italic'))       # Italic
         italicAction.triggered.connect(self.toggleItalic)
-        toolbar.addAction(italicAction)
+        self.toolbar.addAction(italicAction)
         underlineAction = QAction('', self, icon=qta.icon('fa5s.underline')) # Underline
         underlineAction.triggered.connect(self.toggleUnderline)
-        toolbar.addAction(underlineAction)
+        self.toolbar.addAction(underlineAction)
         wideSep1 = QWidget()
         wideSep1.setFixedWidth(20)
-        toolbar.addWidget(wideSep1)
+        self.toolbar.addWidget(wideSep1)
         # save action
         saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='save as docx')# Save as docx
         saveAction.triggered.connect(self.saveDocx)
-        toolbar.addAction(saveAction)
+        self.toolbar.addAction(saveAction)
         wideSep2 = QWidget()
         wideSep2.setFixedWidth(20)
-        toolbar.addWidget(wideSep2)
+        self.toolbar.addWidget(wideSep2)
         # add LLM selections
-        toolbar.addSeparator()
+        self.toolbar.addSeparator()
         self.llmCB = QComboBox()
         prompts = self.configManager.get('prompts')
         for i, prompt in enumerate(prompts):
@@ -163,25 +171,25 @@ class Wallo(QMainWindow):
             else:
                 self.llmCB.addItem(prompt['description'], prompt['name'])
         self.llmCB.activated.connect(self.useLLM)
-        toolbar.addWidget(self.llmCB)
+        self.toolbar.addWidget(self.llmCB)
         clearFormatAction = QAction('', self, icon=qta.icon('fa5s.eraser'), toolTip='Clear all formatting',
                                     shortcut=QKeySequence('Ctrl+Space'))
         clearFormatAction.triggered.connect(self.clearFormatting)
-        toolbar.addAction(clearFormatAction)
+        self.toolbar.addAction(clearFormatAction)
         wideSep3 = QWidget()
         wideSep3.setFixedWidth(20)
-        toolbar.addWidget(wideSep3)
+        self.toolbar.addWidget(wideSep3)
         # add service selection
-        toolbar.addSeparator()
+        self.toolbar.addSeparator()
         self.serviceCB = QComboBox()
         services = self.configManager.get('services')
         if isinstance(services, dict):
             self.serviceCB.addItems(list(services.keys()))
-        toolbar.addWidget(self.serviceCB)
+        self.toolbar.addWidget(self.serviceCB)
         configAction = QAction('', self, icon=qta.icon('fa5s.cog'), toolTip='Configuration',
                                shortcut=QKeySequence('Ctrl+0'))
         configAction.triggered.connect(self.showConfiguration)
-        toolbar.addAction(configAction)
+        self.toolbar.addAction(configAction)
 
 
     def toggleBold(self) -> None:

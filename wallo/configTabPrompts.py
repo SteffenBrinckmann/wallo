@@ -21,6 +21,7 @@ class PromptTab(QWidget):
         super().__init__(parent)
         self.configManager = configManager
         self.cType = cType
+        self.prompts = 'prompts' if self.cType == PromptType.PROMPT else 'system-prompts'
         self.setupUI()
         self.loadPrompts()
 
@@ -76,14 +77,13 @@ class PromptTab(QWidget):
     def loadPrompts(self) -> None:
         """Load prompts from configuration."""
         self.promptList.clear()
+        prompts = self.configManager.get(self.prompts)
         if self.cType == PromptType.PROMPT:
-            prompts = self.configManager.get('prompts')
             for prompt in prompts:
                 item = QListWidgetItem(prompt['description'])
                 item.setData(Qt.ItemDataRole.UserRole, prompt)
                 self.promptList.addItem(item)
         else:
-            prompts = self.configManager.get('system-prompts')
             for prompt in prompts:
                 item = QListWidgetItem(prompt['name'])
                 item.setData(Qt.ItemDataRole.UserRole, prompt)
@@ -118,14 +118,9 @@ class PromptTab(QWidget):
         dialog = PromptEditDialog(cType=self.cType, parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             newPrompt = dialog.getPrompt()
-            if self.cType == PromptType.PROMPT:
-                prompts = self.configManager.get('prompts')
-                prompts.append(newPrompt)
-                self.configManager.updateConfig({'prompts': prompts})
-            else:
-                prompts = self.configManager.get('system-prompts')
-                prompts.append(newPrompt)
-                self.configManager.updateConfig({'system-prompts': prompts})
+            prompts = self.configManager.get(self.prompts)
+            prompts.append(newPrompt)
+            self.configManager.updateConfig({self.prompts: prompts})
             self.loadPrompts()
 
 
@@ -138,12 +133,12 @@ class PromptTab(QWidget):
         dialog = PromptEditDialog(prompt, cType=self.cType, parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             updatedPrompt = dialog.getPrompt()
-            prompts = self.configManager.get('prompts')
+            prompts = self.configManager.get(self.prompts)
             for i, p in enumerate(prompts):
                 if p['name'] == prompt['name']:
                     prompts[i] = updatedPrompt
                     break
-            self.configManager.updateConfig({'prompts': prompts})
+            self.configManager.updateConfig({self.prompts: prompts})
             self.loadPrompts()
 
 
@@ -212,13 +207,15 @@ class PromptEditDialog(QDialog):
         """Load prompt data into form fields."""
         if self.prompt:
             self.nameEdit.setText(self.prompt.get('name', ''))
-            self.userPromptEdit.setPlainText(self.prompt.get('user-prompt', ''))
             if self.cType == PromptType.PROMPT:
+                self.userPromptEdit.setPlainText(self.prompt.get('user-prompt', ''))
                 self.descriptionEdit.setText(self.prompt.get('description', ''))
                 attachment = self.prompt.get('attachment', 'selection')
                 index = self.attachmentCombo.findText(attachment)
                 if index >= 0:
                     self.attachmentCombo.setCurrentIndex(index)
+            else:
+                self.userPromptEdit.setPlainText(self.prompt.get('system-prompt', ''))
 
 
     def getPrompt(self) -> dict[str, Any]:
