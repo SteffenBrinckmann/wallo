@@ -37,17 +37,35 @@ class PromptTab(QWidget):
         leftLayout.addWidget(self.promptList)
         # Buttons for prompt management
         buttonLayout = QHBoxLayout()
-        self.addPromptBtn = QPushButton("Add")
+        # Use icons for buttons
+        from qtawesome import icon as qta_icon
+        self.addPromptBtn = QPushButton(" Add")
+        self.addPromptBtn.setIcon(qta_icon('fa5s.plus'))
         self.addPromptBtn.clicked.connect(self.addPrompt)
-        self.editPromptBtn = QPushButton("Edit")
+        self.editPromptBtn = QPushButton(" Edit")
+        self.editPromptBtn.setIcon(qta_icon('fa5s.edit'))
         self.editPromptBtn.clicked.connect(self.editPrompt)
         self.editPromptBtn.setEnabled(False)
-        self.deletePromptBtn = QPushButton("Remove")
+        self.deletePromptBtn = QPushButton(" Remove")
+        self.deletePromptBtn.setIcon(qta_icon('fa5s.trash'))
         self.deletePromptBtn.clicked.connect(self.deletePrompt)
         self.deletePromptBtn.setEnabled(False)
         buttonLayout.addWidget(self.addPromptBtn)
         buttonLayout.addWidget(self.editPromptBtn)
         buttonLayout.addWidget(self.deletePromptBtn)
+        # Up/Down buttons for ordering
+        self.upPromptBtn = QPushButton()
+        self.upPromptBtn.setIcon(qta_icon('fa5s.arrow-up'))
+        self.upPromptBtn.setToolTip('Move selected prompt up')
+        self.upPromptBtn.clicked.connect(self.movePromptUp)
+        self.upPromptBtn.setEnabled(False)
+        self.downPromptBtn = QPushButton()
+        self.downPromptBtn.setIcon(qta_icon('fa5s.arrow-down'))
+        self.downPromptBtn.setToolTip('Move selected prompt down')
+        self.downPromptBtn.clicked.connect(self.movePromptDown)
+        self.downPromptBtn.setEnabled(False)
+        buttonLayout.addWidget(self.upPromptBtn)
+        buttonLayout.addWidget(self.downPromptBtn)
         buttonLayout.addStretch()
         leftLayout.addLayout(buttonLayout)
         # Right side - prompt preview
@@ -105,12 +123,17 @@ class PromptTab(QWidget):
                 self.userPromptLabel.setText(prompt['user-prompt'])
             else:
                 self.userPromptLabel.setText(prompt['system-prompt'])
+            # enable move buttons when selection exists
+            self.upPromptBtn.setEnabled(True)
+            self.downPromptBtn.setEnabled(True)
         else:
             self.nameLabel.clear()
             if self.cType == PromptType.PROMPT:
                 self.descriptionLabel.clear()
                 self.attachmentLabel.clear()
             self.userPromptLabel.clear()
+            self.upPromptBtn.setEnabled(False)
+            self.downPromptBtn.setEnabled(False)
 
 
     def addPrompt(self) -> None:
@@ -160,6 +183,35 @@ class PromptTab(QWidget):
             prompts = [p for p in prompts if p['name'] != prompt['name']]
             self.configManager.updateConfig({'prompts': prompts})
             self.loadPrompts()
+
+    def movePromptUp(self) -> None:
+        """Move the selected prompt up in the list."""
+        current = self.promptList.currentItem()
+        if not current:
+            return
+        idx = self.promptList.currentRow()
+        if idx <= 0:
+            return
+        prompts = self.configManager.get(self.prompts)
+        prompts[idx-1], prompts[idx] = prompts[idx], prompts[idx-1]
+        self.configManager.updateConfig({self.prompts: prompts})
+        self.loadPrompts()
+        self.promptList.setCurrentRow(idx-1)
+
+
+    def movePromptDown(self) -> None:
+        """Move the selected prompt down in the list."""
+        current = self.promptList.currentItem()
+        if not current:
+            return
+        prompts = self.configManager.get(self.prompts)
+        idx = self.promptList.currentRow()
+        if idx < 0 or idx >= len(prompts)-1:
+            return
+        prompts[idx+1], prompts[idx] = prompts[idx], prompts[idx+1]
+        self.configManager.updateConfig({self.prompts: prompts})
+        self.loadPrompts()
+        self.promptList.setCurrentRow(idx+1)
 
 
 class PromptEditDialog(QDialog):
@@ -252,3 +304,4 @@ class PromptEditDialog(QDialog):
                 QMessageBox.warning(self, "Validation Error", "System-prompt cannot be empty")
                 return
         super().accept()
+
