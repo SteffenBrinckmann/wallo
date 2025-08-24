@@ -30,6 +30,10 @@ class Wallo(QMainWindow):
         self.progressDialog: BusyDialog | None = None
         self.selectedTextStart: int = 0
         self.selectedTextEnd: int = 0
+        self.llmCB     = QComboBox()
+        self.serviceCB = QComboBox()
+        self.llmSPCB   = QComboBox()
+        self.toolbar: 'QToolBar' | None = None
         self.setCentralWidget(self.editor)
         self.statusBar()  # Initialize the status bar
         self.editor.textChanged.connect(self.updateStatusBar)
@@ -135,10 +139,12 @@ class Wallo(QMainWindow):
         # Remove existing toolbar if present
         if getattr(self, 'toolbar', None):
             try:
-                self.removeToolBar(self.toolbar)
+                if self.toolbar is not None:
+                    self.removeToolBar(self.toolbar)
             except Exception:
                 pass
-            self.toolbar.deleteLater()
+            if self.toolbar is not None:
+                self.toolbar.deleteLater()
             self.toolbar = None
         self.toolbar = QToolBar("Main")
         # formats
