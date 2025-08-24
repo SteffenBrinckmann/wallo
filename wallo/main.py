@@ -123,10 +123,10 @@ class Wallo(QMainWindow):
             self.llmCB.setCurrentIndex(index)
             self.useLLM(index)
 
-    def changeSystemPrompt(self, index: int) -> None:
+    def changeSystemPrompt(self, _: int) -> None:
         """ Change the system prompt used by the LLM.
         Args:
-            index (int): The index of the selected system prompt.
+            _ (int): The index of the selected system prompt.
         """
         promptName = self.llmSPCB.currentText()
         try:

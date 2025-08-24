@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget,  
                                QFormLayout, QComboBox, QTextEdit, QMessageBox, QDialog, QDialogButtonBox,
                                QListWidgetItem, QGroupBox)
 from PySide6.QtCore import Qt # pylint: disable=no-name-in-module
+from qtawesome import icon as qta_icon
 from .configFileManager import ConfigurationManager
 
 
@@ -38,7 +39,6 @@ class PromptTab(QWidget):
         # Buttons for prompt management
         buttonLayout = QHBoxLayout()
         # Use icons for buttons
-        from qtawesome import icon as qta_icon
         self.addPromptBtn = QPushButton(" Add")
         self.addPromptBtn.setIcon(qta_icon('fa5s.plus'))
         self.addPromptBtn.clicked.connect(self.addPrompt)
@@ -304,4 +304,3 @@ class PromptEditDialog(QDialog):
                 QMessageBox.warning(self, "Validation Error", "System-prompt cannot be empty")
                 return
         super().accept()
-

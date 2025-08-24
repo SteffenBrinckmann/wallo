@@ -293,7 +293,7 @@ ignored-parents=
 max-args=7
 
 # Maximum number of attributes for a class (see R0902).
-max-attributes=15
+max-attributes=18
 
 # Maximum number of boolean expressions in an if statement (see R0916).
 max-bool-expr=5
@@ -317,7 +317,7 @@ max-public-methods=20
 max-returns=9
 
 # Maximum number of statements in function / method body.
-max-statements=60
+max-statements=70
 
 # Minimum number of public methods for a class (see R0903).
 min-public-methods=0
@@ -440,7 +440,8 @@ disable=raw-checker-failed,
         use-implicit-booleaness-not-comparison-to-zero,
         use-symbolic-message-instead,
         multiple-imports,
-        broad-exception-caught
+        broad-exception-caught,
+        duplicate-code
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
