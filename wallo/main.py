@@ -119,6 +119,16 @@ class Wallo(QMainWindow):
             self.llmCB.setCurrentIndex(index)
             self.useLLM(index)
 
+    def changeSystemPrompt(self, index: int) -> None:
+        """ Change the system prompt used by the LLM.
+        Args:
+            index (int): The index of the selected system prompt.
+        """
+        promptName = self.llmSPCB.currentText()
+        try:
+            self.llmProcessor.setSystemPrompt(promptName)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An unexpected error occurred: {str(e)}")
 
     def createToolbar(self) -> None:
         """ Create the toolbar with formatting actions and LLM selection"""
@@ -172,6 +182,13 @@ class Wallo(QMainWindow):
                 self.llmCB.addItem(prompt['description'], prompt['name'])
         self.llmCB.activated.connect(self.useLLM)
         self.toolbar.addWidget(self.llmCB)
+        # add system prompt selection
+        self.llmSPCB = QComboBox()
+        systemPrompts = self.configManager.get('system-prompts')
+        for i, prompt in enumerate(systemPrompts):
+            self.llmSPCB.addItem(prompt['name'])
+        self.llmSPCB.activated.connect(self.changeSystemPrompt)
+        self.toolbar.addWidget(self.llmSPCB)
         clearFormatAction = QAction('', self, icon=qta.icon('fa5s.eraser'), toolTip='Clear all formatting',
                                     shortcut=QKeySequence('Ctrl+Space'))
         clearFormatAction.triggered.connect(self.clearFormatting)

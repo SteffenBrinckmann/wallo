@@ -16,11 +16,13 @@ class Worker(QObject):
                 client, model, prompt, and fileName.
         """
         super().__init__()
-        self.workType = workType
-        self.client   = objects['client']
-        self.model    = objects['model']
-        self.prompt   = objects['prompt']
-        self.fileName = objects.get('fileName','')
+        self.workType              = workType
+        self.client                = objects['client']
+        self.model                 = objects['model']
+        self.prompt                = objects['prompt']
+        self.systemPrompt          = objects.get('systemPrompt','You are a helpful assistant.')
+        self.fileName              = objects.get('fileName','')
+        self._previousSystemPrompt = "--"
         self.documentProcessor = PdfDocumentProcessor()
 
 
@@ -32,8 +34,11 @@ class Worker(QObject):
             if self.workType == 'pdfExtraction':
                 content = self.documentProcessor.extractTextFromPdf(self.fileName)
             # LLM work
-            messages = [{'role': 'system', 'content': 'You are a helpful assistant.'},
-                        {'role': 'user', 'content': self.prompt+content}]
+            messages = []
+            if self.systemPrompt != self._previousSystemPrompt:
+                self._previousSystemPrompt = self.systemPrompt
+                messages.append({'role': 'system', 'content': self.systemPrompt})
+            messages.append({'role': 'user', 'content': self.prompt+content})
             response = self.client.chat.completions.create(model=self.model, messages=messages)
             content = response.choices[0].message.content.strip()
             self.finished.emit(content)

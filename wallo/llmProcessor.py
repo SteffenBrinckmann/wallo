@@ -13,6 +13,7 @@ class LLMProcessor:
             configManager: Configuration manager instance.
         """
         self.configManager = configManager
+        self.systemPrompt = "You are a helpful assistant."
 
 
     def createClient(self, serviceName: str) -> OpenAI:
@@ -35,6 +36,23 @@ class LLMProcessor:
             raise ValueError(f"API key not configured for service '{serviceName}'")
         baseUrl = serviceConfig['url'] or None
         return OpenAI(api_key=apiKey, base_url=baseUrl)
+
+
+    def setSystemPrompt(self, promptName: str) -> None:
+        """Set the system prompt to be used by the LLM.
+
+        Args:
+            promptName: Name of the system prompt to use.
+
+        Raises:
+            ValueError: If system prompt is not found.
+        """
+        systemPrompts = self.configManager.get('system-prompts')
+        for prompt in systemPrompts:
+            if prompt['name'] == promptName:
+                self.systemPrompt = prompt['content']
+                return
+        raise ValueError(f"System prompt '{promptName}' not found in configuration")
 
 
     def processPrompt(self, promptName: str, serviceName: str,
@@ -64,7 +82,7 @@ class LLMProcessor:
         if not serviceConfig:
             raise ValueError(f"Service '{serviceName}' not found in configuration")
         promptFooter = self.configManager.get('promptFooter')
-        result = {'client': client, 'model': serviceConfig['model']}
+        result = {'client': client, 'model': serviceConfig['model'], 'systemPrompt': self.systemPrompt}
         if attachmentType == 'selection':
             fullPrompt = f"{promptConfig['user-prompt']}\\n{selectedText}{promptFooter}"
             result['prompt'] = fullPrompt
