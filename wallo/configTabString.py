@@ -21,7 +21,8 @@ class StringTab(QWidget):
         formLayout = QFormLayout()
 
         self.colorLabel1 = QLabel()
-        self.colorLabel1.setFixedWidth(60)
+        self.colorLabel1.setFixedWidth(30)
+        self.colorLabel1.setFixedHeight(30)
         self.colorLabel1.setAutoFillBackground(True)
         self.colorBtn1 = QPushButton("Choose original text color")
         self.colorBtn1.clicked.connect(lambda: self.chooseColor('Original'))
@@ -31,7 +32,8 @@ class StringTab(QWidget):
         formLayout.addRow("Original text Color:", colorLayout1)
 
         self.colorLabel2 = QLabel()
-        self.colorLabel2.setFixedWidth(60)
+        self.colorLabel2.setFixedWidth(30)
+        self.colorLabel2.setFixedHeight(30)
         self.colorLabel2.setAutoFillBackground(True)
         self.colorBtn2 = QPushButton("Choose reply text color")
         self.colorBtn2.clicked.connect(lambda: self.chooseColor('Reply'))

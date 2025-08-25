@@ -50,7 +50,7 @@ class LLMProcessor:
         systemPrompts = self.configManager.get('system-prompts')
         for prompt in systemPrompts:
             if prompt['name'] == promptName:
-                self.systemPrompt = prompt['content']
+                self.systemPrompt = prompt['system-prompt']
                 return
         raise ValueError(f"System prompt '{promptName}' not found in configuration")
 

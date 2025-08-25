@@ -239,13 +239,16 @@ class PromptEditDialog(QDialog):
             self.descriptionEdit = QLineEdit()
             formLayout.addRow("Description:", self.descriptionEdit)
         self.userPromptEdit = QTextEdit()
-        self.userPromptEdit.setMaximumHeight(100)
         if self.cType == PromptType.PROMPT:
+            self.userPromptEdit.setMinimumHeight(150)
+            self.userPromptEdit.setMaximumHeight(200)
             formLayout.addRow("User-Prompt:", self.userPromptEdit)
             self.attachmentCombo = QComboBox()
             self.attachmentCombo.addItems(["selection", "pdf", "inquiry"])
             formLayout.addRow("Attachment Type:", self.attachmentCombo)
         else:
+            self.userPromptEdit.setMinimumHeight(500)
+            self.userPromptEdit.setMaximumHeight(600)
             formLayout.addRow("System-Prompt:", self.userPromptEdit)
         layout.addLayout(formLayout)
         # Button box
