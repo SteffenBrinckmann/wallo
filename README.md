@@ -4,10 +4,9 @@
 
 Often you have to write a text and forget all the helpful prompts that you used in the past. This tool helps to reduce the copy-paste from your local prompt-library and into the LLM-tools.
 
-WARNING: This is a side project as I have more than enough things to maintain. If it does not work for you, fix it yourself and create a PR.
-
 This program has been heavily written by Claude; at a certain point I let it just change the code.
 
+![Screenshot](images/screenshot.png "Screenshot")
 
 ## Installation and usage
 ### Using pypi
