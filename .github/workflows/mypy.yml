@@ -22,4 +22,4 @@ jobs:
         pip install -r requirements.txt
     - name: Analyzing the code with mypy
       run: |
-        mypy pasta_eln
+        mypy wallo
