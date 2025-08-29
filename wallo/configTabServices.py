@@ -1,9 +1,11 @@
 """Tab for managing services."""
 from typing import Any, Optional
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget,  QPushButton, QLineEdit, QLabel,# pylint: disable=no-name-in-module
-                               QFormLayout, QMessageBox, QDialog, QDialogButtonBox, QListWidgetItem, QGroupBox)
-from PySide6.QtCore import Qt # pylint: disable=no-name-in-module
+from PySide6.QtCore import Qt  # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, # pylint: disable=no-name-in-module
+                               QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton,
+                               QVBoxLayout, QWidget)
 from .configFileManager import ConfigurationManager
+
 
 class ServiceTab(QWidget):
     """Tab for managing services."""
@@ -20,18 +22,18 @@ class ServiceTab(QWidget):
         layout = QHBoxLayout(self)
         # Left side - service list
         leftLayout = QVBoxLayout()
-        leftLayout.addWidget(QLabel("Services:"))
+        leftLayout.addWidget(QLabel('Services:'))
         self.serviceList = QListWidget()
         self.serviceList.currentItemChanged.connect(self.onServiceSelectionChanged)
         leftLayout.addWidget(self.serviceList)
         # Buttons for service management
         buttonLayout = QHBoxLayout()
-        self.addServiceBtn = QPushButton("Add")
+        self.addServiceBtn = QPushButton('Add')
         self.addServiceBtn.clicked.connect(self.addService)
-        self.editServiceBtn = QPushButton("Edit")
+        self.editServiceBtn = QPushButton('Edit')
         self.editServiceBtn.clicked.connect(self.editService)
         self.editServiceBtn.setEnabled(False)
-        self.deleteServiceBtn = QPushButton("Remove")
+        self.deleteServiceBtn = QPushButton('Remove')
         self.deleteServiceBtn.clicked.connect(self.deleteService)
         self.deleteServiceBtn.setEnabled(False)
         buttonLayout.addWidget(self.addServiceBtn)
@@ -41,17 +43,17 @@ class ServiceTab(QWidget):
         leftLayout.addLayout(buttonLayout)
         # Right side - service preview
         rightLayout = QVBoxLayout()
-        rightLayout.addWidget(QLabel("Preview:"))
-        self.previewGroup = QGroupBox("Service Details")
+        rightLayout.addWidget(QLabel('Preview:'))
+        self.previewGroup = QGroupBox('Service Details')
         previewLayout = QFormLayout(self.previewGroup)
         self.nameLabel = QLabel()
         self.urlLabel = QLabel()
         self.apiLabel = QLabel()
         self.modelLabel = QLabel()
-        previewLayout.addRow("Name:", self.nameLabel)
-        previewLayout.addRow("URL:", self.urlLabel)
-        previewLayout.addRow("API Key:", self.apiLabel)
-        previewLayout.addRow("Model:", self.modelLabel)
+        previewLayout.addRow('Name:', self.nameLabel)
+        previewLayout.addRow('URL:', self.urlLabel)
+        previewLayout.addRow('API Key:', self.apiLabel)
+        previewLayout.addRow('Model:', self.modelLabel)
         rightLayout.addWidget(self.previewGroup)
         rightLayout.addStretch()
         # Add left and right layouts to main layout
@@ -125,7 +127,7 @@ class ServiceTab(QWidget):
         serviceName, _ = current.data(Qt.ItemDataRole.UserRole)
         result = QMessageBox.question(
             self,
-            "Confirm Delete",
+            'Confirm Delete',
             f"Are you sure you want to delete the service '{serviceName}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
@@ -140,10 +142,10 @@ class ServiceTab(QWidget):
 class ServiceEditDialog(QDialog):
     """Dialog for editing service configuration."""
 
-    def __init__(self, serviceName: str = "", service: Optional[dict[str, Any]] = None,
+    def __init__(self, serviceName: str = '', service: Optional[dict[str, Any]] = None,
                  parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Edit Service" if service else "Add Service")
+        self.setWindowTitle('Edit Service' if service else 'Add Service')
         self.setModal(True)
         self.resize(400, 200)
         self.serviceName = serviceName
@@ -157,13 +159,13 @@ class ServiceEditDialog(QDialog):
         layout = QVBoxLayout(self)
         formLayout = QFormLayout()
         self.nameEdit = QLineEdit()
-        formLayout.addRow("Service Name:", self.nameEdit)
+        formLayout.addRow('Service Name:', self.nameEdit)
         self.urlEdit = QLineEdit()
-        formLayout.addRow("URL:", self.urlEdit)
+        formLayout.addRow('URL:', self.urlEdit)
         self.apiEdit = QLineEdit()
-        formLayout.addRow("API Key:", self.apiEdit)
+        formLayout.addRow('API Key:', self.apiEdit)
         self.modelEdit = QLineEdit()
-        formLayout.addRow("Model:", self.modelEdit)
+        formLayout.addRow('Model:', self.modelEdit)
         layout.addLayout(formLayout)
         # Button box
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -196,9 +198,9 @@ class ServiceEditDialog(QDialog):
         """Validate and accept the dialog."""
         name, service = self.getService()
         if not name:
-            QMessageBox.warning(self, "Validation Error", "Service name cannot be empty")
+            QMessageBox.warning(self, 'Validation Error', 'Service name cannot be empty')
             return
         if not service['model']:
-            QMessageBox.warning(self, "Validation Error", "Model cannot be empty")
+            QMessageBox.warning(self, 'Validation Error', 'Model cannot be empty')
             return
         super().accept()

@@ -1,11 +1,13 @@
 """Tab for managing prompts."""
 from enum import Enum
 from typing import Any, Optional
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QListWidget,  QPushButton, QLineEdit, QLabel,# pylint: disable=no-name-in-module
-                               QFormLayout, QComboBox, QTextEdit, QMessageBox, QDialog, QDialogButtonBox,
-                               QListWidgetItem, QGroupBox)
-from PySide6.QtCore import Qt # pylint: disable=no-name-in-module
+
+from PySide6.QtCore import Qt  # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, # pylint: disable=no-name-in-module
+                               QLabel, QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton,
+                               QTextEdit, QVBoxLayout, QWidget)
 from qtawesome import icon as qta_icon
+
 from .configFileManager import ConfigurationManager
 
 
@@ -32,21 +34,21 @@ class PromptTab(QWidget):
         layout = QHBoxLayout(self)
         # Left side - prompt list
         leftLayout = QVBoxLayout()
-        leftLayout.addWidget(QLabel("Prompts:"))
+        leftLayout.addWidget(QLabel('Prompts:'))
         self.promptList = QListWidget()
         self.promptList.currentItemChanged.connect(self.onPromptSelectionChanged)
         leftLayout.addWidget(self.promptList)
         # Buttons for prompt management
         buttonLayout = QHBoxLayout()
         # Use icons for buttons
-        self.addPromptBtn = QPushButton(" Add")
+        self.addPromptBtn = QPushButton(' Add')
         self.addPromptBtn.setIcon(qta_icon('fa5s.plus'))
         self.addPromptBtn.clicked.connect(self.addPrompt)
-        self.editPromptBtn = QPushButton(" Edit")
+        self.editPromptBtn = QPushButton(' Edit')
         self.editPromptBtn.setIcon(qta_icon('fa5s.edit'))
         self.editPromptBtn.clicked.connect(self.editPrompt)
         self.editPromptBtn.setEnabled(False)
-        self.deletePromptBtn = QPushButton(" Remove")
+        self.deletePromptBtn = QPushButton(' Remove')
         self.deletePromptBtn.setIcon(qta_icon('fa5s.trash'))
         self.deletePromptBtn.clicked.connect(self.deletePrompt)
         self.deletePromptBtn.setEnabled(False)
@@ -70,21 +72,21 @@ class PromptTab(QWidget):
         leftLayout.addLayout(buttonLayout)
         # Right side - prompt preview
         rightLayout = QVBoxLayout()
-        rightLayout.addWidget(QLabel("Preview:"))
-        self.previewGroup = QGroupBox("Prompt Details")
+        rightLayout.addWidget(QLabel('Preview:'))
+        self.previewGroup = QGroupBox('Prompt Details')
         previewLayout = QFormLayout(self.previewGroup)
         self.nameLabel = QLabel()
-        previewLayout.addRow("Name:", self.nameLabel)
+        previewLayout.addRow('Name:', self.nameLabel)
         self.userPromptLabel = QLabel()
         self.userPromptLabel.setWordWrap(True)
         if self.cType == PromptType.PROMPT:
             self.descriptionLabel = QLabel()
             self.attachmentLabel = QLabel()
-            previewLayout.addRow("Description:", self.descriptionLabel)
-            previewLayout.addRow("Attachment:", self.attachmentLabel)
-            previewLayout.addRow("User-Prompt:", self.userPromptLabel)
+            previewLayout.addRow('Description:', self.descriptionLabel)
+            previewLayout.addRow('Attachment:', self.attachmentLabel)
+            previewLayout.addRow('User-Prompt:', self.userPromptLabel)
         else:
-            previewLayout.addRow("System-Prompt:", self.userPromptLabel)
+            previewLayout.addRow('System-Prompt:', self.userPromptLabel)
         rightLayout.addWidget(self.previewGroup)
         rightLayout.addStretch()
         # Add left and right layouts to main layout
@@ -173,7 +175,7 @@ class PromptTab(QWidget):
         prompt = current.data(Qt.ItemDataRole.UserRole)
         result = QMessageBox.question(
             self,
-            "Confirm Delete",
+            'Confirm Delete',
             f"Are you sure you want to delete the prompt '{prompt['description']}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
@@ -220,7 +222,7 @@ class PromptEditDialog(QDialog):
     def __init__(self, prompt: Optional[dict[str, Any]] = None, cType:PromptType=PromptType.PROMPT,
                  parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Edit Prompt" if prompt else "Add Prompt")
+        self.setWindowTitle('Edit Prompt' if prompt else 'Add Prompt')
         self.setModal(True)
         self.resize(500, 400)
         self.prompt = prompt or {}
@@ -234,22 +236,22 @@ class PromptEditDialog(QDialog):
         layout = QVBoxLayout(self)
         formLayout = QFormLayout()
         self.nameEdit = QLineEdit()
-        formLayout.addRow("Name:", self.nameEdit)
+        formLayout.addRow('Name:', self.nameEdit)
         if self.cType == PromptType.PROMPT:
             self.descriptionEdit = QLineEdit()
-            formLayout.addRow("Description:", self.descriptionEdit)
+            formLayout.addRow('Description:', self.descriptionEdit)
         self.userPromptEdit = QTextEdit()
         if self.cType == PromptType.PROMPT:
             self.userPromptEdit.setMinimumHeight(150)
             self.userPromptEdit.setMaximumHeight(200)
-            formLayout.addRow("User-Prompt:", self.userPromptEdit)
+            formLayout.addRow('User-Prompt:', self.userPromptEdit)
             self.attachmentCombo = QComboBox()
-            self.attachmentCombo.addItems(["selection", "pdf", "inquiry"])
-            formLayout.addRow("Attachment Type:", self.attachmentCombo)
+            self.attachmentCombo.addItems(['selection', 'pdf', 'inquiry'])
+            formLayout.addRow('Attachment Type:', self.attachmentCombo)
         else:
             self.userPromptEdit.setMinimumHeight(500)
             self.userPromptEdit.setMaximumHeight(600)
-            formLayout.addRow("System-Prompt:", self.userPromptEdit)
+            formLayout.addRow('System-Prompt:', self.userPromptEdit)
         layout.addLayout(formLayout)
         # Button box
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -293,17 +295,17 @@ class PromptEditDialog(QDialog):
         """Validate and accept the dialog."""
         prompt = self.getPrompt()
         if not prompt['name']:
-            QMessageBox.warning(self, "Validation Error", "Name cannot be empty")
+            QMessageBox.warning(self, 'Validation Error', 'Name cannot be empty')
             return
         if self.cType == PromptType.PROMPT:
             if not prompt['description']:
-                QMessageBox.warning(self, "Validation Error", "Description cannot be empty")
+                QMessageBox.warning(self, 'Validation Error', 'Description cannot be empty')
                 return
             if not prompt['user-prompt']:
-                QMessageBox.warning(self, "Validation Error", "User-prompt cannot be empty")
+                QMessageBox.warning(self, 'Validation Error', 'User-prompt cannot be empty')
                 return
         else:
             if not prompt['system-prompt']:
-                QMessageBox.warning(self, "Validation Error", "System-prompt cannot be empty")
+                QMessageBox.warning(self, 'Validation Error', 'System-prompt cannot be empty')
                 return
         super().accept()

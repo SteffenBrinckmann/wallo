@@ -1,29 +1,28 @@
 """ Main window for the Wallo application, providing a text editor with LLM assistance. """
 import sys
-from typing import Any
 from pathlib import Path
-from PySide6.QtWidgets import (QApplication, QMainWindow, QToolBar, QFileDialog, QMessageBox, QComboBox, # pylint: disable=no-name-in-module
-                               QProgressBar, QInputDialog, QWidget)
-from PySide6.QtGui import QTextCursor, QTextCharFormat, QFont, QAction, QColor, QKeySequence     # pylint: disable=no-name-in-module
-from PySide6.QtCore import QThread                                         # pylint: disable=no-name-in-module
+from typing import Any
 import qtawesome as qta
-from .editor import TextEdit
-from .worker import Worker
+from PySide6.QtCore import QThread  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QAction, QColor, QFont, QKeySequence, QTextCharFormat, QTextCursor # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QInputDialog, QMainWindow, QMessageBox, # pylint: disable=no-name-in-module
+                               QProgressBar, QToolBar, QWidget)
 from .busyDialog import BusyDialog
 from .configFileManager import ConfigurationManager
-from .llmProcessor import LLMProcessor
-from .pdfDocumentProcessor import PdfDocumentProcessor
 from .configMain import ConfigurationWidget
 from .docxExport import DocxExporter
+from .editor import TextEdit
+from .llmProcessor import LLMProcessor
+from .pdfDocumentProcessor import PdfDocumentProcessor
+from .worker import Worker
 
 progressBarInStatusBar = True  # True to show progress bar in status bar, False for dialog
-
 
 class Wallo(QMainWindow):
     """ Main window for the Wallo application, providing a text editor with LLM assistance. """
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("WALLO - Writing Assistance by Large Language mOdel")
+        self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
         self.editor = TextEdit()
         self.worker: Worker | None = None
         self.subThread: QThread | None = None
@@ -67,12 +66,12 @@ class Wallo(QMainWindow):
         try:
             promptConfig = self.configManager.getPromptByName(promptName)
             if not promptConfig:
-                QMessageBox.warning(self, "Error", f"Prompt '{promptName}' not found")
+                QMessageBox.warning(self, 'Error', f"Prompt '{promptName}' not found")
                 return
             attachmentType = promptConfig['attachment']
             if attachmentType == 'selection':
                 if not cursor.hasSelection():
-                    QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
+                    QMessageBox.information(self, 'Warning', 'You have to select text for the tool to work')
                     return
                 selectedText = cursor.selectedText()
                 self.selectedTextStart = cursor.selectionStart()
@@ -80,24 +79,24 @@ class Wallo(QMainWindow):
                 workParams = self.llmProcessor.processPrompt(promptName, serviceName, selectedText)
                 self.runWorker('chatAPI', workParams)
             elif attachmentType == 'pdf':
-                res = QFileDialog.getOpenFileName(self, "Open pdf file", str(Path.home()), '*.pdf')
+                res = QFileDialog.getOpenFileName(self, 'Open pdf file', str(Path.home()), '*.pdf')
                 if not res or not res[0]:
                     return
                 # Validate PDF file
                 if not self.documentProcessor.validatePdfFile(res[0]):
-                    QMessageBox.warning(self, "Error", "Invalid PDF file selected")
+                    QMessageBox.warning(self, 'Error', 'Invalid PDF file selected')
                     return
                 workParams = self.llmProcessor.processPrompt(promptName, serviceName, res[0])
                 self.runWorker('pdfExtraction', workParams)
             elif attachmentType == 'inquiry':
                 if not cursor.hasSelection():
-                    QMessageBox.information(self, "Warning", "You have to select text for the tool to work")
+                    QMessageBox.information(self, 'Warning', 'You have to select text for the tool to work')
                     return
                 inquiryText = self.llmProcessor.getInquiryText(promptName)
                 if not inquiryText:
-                    QMessageBox.warning(self, "Error", "Invalid inquiry prompt configuration")
+                    QMessageBox.warning(self, 'Error', 'Invalid inquiry prompt configuration')
                     return
-                userInput, ok = QInputDialog.getText(self, "Enter input", f"Please enter {inquiryText}")
+                userInput, ok = QInputDialog.getText(self, 'Enter input', f"Please enter {inquiryText}")
                 if not ok or not userInput:
                     return
                 selectedText = cursor.selectedText()
@@ -106,12 +105,12 @@ class Wallo(QMainWindow):
                 workParams = self.llmProcessor.processPrompt(promptName, serviceName, selectedText, userInput)
                 self.runWorker('chatAPI', workParams)
             else:
-                QMessageBox.warning(self, "Error", f"Unknown attachment type: {attachmentType}")
+                QMessageBox.warning(self, 'Error', f"Unknown attachment type: {attachmentType}")
                 return
         except ValueError as e:
-            QMessageBox.critical(self, "Configuration Error", str(e))
+            QMessageBox.critical(self, 'Configuration Error', str(e))
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"An unexpected error occurred: {str(e)}")
+            QMessageBox.critical(self, 'Error', f"An unexpected error occurred: {str(e)}")
 
 
     def useLLMShortcut(self, index: int) -> None:
@@ -132,7 +131,7 @@ class Wallo(QMainWindow):
         try:
             self.llmProcessor.setSystemPrompt(promptName)
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"An unexpected error occurred: {str(e)}")
+            QMessageBox.critical(self, 'Error', f"An unexpected error occurred: {str(e)}")
 
     def createToolbar(self) -> None:
         """ Create the toolbar with formatting actions and LLM selection"""
@@ -146,7 +145,7 @@ class Wallo(QMainWindow):
             if self.toolbar is not None:
                 self.toolbar.deleteLater()
             self.toolbar = None
-        self.toolbar = QToolBar("Main")
+        self.toolbar = QToolBar('Main')
         # formats
         self.addToolBar(self.toolbar)
         boldAction = QAction('', self, icon=qta.icon('fa5s.bold'))           # Bold
@@ -256,7 +255,7 @@ class Wallo(QMainWindow):
 
     def saveDocx(self) -> None:
         """ Save the content of the editor as a .docx file."""
-        filename, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Word Files (*.docx)")
+        filename, _ = QFileDialog.getSaveFileName(self, 'Save File', '', 'Word Files (*.docx)')
         if filename:
             self.docxExporter.exportToDocx(self.editor, filename)
 
@@ -280,7 +279,7 @@ class Wallo(QMainWindow):
         if progressBarInStatusBar:
             self.progressBar.setRange(0, 0)  # Indeterminate/bouncing
             self.progressBar.setVisible(True)
-            self.statusBar().showMessage("Working...")
+            self.statusBar().showMessage('Working...')
         else:                           # Show progress dialog
             self.progressDialog = BusyDialog(parent=self)
             self.progressDialog.show()
@@ -347,7 +346,7 @@ class Wallo(QMainWindow):
             if self.progressDialog:
                 self.progressDialog.close()
         self.statusBar().clearMessage()
-        QMessageBox.critical(self, "Worker Error", errorMsg)
+        QMessageBox.critical(self, 'Worker Error', errorMsg)
 
 
     def showConfiguration(self) -> None:
@@ -366,7 +365,7 @@ class Wallo(QMainWindow):
         self.createToolbar()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app = QApplication(sys.argv)
     win = Wallo()
     win.resize(1024, 800)

@@ -1,7 +1,7 @@
 """Configuration management for the Wallo application."""
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 
 DEFAULT_CONFIGURATION = {
     'prompts': [
@@ -12,10 +12,10 @@ DEFAULT_CONFIGURATION = {
             'attachment':  'selection'
         },
         {
-        "name": "summarize_paper",
-        "description": "Summarize pdf after uploading it",
-        "user-prompt": "Can you summarize the following paper:",
-        "attachment":  "pdf"
+        'name': 'summarize_paper',
+        'description': 'Summarize pdf after uploading it',
+        'user-prompt': 'Can you summarize the following paper:',
+        'attachment':  'pdf'
         }
     ],
     'system-prompts': [
@@ -27,11 +27,11 @@ DEFAULT_CONFIGURATION = {
     'services': {
         'openAI': {'url':'', 'api':None, 'model': 'gpt-4o'}
     },
-  "promptFooter": "\nPlease reply with the html formatted string only",
-  "footer": f'\n{"-"*5} Start LLM generated {"-"*5}',
-  "header": f'\n{"-"*5}  End LLM generated  {"-"*5}',
-  "colorOriginal": "#000000",
-  "colorReply":  "#0000FF"
+  'promptFooter': '\nPlease reply with the html formatted string only',
+  'footer': f'\n{"-"*5} Start LLM generated {"-"*5}',
+  'header': f'\n{"-"*5}  End LLM generated  {"-"*5}',
+  'colorOriginal': '#000000',
+  'colorReply':  '#0000FF'
 }
 
 
@@ -45,7 +45,7 @@ class ConfigurationManager:
             configFile: Path to the configuration file. If None, uses default location.
         """
         self.configFile = configFile or Path.home() / '.wallo.json'
-        self._config: Dict[str, Any] = {}
+        self._config: dict[str, Any] = {}
         self.loadConfig()
 
 
@@ -56,12 +56,12 @@ class ConfigurationManager:
             try:
                 with open(self.configFile, 'w', encoding='utf-8') as confFile:
                     json.dump(DEFAULT_CONFIGURATION, confFile, indent=2)
-            except IOError as e:
+            except OSError as e:
                 raise ValueError(f"Error creating default configuration file: {e}") from e
         try:
-            with open(self.configFile, 'r', encoding='utf-8') as confFile:
+            with open(self.configFile, encoding='utf-8') as confFile:
                 self._config = json.load(confFile)
-        except (json.JSONDecodeError, IOError) as e:
+        except (json.JSONDecodeError, OSError) as e:
             raise ValueError(f"Error loading configuration file: {e}") from e
         self.validateConfig()
 
@@ -108,7 +108,7 @@ class ConfigurationManager:
         return []
 
 
-    def getPromptByName(self, name: str) -> Optional[Dict[str, Any]]:
+    def getPromptByName(self, name: str) -> Optional[dict[str, Any]]:
         """Get a specific prompt by name."""
         prompts = self._config['prompts']
         for prompt in prompts:
@@ -117,7 +117,7 @@ class ConfigurationManager:
         return None
 
 
-    def getServiceByName(self, name: str) -> Optional[Dict[str, Any]]:
+    def getServiceByName(self, name: str) -> Optional[dict[str, Any]]:
         """Get a specific service by name."""
         services = self._config['services']
         return services.get(name)  # type: ignore
@@ -128,11 +128,11 @@ class ConfigurationManager:
         try:
             with open(self.configFile, 'w', encoding='utf-8') as confFile:
                 json.dump(self._config, confFile, indent=2)
-        except IOError as e:
+        except OSError as e:
             raise ValueError(f"Error saving configuration file: {e}") from e
 
 
-    def updateConfig(self, updates: Dict[str, Any]) -> None:
+    def updateConfig(self, updates: dict[str, Any]) -> None:
         """Update configuration with new values."""
         self._config.update(updates)
         self.validateConfig()

@@ -2,7 +2,6 @@
 from pathlib import Path
 import pdfplumber
 
-
 class PdfDocumentProcessor:
     """Handles PDF processing and text extraction."""
 
@@ -27,11 +26,11 @@ class PdfDocumentProcessor:
             raise ValueError(f"Path is not a file: {pdfPath}")
         try:
             with pdfplumber.open(pdfPath) as pdf:
-                content = "\\n".join(page.extract_text() or "" for page in pdf.pages)
+                content = '\\n'.join(page.extract_text() or '' for page in pdf.pages)
         except Exception as e:
             raise ValueError(f"Error processing PDF file: {e}") from e
         if not content.strip():
-            raise ValueError("PDF Error: No text found in the PDF.")
+            raise ValueError('PDF Error: No text found in the PDF.')
         return content
 
 
@@ -82,6 +81,6 @@ class PdfDocumentProcessor:
                     raise ValueError(f"Page {pageNum} does not exist in PDF")
                 page = pdf.pages[pageNum]
                 content = page.extract_text()
-                return content or ""
+                return content or ''
         except Exception as e:
             raise ValueError(f"Error extracting text from page {pageNum}: {e}") from e

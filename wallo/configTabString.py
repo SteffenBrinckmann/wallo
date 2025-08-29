@@ -1,9 +1,10 @@
 """Tab for managing string configurations."""
 from typing import Optional
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QLabel, QFormLayout,# pylint: disable=no-name-in-module
-                               QTextEdit, QColorDialog)
-from PySide6.QtGui import QColor                                                                              # pylint: disable=no-name-in-module
+from PySide6.QtGui import QColor  # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import (QColorDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, # pylint: disable=no-name-in-module
+                               QTextEdit, QVBoxLayout, QWidget)
 from .configFileManager import ConfigurationManager
+
 
 class StringTab(QWidget):
     """Tab for managing string configurations."""
@@ -24,36 +25,36 @@ class StringTab(QWidget):
         self.colorLabel1.setFixedWidth(30)
         self.colorLabel1.setFixedHeight(30)
         self.colorLabel1.setAutoFillBackground(True)
-        self.colorBtn1 = QPushButton("Choose original text color")
+        self.colorBtn1 = QPushButton('Choose original text color')
         self.colorBtn1.clicked.connect(lambda: self.chooseColor('Original'))
         colorLayout1 = QHBoxLayout()
         colorLayout1.addWidget(self.colorBtn1)
         colorLayout1.addWidget(self.colorLabel1)
-        formLayout.addRow("Original text Color:", colorLayout1)
+        formLayout.addRow('Original text Color:', colorLayout1)
 
         self.colorLabel2 = QLabel()
         self.colorLabel2.setFixedWidth(30)
         self.colorLabel2.setFixedHeight(30)
         self.colorLabel2.setAutoFillBackground(True)
-        self.colorBtn2 = QPushButton("Choose reply text color")
+        self.colorBtn2 = QPushButton('Choose reply text color')
         self.colorBtn2.clicked.connect(lambda: self.chooseColor('Reply'))
         colorLayout2 = QHBoxLayout()
         colorLayout2.addWidget(self.colorBtn2)
         colorLayout2.addWidget(self.colorLabel2)
-        formLayout.addRow("Reply text Color:", colorLayout2)
+        formLayout.addRow('Reply text Color:', colorLayout2)
         self.updateColorLabel()
 
 
         self.headerEdit = QLineEdit()
-        formLayout.addRow("Header:", self.headerEdit)
+        formLayout.addRow('Header:', self.headerEdit)
         self.footerEdit = QLineEdit()
-        formLayout.addRow("Footer:", self.footerEdit)
+        formLayout.addRow('Footer:', self.footerEdit)
         self.promptFooterEdit = QTextEdit()
         self.promptFooterEdit.setMaximumHeight(100)
-        formLayout.addRow("Prompt Footer:", self.promptFooterEdit)
+        formLayout.addRow('Prompt Footer:', self.promptFooterEdit)
         layout.addLayout(formLayout)
         buttonLayout = QHBoxLayout()
-        self.saveBtn = QPushButton("Save Changes")
+        self.saveBtn = QPushButton('Save Changes')
         self.saveBtn.clicked.connect(self.saveStrings)
         buttonLayout.addWidget(self.saveBtn)
         buttonLayout.addStretch()
@@ -63,7 +64,7 @@ class StringTab(QWidget):
     def chooseColor(self, key: str) -> None:
         """Open color dialog to choose a color."""
         currentColor = self.configManager.get(f'color{key}')
-        color = QColorDialog.getColor(QColor(currentColor), self, "Select Color")
+        color = QColorDialog.getColor(QColor(currentColor), self, 'Select Color')
         if color.isValid():
             colorHex = color.name()
             self.configManager.updateConfig({f'color{key}': colorHex})

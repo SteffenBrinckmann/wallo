@@ -1,5 +1,5 @@
 """LLM processing and interaction logic for the Wallo application."""
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 from openai import OpenAI
 from .configFileManager import ConfigurationManager
 
@@ -13,7 +13,7 @@ class LLMProcessor:
             configManager: Configuration manager instance.
         """
         self.configManager = configManager
-        self.systemPrompt = "You are a helpful assistant."
+        self.systemPrompt = 'You are a helpful assistant.'
 
 
     def createClient(self, serviceName: str) -> OpenAI:
@@ -56,8 +56,8 @@ class LLMProcessor:
 
 
     def processPrompt(self, promptName: str, serviceName: str,
-                      selectedText: str = "", pdfFilePath: str = "",
-                      inquiryResponse: str = "") -> Dict[str, Any]:
+                      selectedText: str = '', pdfFilePath: str = '',
+                      inquiryResponse: str = '') -> dict[str, Any]:
         """Process a prompt based on its attachment type.
 
         Args:

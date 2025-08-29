@@ -1,6 +1,6 @@
 """ Worker class to handle background tasks such as LLM processing or PDF extraction."""
 from typing import Any
-from PySide6.QtCore import Signal, QObject  # pylint: disable=no-name-in-module
+from PySide6.QtCore import QObject, Signal  # pylint: disable=no-name-in-module
 from .pdfDocumentProcessor import PdfDocumentProcessor
 
 class Worker(QObject):
@@ -22,7 +22,7 @@ class Worker(QObject):
         self.prompt                = objects['prompt']
         self.systemPrompt          = objects.get('systemPrompt','You are a helpful assistant.')
         self.fileName              = objects.get('fileName','')
-        self._previousSystemPrompt = "--"
+        self._previousSystemPrompt = '--'
         self.documentProcessor = PdfDocumentProcessor()
 
 

@@ -1,6 +1,6 @@
 """ Custom QTextEdit with word wrap mode set to wrap at word boundary or anywhere. """
+from PySide6.QtGui import QTextOption  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import QApplication, QTextEdit # pylint: disable=no-name-in-module
-from PySide6.QtGui import QTextOption                 # pylint: disable=no-name-in-module
 
 class TextEdit(QTextEdit):
     """ Custom QTextEdit with word wrap mode set to wrap at word boundary or anywhere. """

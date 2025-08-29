@@ -1,12 +1,11 @@
 """DOCX export functionality for the Wallo application."""
 import re
 from typing import cast
-from PySide6.QtCore import QObject                       # pylint: disable=no-name-in-module
-from PySide6.QtGui import QFont, QColor                  # pylint: disable=no-name-in-module
-from PySide6.QtWidgets import QMessageBox, QTextEdit     # pylint: disable=no-name-in-module
 from docx import Document  # pylint: disable=import-outside-toplevel
 from docx.shared import RGBColor  # pylint: disable=import-outside-toplevel
-
+from PySide6.QtCore import QObject  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QColor, QFont  # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import QMessageBox, QTextEdit # pylint: disable=no-name-in-module
 
 class DocxExporter(QObject):
     """Handles DOCX export functionality with formatting preservation."""
@@ -21,7 +20,7 @@ class DocxExporter(QObject):
         try:
             self.exportWithPythonDocx(editor, filename)
         except Exception as error:
-            QMessageBox.critical(cast(QTextEdit, self.parent()), "Save Error", f"Failed to save document: {error}")
+            QMessageBox.critical(cast(QTextEdit, self.parent()), 'Save Error', f"Failed to save document: {error}")
 
 
     def exportWithPythonDocx(self, editor: QTextEdit, filename: str) -> None:

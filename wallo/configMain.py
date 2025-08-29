@@ -1,8 +1,8 @@
 """Configuration widget for managing application settings."""
 from typing import Any, Optional
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QPushButton # pylint: disable=no-name-in-module
-from PySide6.QtCore import Signal # pylint: disable=no-name-in-module
-from PySide6.QtGui import QKeyEvent # pylint: disable=no-name-in-module
+from PySide6.QtCore import Signal  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QKeyEvent  # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTabWidget, QVBoxLayout, QWidget # pylint: disable=no-name-in-module
 from .configFileManager import ConfigurationManager
 from .configTabPrompts import PromptTab, PromptType
 from .configTabServices import ServiceTab
@@ -16,7 +16,7 @@ class ConfigurationWidget(QWidget):
         super().__init__(parent)
         self.configManager = configManager
         self.setupUI()
-        self.setWindowTitle("Configuration")
+        self.setWindowTitle('Configuration')
         self.resize(800, 600)
 
 
@@ -28,16 +28,16 @@ class ConfigurationWidget(QWidget):
         self.sysPromptTab = PromptTab(self.configManager, PromptType.SYSTEM_PROMPT)
         self.serviceTab = ServiceTab(self.configManager)
         self.stringTab = StringTab(self.configManager)
-        self.tabWidget.addTab(self.promptTab, "Prompts")
-        self.tabWidget.addTab(self.sysPromptTab, "System-Prompts")
-        self.tabWidget.addTab(self.serviceTab, "Services")
-        self.tabWidget.addTab(self.stringTab, "Strings")
+        self.tabWidget.addTab(self.promptTab, 'Prompts')
+        self.tabWidget.addTab(self.sysPromptTab, 'System-Prompts')
+        self.tabWidget.addTab(self.serviceTab, 'Services')
+        self.tabWidget.addTab(self.stringTab, 'Strings')
         layout.addWidget(self.tabWidget)
 
         # Close button
         buttonLayout = QHBoxLayout()
         buttonLayout.addStretch()
-        self.closeBtn = QPushButton("Close")
+        self.closeBtn = QPushButton('Close')
         self.closeBtn.clicked.connect(self.close)
         buttonLayout.addWidget(self.closeBtn)
         layout.addLayout(buttonLayout)

@@ -1,6 +1,6 @@
 [project]
 name = "wallo"
-version = "0.2.0"
+version = "0.1.0"
 description = "WALLO - Writing Assistant leveraging Large Language mOdels"
 authors = [
     { name = "Steffen", email = "sbrinckm@gmail.com" }
