@@ -78,27 +78,23 @@ def newVersion(level:int=2) -> None:
   print(f'======== Version {version} =======')
   #git commands and update python files
   os.system('git pull')
-  filesToUpdate = {'wallo/__init__.py':'__version__ = ',
+  filesToUpdate = {'wallo/__init__.py':['__version__ = ',"'"],
+                   'pyproject.toml'   :['version = ','"'],
                    #'docs/source/conf.py':'version = ',
                    }
-  for path,text in filesToUpdate.items():
+  for path, (text, delim) in filesToUpdate.items():
     with open(path, encoding='utf-8') as fIn:
       fileOld = fIn.readlines()
     fileNew = []
     for line in fileOld:
       line = line[:-1]  #only remove last char, keeping front part
       if line.startswith(text):
-        line = f"{text}'{version}'"
+        line = f"{text}{delim}{version}{delim}"
       fileNew.append(line)
     with open(path,'w', encoding='utf-8') as fOut:
       fOut.write('\n'.join(fileNew)+'\n')
-  return
   os.system('git commit -a -m "update version numbers"')
-  os.system(f'git tag -a v{version} -m "Version {version}; see CHANGELOG for details"')
-  #create CHANGELOG / Contributor-list
-  with open(Path.home()/'.ssh'/'github.token', encoding='utf-8') as fIn:
-    token = fIn.read().strip()
-  os.system(f'github_changelog_generator -u PASTA-ELN -p pasta-eln -t {token}')
+  os.system(f'git tag -a v{version} -m "Version {version}"')
   addition = input('\n\nWhat do you want to add to the push message (do not use \' or \")? ')
   os.system(f'git commit -a -m "updated changelog; {addition}"')
   #push and publish
