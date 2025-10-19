@@ -4,7 +4,7 @@
 
 Often you have to write a text and forget all the helpful prompts that you used in the past. This tool helps to reduce the copy-paste from your local prompt-library and into the LLM-tools.
 
-This program has been heavily written by Claude; at a certain point I let it just change the code.
+This program has been heavily written with the help of Claude.
 
 ![Screenshot](images/screenshot.png "Screenshot")
 

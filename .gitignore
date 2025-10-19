@@ -6,3 +6,4 @@ pandoc*
 dist/
 wallo.egg-info/
 __pycache__/
+assistant*/
