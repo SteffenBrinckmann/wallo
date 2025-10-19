@@ -35,6 +35,9 @@ class Worker(QObject):
             if self.workType == 'ideazingChat':
                 messages = [{'role': 'system', 'content': self.systemPrompt},
                             {'role': 'user', 'content': self.prompt}]
+                if False: # fast debug mode
+                    self.finished.emit("Debug mode: conversation completed.", "---")
+                    return
                 if self.previousPromptId:
                     response = self.client.responses.create(model=self.model, input=messages,
                                                             previous_response_id=self.previousPromptId)
