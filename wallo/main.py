@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 import qtawesome as qta
 from PySide6.QtCore import QThread  # pylint: disable=no-name-in-module
-from PySide6.QtGui import QAction, QColor, QFont, QKeySequence, QTextCharFormat, QTextCursor # pylint: disable=no-name-in-module
+from PySide6.QtGui import QAction, QColor, QFont, QKeySequence, QTextCharFormat, QTextCursor, QIcon, QPixmap, QImage # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QInputDialog, QMainWindow, QMessageBox, # pylint: disable=no-name-in-module
                                QProgressBar, QToolBar, QWidget)
 from .busyDialog import BusyDialog
@@ -24,6 +24,7 @@ class Wallo(QMainWindow):
         super().__init__()
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
         self.editor = TextEdit()
+        self.editor.sendMessage.connect(self.useLLM)
         self.worker: Worker | None = None
         self.subThread: QThread | None = None
         self.progressDialog: BusyDialog | None = None
@@ -65,18 +66,19 @@ class Wallo(QMainWindow):
         serviceName = self.serviceCB.currentText()
         try:
             promptConfig = self.configManager.getPromptByName(promptName)
-            if not promptConfig:
+            if not promptConfig and not self.editor.ideazingMode:
                 QMessageBox.warning(self, 'Error', f"Prompt '{promptName}' not found")
                 return
             attachmentType = promptConfig['attachment']
-            if attachmentType == 'selection':
+            if attachmentType == 'selection' or self.editor.ideazingMode:
                 if not cursor.hasSelection():
                     QMessageBox.information(self, 'Warning', 'You have to select text for the tool to work')
                     return
                 selectedText = cursor.selectedText()
                 self.selectedTextStart = cursor.selectionStart()
                 self.selectedTextEnd = cursor.selectionEnd()
-                workParams = self.llmProcessor.processPrompt(promptName, serviceName, selectedText)
+                workParams = self.llmProcessor.processPrompt(promptName, serviceName, selectedText,
+                                                             ideazingMode=self.editor.ideazingMode)
                 self.runWorker('chatAPI', workParams)
             elif attachmentType == 'pdf':
                 res = QFileDialog.getOpenFileName(self, 'Open pdf file', str(Path.home()), '*.pdf')
@@ -133,6 +135,22 @@ class Wallo(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, 'Error', f"An unexpected error occurred: {str(e)}")
 
+    def _invert_icon(self, icon: QIcon, size: int = 24) -> QIcon:
+        """Return a new QIcon with all non-transparent pixels set to the matplotlib 'C0' blue."""
+        pix = icon.pixmap(size, size)
+        img = pix.toImage().convertToFormat(QImage.Format_ARGB32)
+        # Matplotlib "C0" hex color
+        c0_blue = QColor("#1f77b4")
+        for y in range(img.height()):
+            for x in range(img.width()):
+                col = img.pixelColor(x, y)
+                if col.alpha() == 0:
+                    continue  # keep fully transparent pixels transparent
+                # preserve alpha, replace RGB with C0 blue
+                newcol = QColor(c0_blue.red(), c0_blue.green(), c0_blue.blue(), col.alpha())
+                img.setPixelColor(x, y, newcol)
+        return QIcon(QPixmap.fromImage(img))
+
     def createToolbar(self) -> None:
         """ Create the toolbar with formatting actions and LLM selection"""
         # Remove existing toolbar if present
@@ -167,6 +185,14 @@ class Wallo(QMainWindow):
         wideSep2 = QWidget()
         wideSep2.setFixedWidth(20)
         self.toolbar.addWidget(wideSep2)
+        self.ideazingIcon = qta.icon('fa5s.comments')
+        self.ideazingIconInverted = self._invert_icon(self.ideazingIcon)
+        self.ideazingAction = QAction('', self, icon=self.ideazingIcon, toolTip='Toggle ideazing mode', checkable=True, shortcut=QKeySequence('Ctrl+I'))
+        self.ideazingAction.triggered.connect(self.toggleIdeazingMode)
+        self.toolbar.addAction(self.ideazingAction)
+        wideSep4 = QWidget()
+        wideSep4.setFixedWidth(20)
+        self.toolbar.addWidget(wideSep4)
         # add LLM selections
         self.toolbar.addSeparator()
         self.llmCB = QComboBox()
@@ -262,6 +288,8 @@ class Wallo(QMainWindow):
 
     def updateStatusBar(self) -> None:
         """ Update the status bar with the current word and character count."""
+        if self.editor.ideazingMode:
+            return
         text = self.editor.toPlainText()
         message = f"Total: words {len(text.split())}; characters {len(text)}"
         if self.editor.textCursor().hasSelection():
@@ -284,6 +312,7 @@ class Wallo(QMainWindow):
             self.progressDialog = BusyDialog(parent=self)
             self.progressDialog.show()
             QApplication.processEvents()  # Ensure dialog is shown
+        workType = 'ideazingChat' if self.editor.ideazingMode else workType
         self.subThread = QThread()
         self.worker = Worker(workType, work)
         self.worker.moveToThread(self.subThread)
@@ -296,7 +325,7 @@ class Wallo(QMainWindow):
         self.subThread.start()
 
 
-    def onLLMFinished(self, content:str) -> None:
+    def onLLMFinished(self, content:str, responseId:str) -> None:
         """ Handle the completion of the LLM worker.
         Args:
             content (str): The content generated by the LLM worker.
@@ -307,10 +336,11 @@ class Wallo(QMainWindow):
             if self.progressDialog:
                 self.progressDialog.close()
 
-        self.statusBar().clearMessage()
+        if not self.editor.ideazingMode:
+            self.statusBar().clearMessage()
         cursor = self.editor.textCursor()
 
-        # Apply blue color to the previously selected text
+        # Apply styling of previously selected text depending on the idealizing mode TODO
         if self.selectedTextStart != self.selectedTextEnd:
             cursor.setPosition(self.selectedTextStart)
             cursor.setPosition(self.selectedTextEnd, QTextCursor.MoveMode.KeepAnchor)
@@ -322,6 +352,7 @@ class Wallo(QMainWindow):
         cursor.setPosition(self.selectedTextEnd)
 
         # Process the content using the LLM processor
+        self.llmProcessor.responseID = responseId
         processContent = self.llmProcessor.processLLMResponse(content)
 
         # Insert the formatted content with green color HTML styling
@@ -363,6 +394,22 @@ class Wallo(QMainWindow):
         """Handle configuration changes."""
         # Reload the toolbar to reflect changes
         self.createToolbar()
+
+
+    def toggleIdeazingMode(self, checked:bool) -> None:
+        """ Toggle ideazing mode on or off.
+        Args:
+            checked (bool): True to enable ideazing mode, False to disable.
+        """
+        self.editor.setText('What is the height of the Eifeltower?')
+        self.editor.setIdeazingMode(checked)
+        # swap icon to inverted when active
+        if checked:
+            self.ideazingAction.setIcon(self.ideazingIconInverted)
+            self.statusBar().showMessage('Ideazing mode: Type your message and press Ctrl+Enter to send')
+        else:
+            self.ideazingAction.setIcon(self.ideazingIcon)
+            self.statusBar().clearMessage()
 
 
 if __name__ == '__main__':

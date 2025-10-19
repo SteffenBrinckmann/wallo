@@ -14,6 +14,7 @@ class LLMProcessor:
         """
         self.configManager = configManager
         self.systemPrompt = 'You are a helpful assistant.'
+        self.responseID = ''
 
 
     def createClient(self, serviceName: str) -> OpenAI:
@@ -57,7 +58,7 @@ class LLMProcessor:
 
     def processPrompt(self, promptName: str, serviceName: str,
                       selectedText: str = '', pdfFilePath: str = '',
-                      inquiryResponse: str = '') -> dict[str, Any]:
+                      inquiryResponse: str = '', ideazingMode:bool= False) -> dict[str, Any]:
         """Process a prompt based on its attachment type.
 
         Args:
@@ -66,6 +67,7 @@ class LLMProcessor:
             selectedText: Selected text from the editor.
             pdfFilePath: Path to the PDF file.
             inquiryResponse: User's response to the inquiry.
+            ideazingMode: Flag to indicate if ideazing mode is active.
 
         Returns:
             Dictionary with processing parameters for the worker.
@@ -73,18 +75,25 @@ class LLMProcessor:
         Raises:
             ValueError: If prompt or service is not found.
         """
-        promptConfig = self.configManager.getPromptByName(promptName)
-        if not promptConfig:
-            raise ValueError(f"Prompt '{promptName}' not found in configuration")
-        attachmentType = promptConfig['attachment']
         client = self.createClient(serviceName)
         serviceConfig = self.configManager.getServiceByName(serviceName)
         if not serviceConfig:
             raise ValueError(f"Service '{serviceName}' not found in configuration")
+        if ideazingMode:
+            attachmentType = 'selection'
+            promptHeader = ''
+        else:
+            promptConfig = self.configManager.getPromptByName(promptName)
+            if not promptConfig:
+                raise ValueError(f"Prompt '{promptName}' not found in configuration")
+            attachmentType = promptConfig['attachment']
+            promptHeader = f"{promptConfig['user-prompt']}\\n"
         promptFooter = self.configManager.get('promptFooter')
         result = {'client': client, 'model': serviceConfig['model'], 'systemPrompt': self.systemPrompt}
+        if ideazingMode and self.responseID:
+            result['previousPromptId'] = self.responseID
         if attachmentType == 'selection':
-            fullPrompt = f"{promptConfig['user-prompt']}\\n{selectedText}{promptFooter}"
+            fullPrompt = f"{promptHeader}{selectedText}{promptFooter}"
             result['prompt'] = fullPrompt
         elif attachmentType == 'pdf':
             fullPrompt = f"{promptConfig['user-prompt']}{promptFooter}\\n"
