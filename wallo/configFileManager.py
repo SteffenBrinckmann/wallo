@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 from typing import Any, Optional
+from jsonschema import validate, ValidationError
 
 DEFAULT_CONFIGURATION = {
     'prompts': [
@@ -75,33 +76,21 @@ class ConfigurationManager:
 
 
     def validateConfig(self) -> None:
-        """Validate configuration file format and required fields."""
-        requiredFields = ['prompts', 'services','system-prompts']
-        for field in requiredFields:
-            if field not in self._config:
-                raise ValueError(f"Missing required field '{field}' in configuration")
-        if not isinstance(self._config['prompts'], list):
-            raise ValueError("'prompts' must be a list")
-        if not isinstance(self._config['services'], dict):
-            raise ValueError("'services' must be a dictionary")
-        # Validate prompt structure
-        for i, prompt in enumerate(self._config['prompts']):
-            requiredPromptFields = ['name', 'description', 'user-prompt', 'attachment']
-            for field in requiredPromptFields:
-                if field not in prompt:
-                    raise ValueError(f"Missing required field '{field}' in prompt {i}")
-        # Validate prompt structure
-        for i, prompt in enumerate(self._config['system-prompts']):
-            requiredPromptFields = ['name', 'system-prompt']
-            for field in requiredPromptFields:
-                if field not in prompt:
-                    raise ValueError(f"Missing required field '{field}' in system-prompt {i}")
-        # Validate service structure
-        for serviceName, serviceConfig in self._config['services'].items():
-            requiredServiceFields = ['url', 'api', 'model']
-            for field in requiredServiceFields:
-                if field not in serviceConfig:
-                    raise ValueError(f"Missing required field '{field}' in service '{serviceName}'")
+        """Validate configuration file format and required fields.
+
+        If jsonschema is available, use the bundled schema for validation and
+        provide detailed errors. Otherwise fall back to lightweight checks.
+        """
+        schema_path = Path(__file__).parent / 'config_schema.json'
+        if schema_path.is_file():
+            with open(schema_path, encoding='utf-8') as s:
+                schema = json.load(s)
+            try:
+                validate(instance=self._config, schema=schema)
+                return
+            except ValidationError as e:
+                path = '/'.join(map(str, e.path)) if e.path else '<root>'
+                raise ValueError(f"Configuration validation error at {path}: {e.message}") from e
 
 
     def get(self, info:str) -> Any:

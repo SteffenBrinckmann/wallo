@@ -68,6 +68,6 @@ The application uses a JSON configuration file (`~/.wallo.json`) that includes:
 - **pdfplumber**: PDF text extraction
 
 ### Code Standards
-- use camelCase for everything: no snake_case
+- use camelCase names or single-word lowercase function names for filenames, variables, functions
+- use CamelCase for classes
 - use two empty lines between each function
-- no empty lines within a function

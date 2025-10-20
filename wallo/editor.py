@@ -22,9 +22,9 @@ class TextEdit(QTextEdit):
         self.highlighter  = SpellCheck(self.document(),
                                        configManager.get('dictionary')) if self.spellCheckEnabled else None
         self.reduceAction = QAction("Reduce block to highlighted text", self, shortcut=QKeySequence('Ctrl+R'))
-        self.reduceAction.triggered.connect(self._reduce)
+        self.reduceAction.triggered.connect(self.reduce)
         self.deleteAction = QAction("Remove block", self, shortcut=QKeySequence('Ctrl+D'))
-        self.deleteAction.triggered.connect(self._delete)
+        self.deleteAction.triggered.connect(self.delete)
 
 
     def contextMenuEvent(self, event:QContextMenuEvent) -> None:
@@ -113,15 +113,15 @@ class TextEdit(QTextEdit):
         return super().mouseReleaseEvent(e)
 
 
-    def _reduce(self) -> None:
+    def reduce(self) -> None:
         """ Reduce the current block to the highlighted text. """
-        html = self._delete()
+        html = self.delete()
         spans = TextEdit.spansWithBackground(html)
         htmlNew = '<ul>' + '\n'.join([f'<li>{i}</li>' for i in spans]) + '</ul><br>'
         self.insertHtml(htmlNew)
 
 
-    def _delete(self) -> str:
+    def delete(self) -> str:
         """ Remove the current block. """
         #Choose entire block
         cursor = self.textCursor()

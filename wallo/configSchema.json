@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Wallo configuration schema",
+  "type": "object",
+  "properties": {
+    "prompts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "user-prompt": { "type": "string" },
+          "attachment": { "type": "string", "enum": ["selection", "pdf", "inquiry"] }
+        },
+        "required": ["name", "user-prompt", "attachment"],
+        "additionalProperties": false
+      }
+    },
+    "system-prompts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "system-prompt": { "type": "string" }
+        },
+        "required": ["name", "system-prompt"],
+        "additionalProperties": false
+      }
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string" },
+          "api": { "type": "string" },
+          "model": { "type": "string" }
+        },
+        "required": ["api", "model"],
+        "additionalProperties": true
+      }
+    },
+    "promptFooter": { "type": "string" },
+    "footer": { "type": "string" },
+    "header": { "type": "string" },
+    "colorOriginal": { "type": "string" },
+    "colorReply": { "type": "string" },
+    "shortcuts": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "dictionary": { "type": "string" }
+  },
+  "required": ["prompts", "services"],
+  "additionalProperties": false
+}
