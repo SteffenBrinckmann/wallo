@@ -1,6 +1,6 @@
 """ Custom QTextEdit with word wrap mode set to wrap at word boundary or anywhere. """
 import re
-from PySide6.QtCore import Qt, Signal  # pylint: disable=no-name-in-module
+from PySide6.QtCore import Qt, Signal, QMimeData  # pylint: disable=no-name-in-module
 from PySide6.QtGui import (QTextOption, QKeyEvent, QAction, QKeySequence, QTextCursor, QTextDocumentFragment,  # pylint: disable=no-name-in-module
                            QContextMenuEvent, QMouseEvent)
 from PySide6.QtWidgets import QApplication, QTextEdit, QMenu  # pylint: disable=no-name-in-module
@@ -30,6 +30,20 @@ class TextEdit(QTextEdit):
 
 
     # EVENTS
+    def insertFromMimeData(self, source:QMimeData) -> None:
+        """Override paste behavior to remove hard line breaks from pasted text.
+        Args:
+            source (QMimeData): The mime data being pasted.
+        """
+        if source.hasText():
+            text = source.text()
+            # Replace single newlines with spaces, but preserve double newlines (paragraph breaks)
+            text = re.sub(r'(?<!\n)\n(?!\n)', ' ', text)
+            self.insertPlainText(text)
+        else:
+            super().insertFromMimeData(source)
+
+
     def copy(self) -> None:
         """ Copy the selected text to the clipboard """
         cursor = self.textCursor()

@@ -64,7 +64,6 @@ Prompts, services and the other configuration settings are saved in .wallo.json 
 ### Things I might/might not add
 
 - Spell checking
-- Word wrap does not work with long copy-paste content
 - pyInstaller to easily install on windows
 
 ### Upload to pypi
