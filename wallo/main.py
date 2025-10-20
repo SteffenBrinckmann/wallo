@@ -22,8 +22,17 @@ class Wallo(QMainWindow):
     """ Main window for the Wallo application, providing a text editor with LLM assistance. """
     def __init__(self) -> None:
         super().__init__()
+        # Initialize business logic components
+        self.configManager = ConfigurationManager()
+        self.llmProcessor = LLMProcessor(self.configManager)
+        self.documentProcessor = PdfDocumentProcessor()
+        self.configWidget: ConfigurationWidget | None = None
+        self.docxExporter = DocxExporter(self)
+        self.spellcheck = True
+
+        # GUI
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
-        self.editor = TextEdit()
+        self.editor = TextEdit(configManager=self.configManager, spellCheck=self.spellcheck)
         self.editor.sendMessage.connect(self.useLLM)
         self.worker: Worker | None = None
         self.subThread: QThread | None = None
@@ -38,13 +47,6 @@ class Wallo(QMainWindow):
         self.statusBar()  # Initialize the status bar
         self.editor.textChanged.connect(self.updateStatusBar)
         self.editor.selectionChanged.connect(self.updateStatusBar)
-
-        # Initialize business logic components
-        self.configManager = ConfigurationManager()
-        self.llmProcessor = LLMProcessor(self.configManager)
-        self.documentProcessor = PdfDocumentProcessor()
-        self.configWidget: ConfigurationWidget | None = None
-        self.docxExporter = DocxExporter(self)
         self.createToolbar()
         self.updateStatusBar()
         if progressBarInStatusBar:
@@ -226,6 +228,12 @@ class Wallo(QMainWindow):
         underlineAction = QAction('', self, icon=qta.icon('fa5s.underline')) # Underline
         underlineAction.triggered.connect(self.toggleUnderline)
         self.toolbar.addAction(underlineAction)
+        self.spellIcon = qta.icon('fa5s.spell-check')
+        self.spellIconInverted = self.invertIcon(self.spellIcon)
+        self.spellcheckAction = QAction('', self, icon=self.spellIconInverted, checkable=True,
+                                   toolTip='Toggle spellchecker') # Spellcheck
+        self.spellcheckAction.triggered.connect(self.toggleSpellcheck)
+        self.toolbar.addAction(self.spellcheckAction)
         wideSep1 = QWidget()
         wideSep1.setFixedWidth(20)
         self.toolbar.addWidget(wideSep1)
@@ -353,6 +361,13 @@ class Wallo(QMainWindow):
         self.mergeFormat(fmt)
 
 
+    def toggleSpellcheck(self) -> None:
+        """ Toggle spell checking on or off. """
+        self.spellcheck = not self.spellcheck
+        self.editor.setSpellCheckEnabled(self.spellcheck)
+        self.spellcheckAction.setIcon(self.spellIconInverted if self.spellcheck else self.spellIcon)
+
+
     def mergeFormat(self, fmt: QTextCharFormat) -> None:
         """ Merge the given character format with the current text cursor.
         Args:
@@ -386,12 +401,12 @@ class Wallo(QMainWindow):
         Args:
             checked (bool): True to enable ideazing mode, False to disable.
         """
-        self.editor.setText('What is the height of the Eifeltower?')
         self.editor.setIdeazingMode(checked)
         # swap icon to inverted when active
         if checked:
             self.ideazingAction.setIcon(self.ideazingIconInverted)
-            self.statusBar().showMessage('Ideazing mode: Type your message and press Ctrl+Enter to send')
+            self.statusBar().showMessage(
+                'Ideazing mode: Highlight message and press Ctrl+Enter to send. Use context menu for options.')
         else:
             self.ideazingAction.setIcon(self.ideazingIcon)
             self.statusBar().clearMessage()

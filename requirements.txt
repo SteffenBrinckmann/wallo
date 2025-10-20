@@ -3,3 +3,5 @@ QtAwesome
 openai
 pdfplumber
 python-docx
+pyenchant
+pycountry

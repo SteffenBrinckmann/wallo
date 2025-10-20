@@ -1,8 +1,14 @@
 """Tab for managing string configurations."""
 from typing import Optional
+try:
+    import enchant
+    import pycountry
+    ENCHANT_AVAILABLE = True
+except ImportError:
+    ENCHANT_AVAILABLE = False
 from PySide6.QtGui import QColor  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (QColorDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, # pylint: disable=no-name-in-module
-                               QTextEdit, QVBoxLayout, QWidget)
+                               QTextEdit, QVBoxLayout, QWidget, QComboBox)
 from .configFileManager import ConfigurationManager
 
 
@@ -51,6 +57,17 @@ class StringTab(QWidget):
         self.promptFooterEdit = QTextEdit()
         self.promptFooterEdit.setMaximumHeight(100)
         formLayout.addRow('Prompt Footer:', self.promptFooterEdit)
+
+        if ENCHANT_AVAILABLE:
+            self.cbLanguages = QComboBox()
+            for code in enchant.list_languages():
+                parts = code.split('_')
+                lang = pycountry.languages.get(alpha_2=parts[0])
+                country = pycountry.countries.get(alpha_2=parts[1]) if len(parts) > 1 else None
+                self.cbLanguages.addItem(f"{lang.name} ({country.name})" if country else lang.name if lang else code,
+                                         userData=code)
+            formLayout.addRow('Dictionary:', self.cbLanguages)
+
         formLayout.addRow('Shortcuts:', QLabel(''))
         self.scIdea = QLineEdit()
         formLayout.addRow('Ideazing mode:', self.scIdea)
@@ -104,6 +121,7 @@ class StringTab(QWidget):
         self.scDelete.setText(self.configManager.get('shortcuts')['Remove block'])
         self.scClear.setText(self.configManager.get('shortcuts')['Clear all formatting'])
         self.scConfig.setText(self.configManager.get('shortcuts')['Configuration'])
+        self.cbLanguages.setCurrentIndex(self.cbLanguages.findData(self.configManager.get('dictionary')))
 
 
     def saveStrings(self) -> None:
@@ -112,6 +130,7 @@ class StringTab(QWidget):
             'header': self.headerEdit.text(),
             'footer': self.footerEdit.text(),
             'promptFooter': self.promptFooterEdit.toPlainText(),
+            'dictionary': self.cbLanguages.currentData() if ENCHANT_AVAILABLE else '',
             'shortcuts': {
                 'Ideazing mode': self.scIdea.text(),
                 'Reduce to highlighted text': self.scReduce.text(),

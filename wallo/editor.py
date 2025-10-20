@@ -4,16 +4,23 @@ from PySide6.QtCore import Qt, Signal, QMimeData  # pylint: disable=no-name-in-m
 from PySide6.QtGui import (QTextOption, QKeyEvent, QAction, QKeySequence, QTextCursor, QTextDocumentFragment,  # pylint: disable=no-name-in-module
                            QContextMenuEvent, QMouseEvent)
 from PySide6.QtWidgets import QApplication, QTextEdit, QMenu  # pylint: disable=no-name-in-module
-
+from .editorSpellCheck import ENCHANT_AVAILABLE, SpellCheck
+from .configFileManager import ConfigurationManager
 
 class TextEdit(QTextEdit):
     """ Custom QTextEdit with word wrap mode set to wrap at word boundary or anywhere. """
     sendMessage = Signal(str)
-    def __init__(self) -> None:
-        """ Initialize the TextEdit with word wrap mode set to wrap at word boundary or anywhere """
+    def __init__(self, configManager:ConfigurationManager, spellCheck:bool=True) -> None:
+        """ Initialize the TextEdit with word wrap mode set to wrap at word boundary or anywhere
+        Args:
+            configManager (ConfigurationManager): configuration file manager that stores the dictionary
+            spellCheck (bool): Enable spell checking (default: True).
+        """
         super().__init__()
         self.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
         self.ideazingMode = False
+        self.spellCheckEnabled = spellCheck and ENCHANT_AVAILABLE
+        self.highlighter  = SpellCheck(self.document(), configManager.get('dictionary')) if self.spellCheckEnabled else None
         self.reduceAction = QAction("Reduce block to highlighted text", self, shortcut=QKeySequence('Ctrl+R'))
         self.reduceAction.triggered.connect(self._reduce)
         self.deleteAction = QAction("Remove block", self, shortcut=QKeySequence('Ctrl+D'))
@@ -21,8 +28,24 @@ class TextEdit(QTextEdit):
 
 
     def contextMenuEvent(self, event:QContextMenuEvent) -> None:
-        """Create a context menu based on the standard menu, plus custom actions."""
+        """Create a context menu based on the standard menu, plus custom actions and spelling suggestions."""
         menu: QMenu = self.createStandardContextMenu()
+        if self.spellCheckEnabled and self.highlighter and self.highlighter.spellDict:
+            cursor = self.cursorForPosition(event.pos())
+            cursor.select(QTextCursor.SelectionType.WordUnderCursor)
+            word = cursor.selectedText()
+            if word and not self.highlighter.spellDict.check(word):
+                suggestions = self.highlighter.spellDict.suggest(word)[:10]
+                if suggestions:
+                    menu.insertSeparator(menu.actions()[0])
+                    for suggestion in suggestions:
+                        action = menu.addAction(suggestion)
+                        action.triggered.connect(lambda checked=False, s=suggestion, c=cursor: self._replaceWord(c, s))
+                        menu.insertAction(menu.actions()[0], action)
+                    addToDictAction = QAction("Add to dictionary", self)
+                    addToDictAction.triggered.connect(lambda: self._addToDictionary(word))
+                    menu.insertAction(menu.actions()[0], addToDictAction)
+                    menu.insertSeparator(menu.actions()[0])
         menu.addSeparator()
         menu.addAction(self.reduceAction)
         menu.addAction(self.deleteAction)
@@ -150,3 +173,44 @@ class TextEdit(QTextEdit):
             enabled (bool): True to enable ideazing mode, False to disable.
         """
         self.ideazingMode = enabled
+
+
+    def setSpellCheckEnabled(self, enabled:bool) -> None:
+        """ Enable or disable spell checking.
+        Args:
+            enabled (bool): True to enable spell checking, False to disable.
+        """
+        self.spellCheckEnabled = enabled and ENCHANT_AVAILABLE
+        if self.spellCheckEnabled and not self.highlighter:
+            # Create highlighter if it doesn't exist and enchant is available
+            from .configFileManager import ConfigurationManager
+            configManager = ConfigurationManager()
+            self.highlighter = SpellCheck(self.document(), configManager.get('dictionary'))
+        if self.highlighter:
+            if self.spellCheckEnabled:
+                self.highlighter.rehighlight()
+            else:
+                # Clear highlighting by disabling the highlighter
+                self.highlighter.setDocument(None)
+
+
+    def _replaceWord(self, cursor:QTextCursor, newWord:str) -> None:
+        """Replace the word at the cursor position with the given word.
+        Args:
+            cursor (QTextCursor): The cursor selecting the word to replace.
+            newWord (str): The replacement word.
+        """
+        cursor.beginEditBlock()
+        cursor.removeSelectedText()
+        cursor.insertText(newWord)
+        cursor.endEditBlock()
+
+
+    def _addToDictionary(self, word:str) -> None:
+        """Add a word to the personal dictionary.
+        Args:
+            word (str): The word to add to the dictionary.
+        """
+        if self.highlighter and self.highlighter.spellDict:
+            self.highlighter.spellDict.add(word)
+            self.highlighter.rehighlight()
