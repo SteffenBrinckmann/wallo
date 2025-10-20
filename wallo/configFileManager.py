@@ -31,7 +31,14 @@ DEFAULT_CONFIGURATION = {
   'footer': f'\n{"-"*5} Start LLM generated {"-"*5}',
   'header': f'\n{"-"*5}  End LLM generated  {"-"*5}',
   'colorOriginal': '#000000',
-  'colorReply':  '#0000FF'
+  'colorReply':  '#0000FF',
+  'shortcuts': {
+      'Ideazing mode':'Ctrl-I',
+      'Reduce to highlighted text':'Ctrl-R',
+      'Remove block':'Ctrl-D',
+      'Clear all formatting':'Ctrl-Space',
+      'Configuration':'Ctrl-0'
+  }
 }
 
 
@@ -99,11 +106,11 @@ class ConfigurationManager:
     def get(self, info:str) -> Any:
         """Get configuration value by key."""
         if info not in ['prompts', 'system-prompts','services', 'promptFooter', 'header', 'footer',
-                        'colorOriginal','colorReply']:
+                        'colorOriginal','colorReply','shortcuts']:
             raise ValueError(f"Invalid info type '{info}' requested")
         if info in ['prompts', 'system-prompts', 'services']:
             return self._config[info]
-        if info in ['promptFooter', 'header', 'footer','colorOriginal','colorReply']:
+        if info in ['promptFooter', 'header', 'footer','colorOriginal','colorReply', 'shortcuts']:
             return self._config.get(info, DEFAULT_CONFIGURATION[info])
         return []
 

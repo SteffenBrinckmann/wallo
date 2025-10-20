@@ -31,7 +31,7 @@ class ConfigurationWidget(QWidget):
         self.tabWidget.addTab(self.promptTab, 'Prompts')
         self.tabWidget.addTab(self.sysPromptTab, 'System-Prompts')
         self.tabWidget.addTab(self.serviceTab, 'Services')
-        self.tabWidget.addTab(self.stringTab, 'Strings')
+        self.tabWidget.addTab(self.stringTab, 'Interface')
         layout.addWidget(self.tabWidget)
 
         # Close button
