@@ -32,7 +32,7 @@ class Wallo(QMainWindow):
 
         # GUI
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
-        self.editor = TextEdit(configManager=self.configManager, spellCheck=self.spellcheck)
+        self.editor = TextEdit(configManager=self.configManager)
         self.editor.sendMessage.connect(self.useLLM)
         self.worker: Worker | None = None
         self.subThread: QThread | None = None

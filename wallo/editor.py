@@ -10,16 +10,15 @@ from .configFileManager import ConfigurationManager
 class TextEdit(QTextEdit):
     """ Custom QTextEdit with word wrap mode set to wrap at word boundary or anywhere. """
     sendMessage = Signal(str)
-    def __init__(self, configManager:ConfigurationManager, spellCheck:bool=True) -> None:
+    def __init__(self, configManager:ConfigurationManager) -> None:
         """ Initialize the TextEdit with word wrap mode set to wrap at word boundary or anywhere
         Args:
             configManager (ConfigurationManager): configuration file manager that stores the dictionary
-            spellCheck (bool): Enable spell checking (default: True).
         """
         super().__init__()
         self.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
         self.ideazingMode = False
-        self.spellCheckEnabled = spellCheck and ENCHANT_AVAILABLE
+        self.spellCheckEnabled = ENCHANT_AVAILABLE
         self.highlighter  = SpellCheck(self.document(),
                                        configManager.get('dictionary')) if self.spellCheckEnabled else None
         self.reduceAction = QAction("Reduce block to highlighted text", self, shortcut=QKeySequence('Ctrl+R'))
