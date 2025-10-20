@@ -1,7 +1,8 @@
 """ Custom QTextEdit with word wrap mode set to wrap at word boundary or anywhere. """
 import re
 from PySide6.QtCore import Qt, Signal  # pylint: disable=no-name-in-module
-from PySide6.QtGui import QTextOption, QKeyEvent, QAction, QKeySequence, QTextCursor, QTextDocumentFragment  # pylint: disable=no-name-in-module
+from PySide6.QtGui import (QTextOption, QKeyEvent, QAction, QKeySequence, QTextCursor, QTextDocumentFragment,  # pylint: disable=no-name-in-module
+                           QContextMenuEvent, QMouseEvent)
 from PySide6.QtWidgets import QApplication, QTextEdit, QMenu  # pylint: disable=no-name-in-module
 
 
@@ -19,7 +20,7 @@ class TextEdit(QTextEdit):
         self.deleteAction.triggered.connect(self._delete)
 
 
-    def contextMenuEvent(self, event) -> None:
+    def contextMenuEvent(self, event:QContextMenuEvent) -> None:
         """Create a context menu based on the standard menu, plus custom actions."""
         menu: QMenu = self.createStandardContextMenu()
         menu.addSeparator()
@@ -48,7 +49,8 @@ class TextEdit(QTextEdit):
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key()==Qt.Key.Key_Escape:
             with open('temp_debug.html', 'w', encoding='utf-8') as f:
                 f.write(self.toHtml())
-        elif self.ideazingMode and event.key() == Qt.Key.Key_Return and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+        elif self.ideazingMode and event.key() == Qt.Key.Key_Return and \
+                                   event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             text = self.toPlainText().strip()
             if text:
                 self.sendMessage.emit(text)
@@ -57,12 +59,13 @@ class TextEdit(QTextEdit):
             super().keyPressEvent(event)
 
 
-    def mouseReleaseEvent(self, e):
+    def mouseReleaseEvent(self, e:QMouseEvent) -> None:
         """ Handle mouse release events.
         Args:
             e: The mouse release event.
         """
-        if self.ideazingMode and e.modifiers()==Qt.KeyboardModifier.ControlModifier and self.textCursor().hasSelection():
+        if self.ideazingMode and e.modifiers()==Qt.KeyboardModifier.ControlModifier and \
+                                 self.textCursor().hasSelection():
             cursor = self.textCursor()
             selectedText = cursor.selectedText()
             cursor.removeSelectedText()
@@ -73,7 +76,7 @@ class TextEdit(QTextEdit):
         return super().mouseReleaseEvent(e)
 
 
-    def _reduce(self) -> None:  #TODO
+    def _reduce(self) -> None:
         """ Reduce the current block to the highlighted text. """
         html = self._delete()
         spans = TextEdit.spansWithBackground(html)
@@ -99,6 +102,7 @@ class TextEdit(QTextEdit):
         return fragment.toHtml()
 
 
+    @staticmethod
     def spansWithBackground(html: str) -> list[str]:
         """Return list of (plain text) for <span> tags with inline background.
         Matches inline style attributes containing
@@ -115,10 +119,10 @@ class TextEdit(QTextEdit):
         for m in span.finditer(html):
             attrs = m.group(1)
             innerHtml = m.group(2)
-            style = styleAttr.search(attrs)
-            if not style:
+            styleMatch = styleAttr.search(attrs)
+            if not styleMatch:
                 continue
-            style = style.group(2)
+            style = styleMatch.group(2)
             if 'background' not in style.lower():
                 continue
             text = re.sub(r'<[^>]+>', '', innerHtml) # strip any inner HTML tags to get plain text

@@ -35,15 +35,16 @@ class Worker(QObject):
             if self.workType == 'ideazingChat':
                 messages = [{'role': 'system', 'content': self.systemPrompt},
                             {'role': 'user', 'content': self.prompt}]
-                if False: # fast debug mode
-                    self.finished.emit("Debug mode: conversation completed.", "---")
-                    return
+                # if False: # fast debug mode
+                #     self.finished.emit("Debug mode: conversation completed.", "---")
+                #     return
                 if self.previousPromptId:
                     response = self.client.responses.create(model=self.model, input=messages,
                                                             previous_response_id=self.previousPromptId)
                 else:
                     response = self.client.responses.create(model=self.model, input=messages)
-                content = [i.content[0].text for i in response.output if hasattr(i, 'content') and i.content is not None][0]
+                content = [i.content[0].text for i in response.output
+                           if hasattr(i, 'content') and i.content is not None][0]
                 self.finished.emit(content, response.id)
             else:
                 # Work before LLM

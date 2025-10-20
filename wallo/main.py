@@ -237,8 +237,9 @@ class Wallo(QMainWindow):
         wideSep2.setFixedWidth(20)
         self.toolbar.addWidget(wideSep2)
         self.ideazingIcon = qta.icon('fa5s.comments')
-        self.ideazingIconInverted = self._invert_icon(self.ideazingIcon)
-        self.ideazingAction = QAction('', self, icon=self.ideazingIcon, toolTip='Toggle ideazing mode', checkable=True, shortcut=QKeySequence('Ctrl+I'))
+        self.ideazingIconInverted = self.invertIcon(self.ideazingIcon)
+        self.ideazingAction = QAction('', self, icon=self.ideazingIcon, toolTip='Toggle ideazing mode',
+                                      checkable=True, shortcut=QKeySequence('Ctrl+I'))
         self.ideazingAction.triggered.connect(self.toggleIdeazingMode)
         self.toolbar.addAction(self.ideazingAction)
         wideSep4 = QWidget()
@@ -396,19 +397,19 @@ class Wallo(QMainWindow):
             self.statusBar().clearMessage()
 
 
-    def _invert_icon(self, icon: QIcon, size: int = 24) -> QIcon:
+    def invertIcon(self, icon: QIcon, size: int = 24) -> QIcon:
         """Return a new QIcon with all non-transparent pixels set to the matplotlib 'C0' blue."""
         pix = icon.pixmap(size, size)
-        img = pix.toImage().convertToFormat(QImage.Format_ARGB32)
+        img = pix.toImage().convertToFormat(QImage.Format.Format_ARGB32)
         # Matplotlib "C0" hex color
-        c0_blue = QColor("#1f77b4")
+        blue = QColor("#1f77b4")
         for y in range(img.height()):
             for x in range(img.width()):
                 col = img.pixelColor(x, y)
                 if col.alpha() == 0:
                     continue  # keep fully transparent pixels transparent
                 # preserve alpha, replace RGB with C0 blue
-                newcol = QColor(c0_blue.red(), c0_blue.green(), c0_blue.blue(), col.alpha())
+                newcol = QColor(blue.red(), blue.green(), blue.blue(), col.alpha())
                 img.setPixelColor(x, y, newcol)
         return QIcon(QPixmap.fromImage(img))
 

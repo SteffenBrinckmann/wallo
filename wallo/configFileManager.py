@@ -108,13 +108,13 @@ class ConfigurationManager:
         return []
 
 
-    def getPromptByName(self, name: str) -> Optional[dict[str, Any]]:
+    def getPromptByName(self, name: str) -> dict[str, Any]:
         """Get a specific prompt by name."""
         prompts = self._config['prompts']
         for prompt in prompts:
             if prompt['name'] == name:
                 return prompt  # type: ignore
-        return None
+        return {}
 
 
     def getServiceByName(self, name: str) -> Optional[dict[str, Any]]:
