@@ -170,7 +170,7 @@ class-naming-style=PascalCase
 #class-rgx=
 
 # Naming style matching correct constant names.
-const-naming-style=camelCase
+const-naming-style=UPPER_CASE
 
 # Regular expression matching correct constant names. Overrides const-naming-
 # style. If left empty, constant names will be checked with the set naming
@@ -293,7 +293,7 @@ ignored-parents=
 max-args=7
 
 # Maximum number of attributes for a class (see R0902).
-max-attributes=20
+max-attributes=25
 
 # Maximum number of boolean expressions in an if statement (see R0916).
 max-bool-expr=5

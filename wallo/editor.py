@@ -20,7 +20,8 @@ class TextEdit(QTextEdit):
         self.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
         self.ideazingMode = False
         self.spellCheckEnabled = spellCheck and ENCHANT_AVAILABLE
-        self.highlighter  = SpellCheck(self.document(), configManager.get('dictionary')) if self.spellCheckEnabled else None
+        self.highlighter  = SpellCheck(self.document(),
+                                       configManager.get('dictionary')) if self.spellCheckEnabled else None
         self.reduceAction = QAction("Reduce block to highlighted text", self, shortcut=QKeySequence('Ctrl+R'))
         self.reduceAction.triggered.connect(self._reduce)
         self.deleteAction = QAction("Remove block", self, shortcut=QKeySequence('Ctrl+D'))
@@ -182,8 +183,6 @@ class TextEdit(QTextEdit):
         """
         self.spellCheckEnabled = enabled and ENCHANT_AVAILABLE
         if self.spellCheckEnabled and not self.highlighter:
-            # Create highlighter if it doesn't exist and enchant is available
-            from .configFileManager import ConfigurationManager
             configManager = ConfigurationManager()
             self.highlighter = SpellCheck(self.document(), configManager.get('dictionary'))
         if self.highlighter:
