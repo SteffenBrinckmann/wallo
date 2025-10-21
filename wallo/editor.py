@@ -72,7 +72,6 @@ class TextEdit(QTextEdit):
         cursor = self.textCursor()
         if cursor.hasSelection():
             text = cursor.selectedText()
-            print(text)
             QApplication.clipboard().setText(text)
         else:
             super().copy()
@@ -83,10 +82,11 @@ class TextEdit(QTextEdit):
         Args:
             event (QKeyEvent): The key press event.
         """
-        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key()==Qt.Key.Key_Escape:
-            with open('temp_debug.html', 'w', encoding='utf-8') as f:
-                f.write(self.toHtml())
-        elif self.ideazingMode and event.key() == Qt.Key.Key_Return and \
+        # For debugging: export current content to HTML file
+        # if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key()==Qt.Key.Key_Escape:
+        #     with open('temp_debug.html', 'w', encoding='utf-8') as f:
+        #         f.write(self.toHtml())
+        if self.ideazingMode and event.key() == Qt.Key.Key_Return and \
                                    event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             text = self.toPlainText().strip()
             if text:

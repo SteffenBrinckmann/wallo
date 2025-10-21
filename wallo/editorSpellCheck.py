@@ -1,4 +1,5 @@
 """" Spell checking syntax highlighter using PyEnchant. """
+import logging
 from typing import Optional
 from PySide6.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QTextDocument # pylint: disable=no-name-in-module
 try:
@@ -25,7 +26,7 @@ class SpellCheck(QSyntaxHighlighter):
                 self.spellDict = enchant.Dict(dictionary)
                 self.tokenizer = get_tokenizer(dictionary)
             except enchant.errors.DictNotFoundError:
-                print(f"Dictionary '{dictionary}' not found. Spell checking disabled.")
+                logging.error(f"Dictionary '{dictionary}' not found. Spell checking disabled.")
         self.misspelledFormat = QTextCharFormat()
         self.misspelledFormat.setUnderlineColor(QColor("red"))
         self.misspelledFormat.setUnderlineStyle(QTextCharFormat.UnderlineStyle.WaveUnderline)

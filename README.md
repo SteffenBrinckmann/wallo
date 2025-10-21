@@ -64,6 +64,8 @@ Prompts, services and the other configuration settings are saved in .wallo.json 
 ### Things I might/might not add
 
 - pyInstaller to easily install on windows
+- Add timeout and retry/backoff logic for LLM API calls
+- Ensure long-running file operations and LLM calls surface progress and support cancellation.
 
 ### Upload to pypi
 How to upload to pypi
