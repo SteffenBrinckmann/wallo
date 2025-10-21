@@ -18,25 +18,35 @@ class LLMProcessor:
 
 
     def createClient(self, serviceName: str) -> OpenAI:
-        """Create an OpenAI client for the specified service.
-
+        """Create an OpenAI client for the specified service name.
         Args:
-            serviceName: Name of the service to use.
-
+            serviceName: Name of the service to create the client for.
         Returns:
             OpenAI client instance.
-
         Raises:
-            ValueError: If service is not found or API key is missing.
+            ValueError: If service is not found in configuration.
         """
         serviceConfig = self.configManager.getServiceByName(serviceName)
         if not serviceConfig:
             raise ValueError(f"Service '{serviceName}' not found in configuration")
-        apiKey = serviceConfig['api']
+        return self.createClientFromConfig(serviceConfig)
+
+    def createClientFromConfig(self, serviceConfig: dict) -> OpenAI:
+        """Create an OpenAI client from a service config dict.
+
+        Args:
+            serviceConfig: Service configuration dictionary with keys `api` and optionally `url`.
+        Returns:
+            OpenAI client instance.
+        Raises:
+            ValueError: If API key is missing.
+        """
+        apiKey = serviceConfig.get('api')
         if not apiKey:
-            raise ValueError(f"API key not configured for service '{serviceName}'")
-        baseUrl = serviceConfig['url'] or None
+            raise ValueError("API key not configured for the service")
+        baseUrl = serviceConfig.get('url') or None
         return OpenAI(api_key=apiKey, base_url=baseUrl)
+
 
 
     def setSystemPrompt(self, promptName: str) -> None:
@@ -75,10 +85,13 @@ class LLMProcessor:
         Raises:
             ValueError: If prompt or service is not found.
         """
-        client = self.createClient(serviceName)
         serviceConfig = self.configManager.getServiceByName(serviceName)
         if not serviceConfig:
             raise ValueError(f"Service '{serviceName}' not found in configuration")
+        client = self.createClientFromConfig(serviceConfig)
+
+        # Prepare prompt configuration if needed
+        promptConfig: dict[str, Any] = {}
         if ideazingMode:
             attachmentType = 'selection'
             promptHeader = ''
@@ -88,6 +101,7 @@ class LLMProcessor:
                 raise ValueError(f"Prompt '{promptName}' not found in configuration")
             attachmentType = promptConfig['attachment']
             promptHeader = f"{promptConfig['user-prompt']}\\n"
+
         promptFooter = self.configManager.get('promptFooter')
         result = {'client': client, 'model': serviceConfig['model'], 'systemPrompt': self.systemPrompt}
         if ideazingMode and self.responseID:
