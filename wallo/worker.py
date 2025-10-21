@@ -3,6 +3,8 @@ from typing import Any
 from PySide6.QtCore import QObject, Signal  # pylint: disable=no-name-in-module
 from .pdfDocumentProcessor import PdfDocumentProcessor
 
+DEBUG_MODE = False  # Set to True to enable debug mode that skips actual LLM calls
+
 class Worker(QObject):
     """ Worker class to handle background tasks such as LLM processing or PDF extraction.
     Attention: this class is recreated for each work request, there is no persistence.
@@ -29,15 +31,21 @@ class Worker(QObject):
 
 
     def run(self) -> None:
-        """ Run the worker based on the specified work type."""
+        """ Run the worker based on the specified work type. """
         try:
-            content = ''
+            extractedContent = ''
+            if self.workType == 'pdfExtraction':
+                extractedContent = self.documentProcessor.extractTextFromPdf(self.fileName)
             if self.workType == 'ideazingChat':
-                messages = [{'role': 'system', 'content': self.systemPrompt},
-                            {'role': 'user', 'content': self.prompt}]
-                # if False: # fast debug mode
-                #     self.finished.emit("Debug mode: conversation completed.", "---")
-                #     return
+                userContent = self.prompt
+            else:
+                userContent = f"{self.prompt}{extractedContent}"
+            messages = [{'role': 'system', 'content': self.systemPrompt},
+                        {'role': 'user', 'content': userContent}]
+            if self.workType == 'ideazingChat':
+                if DEBUG_MODE:
+                    self.finished.emit("Debug mode: conversation completed.", "---")
+                    return
                 if self.previousPromptId:
                     response = self.client.responses.create(model=self.model, input=messages,
                                                             previous_response_id=self.previousPromptId)
@@ -45,16 +53,12 @@ class Worker(QObject):
                     response = self.client.responses.create(model=self.model, input=messages)
                 content = [i.content[0].text for i in response.output
                            if hasattr(i, 'content') and i.content is not None][0]
-                self.finished.emit(content, response.id)
+                responseID = response.id
             else:
-                # Work before LLM
-                if self.workType == 'pdfExtraction':
-                    content = self.documentProcessor.extractTextFromPdf(self.fileName)
-                # LLM work
-                messages = [{'role': 'system', 'content': self.systemPrompt},
-                            {'role': 'user', 'content': self.prompt+content}]
                 response = self.client.chat.completions.create(model=self.model, messages=messages)
                 content = response.choices[0].message.content.strip()
-                self.finished.emit(content, '')
+                responseID = ''
+
+            self.finished.emit(content, responseID)
         except Exception as e:
             self.error.emit(str(e))

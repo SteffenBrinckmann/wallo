@@ -16,11 +16,12 @@ class TextEdit(QTextEdit):
             configManager (ConfigurationManager): configuration file manager that stores the dictionary
         """
         super().__init__()
+        self.configManager = configManager
         self.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
         self.ideazingMode = False
         self.spellCheckEnabled = ENCHANT_AVAILABLE
         self.highlighter  = SpellCheck(self.document(),
-                                       configManager.get('dictionary')) if self.spellCheckEnabled else None
+                                       self.configManager.get('dictionary')) if self.spellCheckEnabled else None
         self.reduceAction = QAction("Reduce block to highlighted text", self, shortcut=QKeySequence('Ctrl+R'))
         self.reduceAction.triggered.connect(self.reduce)
         self.deleteAction = QAction("Remove block", self, shortcut=QKeySequence('Ctrl+D'))
@@ -182,8 +183,7 @@ class TextEdit(QTextEdit):
         """
         self.spellCheckEnabled = enabled and ENCHANT_AVAILABLE
         if self.spellCheckEnabled and not self.highlighter:
-            configManager = ConfigurationManager()
-            self.highlighter = SpellCheck(self.document(), configManager.get('dictionary'))
+            self.highlighter = SpellCheck(self.document(), self.configManager.get('dictionary'))
         if self.highlighter:
             if self.spellCheckEnabled:
                 self.highlighter.rehighlight()

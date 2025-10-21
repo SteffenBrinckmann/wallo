@@ -29,8 +29,8 @@ DEFAULT_CONFIGURATION = {
         'openAI': {'url':'', 'api':None, 'model': 'gpt-4o'}
     },
   'promptFooter': '\nPlease reply with the html formatted string only',
-  'footer': f'\n{"-"*5} Start LLM generated {"-"*5}',
-  'header': f'\n{"-"*5}  End LLM generated  {"-"*5}',
+  'header': f'\n{"-"*5} Start LLM generated {"-"*5}',
+  'footer': f'\n{"-"*5}  End LLM generated  {"-"*5}',
   'colorOriginal': '#000000',
   'colorReply':  '#0000FF',
   'dictionary': 'en_US',
@@ -81,9 +81,9 @@ class ConfigurationManager:
         If jsonschema is available, use the bundled schema for validation and
         provide detailed errors. Otherwise fall back to lightweight checks.
         """
-        schema_path = Path(__file__).parent / 'config_schema.json'
-        if schema_path.is_file():
-            with open(schema_path, encoding='utf-8') as s:
+        schemaPath = Path(__file__).parent / 'configSchema.json'
+        if schemaPath.is_file():
+            with open(schemaPath, encoding='utf-8') as s:
                 schema = json.load(s)
             try:
                 validate(instance=self._config, schema=schema)

@@ -65,9 +65,7 @@ class DocxExporter(QObject):
                     color = charFormat.foreground().color()
                     if color.isValid() and color != QColor(0, 0, 0):  # Not default black
                         run.font.color.rgb = RGBColor(color.red(), color.green(), color.blue())
-
-                blockIterator += 1
-
+                blockIterator += 1  # move to next fragment
         document.save(filename)
 
     def cleanHtmlForDocx(self, html: str) -> str:

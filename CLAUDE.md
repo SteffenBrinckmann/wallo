@@ -81,3 +81,7 @@ The application uses a JSON configuration file (`~/.wallo.json`) that includes:
 - **HTML-Security** Sanitize or whitelist HTML before use, and validate prompt formats defensively. The user and LLM companies send the HTML code, trust both of them. If this program is going mainstream, makes sense to add it.
 - **Unit tests** and **CI (Github)** does not make sense. End-2-End testing makes sense, but unit-tests do not. Testing if a blue button is still blue, makes no sense.
 - **Standardize error output**. It makes more sense to fix errors than to make them pretty, more user focused.
+
+### Job description
+
+**Check for overcomplicated logic and redundant or inconsistent operations (e.g., adding and then subtracting the same value). Suggest simplifications.**
