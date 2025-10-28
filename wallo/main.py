@@ -217,6 +217,12 @@ class Wallo(QMainWindow):
                 self.toolbar.deleteLater()
             self.toolbar = None
         self.toolbar = QToolBar('Main')
+        # Clear shortcut keys on every action (safe: keeps toolbar/menu actions)
+        for action in self.findChildren(QAction):
+            try:
+                action.setShortcut(QKeySequence())  # empty sequence => no shortcut
+            except Exception:
+                pass
         # formats
         self.addToolBar(self.toolbar)
         boldAction = QAction('', self, icon=qta.icon('fa5s.bold'))           # Bold
@@ -238,8 +244,8 @@ class Wallo(QMainWindow):
         wideSep1.setFixedWidth(20)
         self.toolbar.addWidget(wideSep1)
         # save action
-        saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='save as docx')# Save as docx
-        saveAction.triggered.connect(self.saveDocx)
+        saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='save as docx or markdown')# Save as docx or markdown
+        saveAction.triggered.connect(self.saveToFile)
         self.toolbar.addAction(saveAction)
         wideSep2 = QWidget()
         wideSep2.setFixedWidth(20)
@@ -389,11 +395,16 @@ class Wallo(QMainWindow):
         cursor.clearSelection()
 
 
-    def saveDocx(self) -> None:
-        """ Save the content of the editor as a .docx file."""
-        filename, _ = QFileDialog.getSaveFileName(self, 'Save File', '', 'Word Files (*.docx)')
-        if filename:
+    def saveToFile(self) -> None:
+        """ Save the content of the editor as a .docx or .md file."""
+        filename, selectedFilter = QFileDialog.getSaveFileName(self, 'Save to File', '',
+                                                  'Word Files (*.docx);;Markdown Files (*.md)')
+        if filename and selectedFilter.startswith('Word') or filename.lower().endswith('.docx'):
             self.docxExporter.exportToDocx(self.editor, filename)
+        elif filename:
+            mdText = self.editor.toMarkdown()
+            with open(filename, 'w', encoding='utf-8') as fh:
+                fh.write(mdText)
 
 
     def toggleIdeazingMode(self, checked:bool) -> None:

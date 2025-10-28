@@ -62,7 +62,7 @@ Prompts, services and the other configuration settings are saved in .wallo.json 
 
 ## Development
 ### Things I might/might not add
-
+- reduce does not fully work, debug
 - pyInstaller to easily install on windows
 - Add timeout and retry/backoff logic for LLM API calls
 - Ensure long-running file operations and LLM calls surface progress and support cancellation.

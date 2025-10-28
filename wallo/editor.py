@@ -68,16 +68,6 @@ class TextEdit(QTextEdit):
             super().insertFromMimeData(source)
 
 
-    def copy(self) -> None:
-        """ Copy the selected text to the clipboard """
-        cursor = self.textCursor()
-        if cursor.hasSelection():
-            text = cursor.selectedText()
-            QApplication.clipboard().setText(text)
-        else:
-            super().copy()
-
-
     def keyPressEvent(self, event:QKeyEvent) -> None:
         """ Handle key press events for ideazing mode message sending.
         Args:
@@ -87,7 +77,14 @@ class TextEdit(QTextEdit):
         # if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key()==Qt.Key.Key_Escape:
         #     with open('temp_debug.html', 'w', encoding='utf-8') as f:
         #         f.write(self.toHtml())
-        if self.ideazingMode and event.key() == Qt.Key.Key_Return and \
+        if event.key() == Qt.Key.Key_C and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            cursor = self.textCursor()
+            if cursor.hasSelection():
+                # plainText = cursor.selectedText()
+                fragment = QTextDocumentFragment(cursor)
+                md = fragment.toMarkdown()
+                QApplication.clipboard().setText(md)
+        elif self.ideazingMode and event.key() == Qt.Key.Key_Return and \
                                    event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             text = self.toPlainText().strip()
             if text:
