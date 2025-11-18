@@ -2,28 +2,19 @@
 
 # WALLO - Writing Assistant leveraging Large Language mOdels
 
-An intelligent writing partner that helps you craft clear, compelling manuscripts and narratives with ease while enhancing creativity.
+An intelligent writing partner that helps you craft clear, compelling manuscripts with ease while enhancing creativity.
 
 ## 1. Seamless Integration
 Many writers rely on traditional text editors (e.g., Microsoft Word) while simultaneously using a Large Language Model (LLM) such as ChatGPT in a separate browser window—constantly copying and pasting between the two. This process is inefficient and disrupts creative flow. Programmers no longer work this way; their LLMs are fully integrated into their development environments.
 
-**WALLO** brings the same seamless integration to writing, embedding advanced language assistance directly into your editor.
-
-Example use cases:
-- “Make the text sound more professional.”
-- “Expand these bullet points into a cohesive paragraph.”
-- “Condense or expand this section to 200 words.”
-- “Summarize this PDF.”
+**WALLO** brings the same seamless integration to writing by allowing users to directly "Make the text sound more professional.”, “Expand these bullet points into a cohesive paragraph.”, “Condense or expand this section to 200 words.” or “Summarize this PDF.”
 
 ## 2. Enhanced Ideation
-Writers often turn to LLMs for brainstorming and exploration—asking questions like “What cultural shifts accompanied the invention of book printing?” While responses can be informative, they are often inconsistent in focus or length. Productive ideas can get lost in long exchanges.
-
-With **WALLO**, ideation and refinement happen in one unified workspace. You can highlight key insights within your conversation, while WALLO filters out tangents and redundancies—preserving what matters most.
+Writers often turn to LLMs for brainstorming. While the process can be informative, they are often inconsistent. Productive ideas can get lost in long exchanges.
+With **WALLO**, ideation and refinement happen in one software. You can highlight key insights within your conversation and filter out garbage.
 
 ## 3. Workflow
-Although most computer users are proficient at rapid copy-and-paste operations and switching between applications, these workflows remain relatively inefficient. Professional gamers routinely execute hundreds of actions per minute, typically using the mouse with their right hand while their left hand performs keyboard shortcuts.
-
-**WALLO** delegates mouse interactions to highlighting and scrolling, while the left hand relies on configurable shortcuts to manage text: select segments, invoke the LLM (Ctrl+1), or reduce text length (Ctrl+R).
+LLMs will change how 99% of users operate computers. **WALLo** allows users to test different workflows, user-interfaces-experiences-things. Hence, **WALLO** and its design will **evolve**, as certain things work, goals change, ... If you have ideas, open an issue and lets get into the discussion.
 
 ---
 ![Screenshot](images/screenshot.png "Screenshot")
@@ -63,9 +54,11 @@ Prompts, services and the other configuration settings are saved in .wallo.json 
 ## Development
 ### Things I might/might not add
 - reduce does not fully work, debug
-- pyInstaller to easily install on windows
-- Add timeout and retry/backoff logic for LLM API calls
-- Ensure long-running file operations and LLM calls surface progress and support cancellation.
+
+### Things I do not want to add
+- pyInstaller to easily install on windows (only makes sense if finished program. Not the goal of this **Evolutionary Software**)
+- Ensure long-running file operations and LLM calls surface progress and support cancellation. (Not the goal of this **Evolutionary Software**)
+- Add timeout and retry/backoff logic for LLM API calls. (Not the goal of this **Evolutionary Software**)
 
 ### Upload to pypi
 How to upload to pypi
