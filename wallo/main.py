@@ -1,22 +1,18 @@
 """ Main window for the Wallo application, providing a text editor with LLM assistance. """
 import sys
-from pathlib import Path
 from typing import Any
 import qtawesome as qta
 from PySide6.QtCore import QThread  # pylint: disable=no-name-in-module
-from PySide6.QtGui import QAction, QColor, QFont, QKeySequence, QTextCharFormat, QTextCursor, QIcon, QPixmap, QImage # pylint: disable=no-name-in-module
-from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QInputDialog, QMainWindow, QMessageBox, # pylint: disable=no-name-in-module
-                               QProgressBar, QToolBar, QWidget)
-from .busyDialog import BusyDialog
+from PySide6.QtGui import QAction, QColor, QKeySequence, QIcon, QPixmap, QImage # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QMainWindow, QMessageBox, # pylint: disable=no-name-in-module
+                               QToolBar, QVBoxLayout, QWidget)
 from .configFileManager import ConfigurationManager
 from .configMain import ConfigurationWidget
 from .docxExport import DocxExporter
-from .editor import TextEdit
 from .llmProcessor import LLMProcessor
 from .pdfDocumentProcessor import PdfDocumentProcessor
 from .worker import Worker
-
-PROGRESS_BAR_IN_STATUS_BAR = True  # True to show progress bar in status bar, False for dialog
+from .exchange import Exchange
 
 class Wallo(QMainWindow):
     """ Main window for the Wallo application, providing a text editor with LLM assistance. """
@@ -29,215 +25,41 @@ class Wallo(QMainWindow):
         self.configWidget: ConfigurationWidget | None = None
         self.docxExporter = DocxExporter(self)
         self.spellcheck = True
-
-        # GUI
-        self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
-        self.editor = TextEdit(configManager=self.configManager)
-        self.editor.sendMessage.connect(self.useLLM)
-        self.worker: Worker | None = None
-        self.subThread: QThread | None = None
-        self.progressDialog: BusyDialog | None = None
-        self.selectedTextStart: int = 0
-        self.selectedTextEnd: int = 0
-        self.llmCB     = QComboBox()
         self.serviceCB = QComboBox()
         self.llmSPCB   = QComboBox()
         self.toolbar: 'QToolBar' | None = None
-        self.setCentralWidget(self.editor)
-        self.statusBar()  # Initialize the status bar
-        self.editor.textChanged.connect(self.updateStatusBar)
-        self.editor.selectionChanged.connect(self.updateStatusBar)
+
+        # GUI
+        self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
+        central = QWidget(self)
+        self.mainLayout = QVBoxLayout(central)
+        self.exchanges = []
+        for _ in range(3):
+            exchange = Exchange(self)
+            exchange.setExampleData()
+            self.mainLayout.addWidget(exchange)
+            self.exchanges.append(exchange)
+        self.setCentralWidget(central)
         self.createToolbar()
-        self.updateStatusBar()
-        if PROGRESS_BAR_IN_STATUS_BAR:
-            # progress bar
-            self.progressBar = QProgressBar()
-            self.progressBar.setMaximumWidth(200)
-            self.progressBar.setVisible(False)
-            self.statusBar().addPermanentWidget(self.progressBar)
 
 
-    def useLLM(self, _:int) -> None:
-        """ Use the selected LLM to process the text in the editor
-        Args:
-            _ (int): The index of the selected item in the combo box.
-        """
-        cursor = self.editor.textCursor()
-        promptName = self.llmCB.currentData()
-        serviceName = self.serviceCB.currentText()
-        try:
-            promptConfig = self.configManager.getPromptByName(promptName)
-            if not promptConfig and not self.editor.ideazingMode:
-                QMessageBox.warning(self, 'Error', f"Prompt '{promptName}' not found")
-                return
-            attachmentType = promptConfig['attachment']
-            if attachmentType == 'selection' or self.editor.ideazingMode:
-                if not cursor.hasSelection():
-                    QMessageBox.information(self, 'Warning', 'You have to select text for the tool to work')
-                    return
-                selectedText = cursor.selectedText()
-                self.selectedTextStart = cursor.selectionStart()
-                self.selectedTextEnd = cursor.selectionEnd()
-                workParams = self.llmProcessor.processPrompt(promptName, serviceName, selectedText,
-                                                             ideazingMode=self.editor.ideazingMode)
-                self.runWorker('chatAPI', workParams)
-            elif attachmentType == 'pdf':
-                res = QFileDialog.getOpenFileName(self, 'Open pdf file', str(Path.home()), '*.pdf')
-                if not res or not res[0]:
-                    return
-                # Validate PDF file
-                if not self.documentProcessor.validatePdfFile(res[0]):
-                    QMessageBox.warning(self, 'Error', 'Invalid PDF file selected')
-                    return
-                workParams = self.llmProcessor.processPrompt(promptName, serviceName, res[0])
-                self.runWorker('pdfExtraction', workParams)
-            elif attachmentType == 'inquiry':
-                if not cursor.hasSelection():
-                    QMessageBox.information(self, 'Warning', 'You have to select text for the tool to work')
-                    return
-                inquiryText = self.llmProcessor.getInquiryText(promptName)
-                if not inquiryText:
-                    QMessageBox.warning(self, 'Error', 'Invalid inquiry prompt configuration')
-                    return
-                userInput, ok = QInputDialog.getText(self, 'Enter input', f"Please enter {inquiryText}")
-                if not ok or not userInput:
-                    return
-                selectedText = cursor.selectedText()
-                self.selectedTextStart = cursor.selectionStart()
-                self.selectedTextEnd = cursor.selectionEnd()
-                workParams = self.llmProcessor.processPrompt(promptName, serviceName, selectedText, userInput)
-                self.runWorker('chatAPI', workParams)
+    def changeActive(self):
+        """ for all exchanges: change the showing of the buttons """
+        for exchange in self.exchanges:
+            if exchange.btnState=='waiting':
+                exchange.showButtons()
             else:
-                QMessageBox.warning(self, 'Error', f"Unknown attachment type: {attachmentType}")
-                return
-        except ValueError as e:
-            QMessageBox.critical(self, 'Configuration Error', str(e))
-        except Exception as e:
-            QMessageBox.critical(self, 'Error', f"An unexpected error occurred: {str(e)}")
+                exchange.hideButtons()
 
-
-    def runWorker(self, workType:str, work:dict[str, Any]) -> None:
-        """ Run a worker thread to perform the specified work -> keep GUI responsive.
-        Args:
-            workType (str): The type of work to be performed (e.g., 'chatAPI', 'pdfExtraction').
-            work (dict): The work parameters, such as client, model, prompt, and fileName.
-        """
-        if PROGRESS_BAR_IN_STATUS_BAR:
-            self.progressBar.setRange(0, 0)  # Indeterminate/bouncing
-            self.progressBar.setVisible(True)
-            self.statusBar().showMessage('Working...')
-        else:                           # Show progress dialog
-            self.progressDialog = BusyDialog(parent=self)
-            self.progressDialog.show()
-            QApplication.processEvents()  # Ensure dialog is shown
-        workType = 'ideazingChat' if self.editor.ideazingMode else workType
-        self.subThread = QThread()
-        self.worker = Worker(workType, work)
-        self.worker.moveToThread(self.subThread)
-        self.subThread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.onLLMFinished)
-        self.worker.error.connect(self.onLLMError)
-        self.worker.finished.connect(self.subThread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.subThread.finished.connect(self.subThread.deleteLater)
-        self.subThread.start()
-
-
-    def onLLMFinished(self, content:str, responseId:str) -> None:
-        """ Handle the completion of the LLM worker.
-        Args:
-            content (str): The content generated by the LLM worker.
-        """
-        if PROGRESS_BAR_IN_STATUS_BAR:
-            self.progressBar.setVisible(False)
-        else:
-            if self.progressDialog:
-                self.progressDialog.close()
-        if not self.editor.ideazingMode:
-            self.statusBar().clearMessage()
-        self.llmProcessor.responseID = responseId
-        # Process the content using the LLM processor
-        processContent = self.llmProcessor.processLLMResponse(content)
-        # Insert the formatted content with green color HTML styling
-        header = self.llmProcessor.configManager.get('header')
-        footer = self.llmProcessor.configManager.get('footer')
-
-        # FORMATTING
-        cursor = self.editor.textCursor()
-        # Apply styling of previously selected text depending on the idealizing mode TODO
-        if self.selectedTextStart != self.selectedTextEnd:
-            selectedText = cursor.selectedText()
-            cursor.removeSelectedText()
-            cursor.clearSelection()
-            replyColor = QColor(self.configManager.get('colorOriginal')).getRgb()[:3] # type: ignore[index]
-            styledContent = f'<div style="color: rgb{replyColor};">{selectedText}</div>'
-            cursor.insertHtml(styledContent)
-
-        # New part: position cursor at the end for inserting new content, wrap the text in the appropriate color
-        replyColor = QColor(self.configManager.get('colorReply')).getRgb()[:3] # type: ignore[index]
-        styledContent = f'<div style="color: rgb{replyColor};">{processContent}</div>'
-        styledContent = f"<br>{header}{styledContent}{footer}<br>"
-        cursor.insertHtml(styledContent)
-
-
-    def onLLMError(self, errorMsg:str) -> None:
-        """ Handle errors from the LLM worker.
-        Args:
-            errorMsg (str): The error message from the worker.
-        """
-        if PROGRESS_BAR_IN_STATUS_BAR:
-            self.progressBar.setVisible(False)
-        else:
-            if self.progressDialog:
-                self.progressDialog.close()
-        self.statusBar().clearMessage()
-        QMessageBox.critical(self, 'Worker Error', errorMsg)
-
-
-    def useLLMShortcut(self, index: int) -> None:
-        """ Use LLM via keyboard shortcut.
-        Args:
-            index (int): The index of the prompt to use.
-        """
-        if index < self.llmCB.count():
-            self.llmCB.setCurrentIndex(index)
-            self.useLLM(index)
 
 
     def createToolbar(self) -> None:
         """ Create the toolbar with formatting actions and LLM selection"""
-        # Remove existing toolbar if present
-        if getattr(self, 'toolbar', None):
-            try:
-                if self.toolbar is not None:
-                    self.removeToolBar(self.toolbar)
-            except Exception:
-                pass
-            if self.toolbar is not None:
-                self.toolbar.deleteLater()
-            self.toolbar = None
         self.toolbar = QToolBar('Main')
-        # Clear shortcut keys on every action (safe: keeps toolbar/menu actions)
-        for action in self.findChildren(QAction):
-            try:
-                action.setShortcut(QKeySequence())  # empty sequence => no shortcut
-            except Exception:
-                pass
-        # formats
         self.addToolBar(self.toolbar)
-        boldAction = QAction('', self, icon=qta.icon('fa5s.bold'))           # Bold
-        boldAction.triggered.connect(self.toggleBold)
-        self.toolbar.addAction(boldAction)
-        italicAction = QAction('', self, icon=qta.icon('fa5s.italic'))       # Italic
-        italicAction.triggered.connect(self.toggleItalic)
-        self.toolbar.addAction(italicAction)
-        underlineAction = QAction('', self, icon=qta.icon('fa5s.underline')) # Underline
-        underlineAction.triggered.connect(self.toggleUnderline)
-        self.toolbar.addAction(underlineAction)
         self.spellIcon = qta.icon('fa5s.spell-check')
         self.spellIconInverted = self.invertIcon(self.spellIcon)
-        self.spellcheckAction = QAction('', self, icon=self.spellIconInverted, checkable=True,
-                                   toolTip='Toggle spellchecker') # Spellcheck
+        self.spellcheckAction = QAction('', self, icon=self.spellIconInverted, checkable=True, toolTip='Toggle spellchecker') # Spellcheck
         self.spellcheckAction.triggered.connect(self.toggleSpellcheck)
         self.toolbar.addAction(self.spellcheckAction)
         wideSep1 = QWidget()
@@ -250,72 +72,108 @@ class Wallo(QMainWindow):
         wideSep2 = QWidget()
         wideSep2.setFixedWidth(20)
         self.toolbar.addWidget(wideSep2)
-        self.ideazingIcon = qta.icon('fa5s.comments')
-        self.ideazingIconInverted = self.invertIcon(self.ideazingIcon)
-        self.ideazingAction = QAction('', self, icon=self.ideazingIcon, toolTip='Toggle ideazing mode',
-                                      checkable=True, shortcut=QKeySequence('Ctrl+I'))
-        self.ideazingAction.triggered.connect(self.toggleIdeazingMode)
-        self.toolbar.addAction(self.ideazingAction)
-        wideSep4 = QWidget()
-        wideSep4.setFixedWidth(20)
-        self.toolbar.addWidget(wideSep4)
-        # add LLM selections
-        self.toolbar.addSeparator()
-        self.llmCB = QComboBox()
-        prompts = self.configManager.get('prompts')
-        for i, prompt in enumerate(prompts):
-            if i < 10:  # Limit to Ctrl+1 through Ctrl+9 and Ctrl+0
-                shortcutNumber = (i + 1) % 10  # 1-9, then 0 for the 10th item
-                shortcut = f"Ctrl+{shortcutNumber}"
-                displayText = f"{prompt['description']} ({shortcut})"
-                self.llmCB.addItem(displayText, prompt['name'])
-
-                # Create shortcut action
-                shortcutAction = QAction(self)
-                shortcutAction.setShortcut(QKeySequence(shortcut))
-                shortcutAction.triggered.connect(lambda checked, index=i: self.useLLMShortcut(index))
-                self.addAction(shortcutAction)
-            else:
-                self.llmCB.addItem(prompt['description'], prompt['name'])
-        self.llmCB.activated.connect(self.useLLM)
-        self.toolbar.addWidget(self.llmCB)
         # add system prompt selection
         self.llmSPCB = QComboBox()
-        systemPrompts = self.configManager.get('system-prompts')
-        for i, prompt in enumerate(systemPrompts):
-            self.llmSPCB.addItem(prompt['name'])
-        self.llmSPCB.activated.connect(self.changeSystemPrompt)
         self.toolbar.addWidget(self.llmSPCB)
-        clearFormatAction = QAction('', self, icon=qta.icon('fa5s.eraser'), toolTip='Clear all formatting',
-                                    shortcut=QKeySequence('Ctrl+Space'))
-        clearFormatAction.triggered.connect(self.clearFormatting)
-        self.toolbar.addAction(clearFormatAction)
-        wideSep3 = QWidget()
-        wideSep3.setFixedWidth(20)
-        self.toolbar.addWidget(wideSep3)
         # add service selection
         self.toolbar.addSeparator()
         self.serviceCB = QComboBox()
-        services = self.configManager.get('services')
-        if isinstance(services, dict):
-            self.serviceCB.addItems(list(services.keys()))
         self.toolbar.addWidget(self.serviceCB)
         configAction = QAction('', self, icon=qta.icon('fa5s.cog'), toolTip='Configuration',
                                shortcut=QKeySequence('Ctrl+0'))
         configAction.triggered.connect(self.showConfiguration)
         self.toolbar.addAction(configAction)
+        self.onConfigChanged()
 
 
-    def updateStatusBar(self) -> None:
-        """ Update the status bar with the current word and character count."""
-        if self.editor.ideazingMode:
-            return
-        text = self.editor.toPlainText()
-        message = f"Total: words {len(text.split())}; characters {len(text)}"
-        if self.editor.textCursor().hasSelection():
-            text = self.editor.textCursor().selectedText()
-            message += f"  |  Selection: words {len(text.split())}; characters {len(text)}"
-        self.statusBar().showMessage(message)
+    def onConfigChanged(self) -> None:
+        """Handle configuration changes."""
+        self.llmSPCB.clear()
+        systemPrompts = self.configManager.get('system-prompts')
+        for prompt in systemPrompts:
+            self.llmSPCB.addItem(prompt['name'])
+        self.llmSPCB.activated.connect(self.changeSystemPrompt)
+
+        self.serviceCB.clear()
+        services = self.configManager.get('services')
+        if isinstance(services, dict):
+            self.serviceCB.addItems(list(services.keys()))
+
+
+    def runWorker(self, workType:str, work:dict[str, Any]) -> None:
+        """ Run a worker thread to perform the specified work -> keep GUI responsive.
+        Args:
+            workType (str): The type of work to be performed (e.g., 'chatAPI', 'pdfExtraction').
+            work (dict): The work parameters, such as client, model, prompt, and fileName.
+        """
+        self.subThread = QThread()
+        self.worker = Worker(workType, work)
+        self.worker.moveToThread(self.subThread)
+        self.subThread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.onLLMFinished)
+        self.worker.error.connect(self.onLLMError)
+        self.worker.finished.connect(self.subThread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.subThread.finished.connect(self.subThread.deleteLater)
+        self.subThread.start()
+
+
+    def onLLMFinished(self, content:str, responseId:str, senderID:str) -> None:
+        """ Handle the completion of the LLM worker.
+        Args:
+            content (str): The content generated by the LLM worker.
+        """
+        self.llmProcessor.responseID = responseId
+        processContent = self.llmProcessor.processLLMResponse(content)  # remove starting / trailing stuff
+        for exchange in self.exchanges:
+            exchange.setReply(processContent, senderID)
+
+
+    def onLLMError(self, errorMsg:str, senderID:str) -> None:
+        """ Handle errors from the LLM worker.
+        Args:
+            errorMsg (str): The error message from the worker.
+            senderID (str): The sender ID of the exchange
+        """
+        QMessageBox.critical(self, 'Worker Error', f'{errorMsg} by senderID {senderID}')
+
+
+    def toggleSpellcheck(self) -> None:
+        """ Toggle spell checking on or off. """
+        self.spellcheck = not self.spellcheck
+        for exchange in self.exchanges:
+            exchange.text1.setSpellCheckEnabled(self.spellcheck)
+            exchange.text2.setSpellCheckEnabled(self.spellcheck)
+        self.spellcheckAction.setIcon(self.spellIconInverted if self.spellcheck else self.spellIcon)
+
+    def invertIcon(self, icon: QIcon, size: int = 24) -> QIcon:
+        """Return a new QIcon with all non-transparent pixels set to the matplotlib 'C0' blue."""
+        pix = icon.pixmap(size, size)
+        img = pix.toImage().convertToFormat(QImage.Format.Format_ARGB32)
+        # Matplotlib "C0" hex color
+        blue = QColor("#1f77b4")
+        for y in range(img.height()):
+            for x in range(img.width()):
+                col = img.pixelColor(x, y)
+                if col.alpha() == 0:
+                    continue  # keep fully transparent pixels transparent
+                # preserve alpha, replace RGB with C0 blue
+                newcol = QColor(blue.red(), blue.green(), blue.blue(), col.alpha())
+                img.setPixelColor(x, y, newcol)
+        return QIcon(QPixmap.fromImage(img))
+
+
+    def saveToFile(self) -> None:
+        """ Save the content of the editor as a .docx or .md file."""
+        filename, selectedFilter = QFileDialog.getSaveFileName(self, 'Save to File', '',
+                                                  'Word Files (*.docx);;Markdown Files (*.md)')
+        if filename and selectedFilter.startswith('Word') or filename.lower().endswith('.docx'):
+            self.docxExporter.exportToDocx(self.editor, filename)
+        elif filename:
+            mdText = self.editor.toMarkdown()
+            with open(filename, 'w', encoding='utf-8') as fh:
+                fh.write(mdText)
+
 
 
     def showConfiguration(self) -> None:
@@ -339,105 +197,6 @@ class Wallo(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, 'Error', f"An unexpected error occurred: {str(e)}")
 
-
-    def onConfigChanged(self) -> None:
-        """Handle configuration changes."""
-        # Reload the toolbar to reflect changes
-        self.createToolbar()
-
-
-    def toggleBold(self) -> None:
-        """ Toggle bold formatting for the selected text or the word under the cursor. """
-        fmt = QTextCharFormat()
-        fmt.setFontWeight(QFont.Bold if not self.editor.fontWeight() == QFont.Bold else QFont.Normal)# type: ignore[attr-defined]
-        self.mergeFormat(fmt)
-
-
-    def toggleItalic(self) -> None:
-        """ Toggle italic formatting for the selected text or the word under the cursor. """
-        fmt = QTextCharFormat()
-        fmt.setFontItalic(not self.editor.fontItalic())
-        self.mergeFormat(fmt)
-
-
-    def toggleUnderline(self) -> None:
-        """ Toggle underline formatting for the selected text or the word under the cursor. """
-        fmt = QTextCharFormat()
-        fmt.setFontUnderline(not self.editor.fontUnderline())
-        self.mergeFormat(fmt)
-
-
-    def toggleSpellcheck(self) -> None:
-        """ Toggle spell checking on or off. """
-        self.spellcheck = not self.spellcheck
-        self.editor.setSpellCheckEnabled(self.spellcheck)
-        self.spellcheckAction.setIcon(self.spellIconInverted if self.spellcheck else self.spellIcon)
-
-
-    def mergeFormat(self, fmt: QTextCharFormat) -> None:
-        """ Merge the given character format with the current text cursor.
-        Args:
-            fmt (QTextCharFormat): The character format to merge.
-        """
-        cursor = self.editor.textCursor()
-        if not cursor.hasSelection():
-            cursor.select(QTextCursor.WordUnderCursor)              # type: ignore[attr-defined]
-        cursor.mergeCharFormat(fmt)
-        self.editor.mergeCurrentCharFormat(fmt)
-
-
-    def clearFormatting(self) -> None:
-        """ Clear all formatting from the entire text in the editor. """
-        cursor = self.editor.textCursor()
-        cursor.select(QTextCursor.SelectionType.Document)
-        defaultFormat = QTextCharFormat()
-        cursor.setCharFormat(defaultFormat)
-        cursor.clearSelection()
-
-
-    def saveToFile(self) -> None:
-        """ Save the content of the editor as a .docx or .md file."""
-        filename, selectedFilter = QFileDialog.getSaveFileName(self, 'Save to File', '',
-                                                  'Word Files (*.docx);;Markdown Files (*.md)')
-        if filename and selectedFilter.startswith('Word') or filename.lower().endswith('.docx'):
-            self.docxExporter.exportToDocx(self.editor, filename)
-        elif filename:
-            mdText = self.editor.toMarkdown()
-            with open(filename, 'w', encoding='utf-8') as fh:
-                fh.write(mdText)
-
-
-    def toggleIdeazingMode(self, checked:bool) -> None:
-        """ Toggle ideazing mode on or off.
-        Args:
-            checked (bool): True to enable ideazing mode, False to disable.
-        """
-        self.editor.setIdeazingMode(checked)
-        # swap icon to inverted when active
-        if checked:
-            self.ideazingAction.setIcon(self.ideazingIconInverted)
-            self.statusBar().showMessage(
-                'Ideazing mode: Highlight message and press Ctrl+Enter to send. Use context menu for options.')
-        else:
-            self.ideazingAction.setIcon(self.ideazingIcon)
-            self.statusBar().clearMessage()
-
-
-    def invertIcon(self, icon: QIcon, size: int = 24) -> QIcon:
-        """Return a new QIcon with all non-transparent pixels set to the matplotlib 'C0' blue."""
-        pix = icon.pixmap(size, size)
-        img = pix.toImage().convertToFormat(QImage.Format.Format_ARGB32)
-        # Matplotlib "C0" hex color
-        blue = QColor("#1f77b4")
-        for y in range(img.height()):
-            for x in range(img.width()):
-                col = img.pixelColor(x, y)
-                if col.alpha() == 0:
-                    continue  # keep fully transparent pixels transparent
-                # preserve alpha, replace RGB with C0 blue
-                newcol = QColor(blue.red(), blue.green(), blue.blue(), col.alpha())
-                img.setPixelColor(x, y, newcol)
-        return QIcon(QPixmap.fromImage(img))
 
 
 if __name__ == '__main__':

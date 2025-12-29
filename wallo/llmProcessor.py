@@ -1,4 +1,5 @@
 """LLM processing and interaction logic for the Wallo application."""
+import re
 from typing import Any, Optional
 from openai import OpenAI
 from .configFileManager import ConfigurationManager
@@ -14,22 +15,9 @@ class LLMProcessor:
         """
         self.configManager = configManager
         self.systemPrompt = 'You are a helpful assistant.'
+        #TODO change to langchain
         self.responseID = ''
 
-
-    def createClient(self, serviceName: str) -> OpenAI:
-        """Create an OpenAI client for the specified service name.
-        Args:
-            serviceName: Name of the service to create the client for.
-        Returns:
-            OpenAI client instance.
-        Raises:
-            ValueError: If service is not found in configuration.
-        """
-        serviceConfig = self.configManager.getServiceByName(serviceName)
-        if not serviceConfig:
-            raise ValueError(f"Service '{serviceName}' not found in configuration")
-        return self.createClientFromConfig(serviceConfig)
 
     def createClientFromConfig(self, serviceConfig: dict) -> OpenAI:
         """Create an OpenAI client from a service config dict.
@@ -66,9 +54,9 @@ class LLMProcessor:
         raise ValueError(f"System prompt '{promptName}' not found in configuration")
 
 
-    def processPrompt(self, promptName: str, serviceName: str,
+    def processPrompt(self, senderID:str, promptName: str, serviceName: str,
                       selectedText: str = '', pdfFilePath: str = '',
-                      inquiryResponse: str = '', ideazingMode:bool= False) -> dict[str, Any]:
+                      inquiryResponse: str = '') -> dict[str, Any]:
         """Process a prompt based on its attachment type.
 
         Args:
@@ -77,7 +65,6 @@ class LLMProcessor:
             selectedText: Selected text from the editor.
             pdfFilePath: Path to the PDF file.
             inquiryResponse: User's response to the inquiry.
-            ideazingMode: Flag to indicate if ideazing mode is active.
 
         Returns:
             Dictionary with processing parameters for the worker.
@@ -85,6 +72,8 @@ class LLMProcessor:
         Raises:
             ValueError: If prompt or service is not found.
         """
+        if not re.match(r'^[0-9a-f]{32}$', senderID):
+            raise ValueError(f"SenderID '{senderID}' is not a valid uuid4")
         serviceConfig = self.configManager.getServiceByName(serviceName)
         if not serviceConfig:
             raise ValueError(f"Service '{serviceName}' not found in configuration")
@@ -92,31 +81,26 @@ class LLMProcessor:
 
         # Prepare prompt configuration if needed
         promptConfig: dict[str, Any] = {}
-        if ideazingMode:
-            attachmentType = 'selection'
-            promptHeader = ''
-        else:
-            promptConfig = self.configManager.getPromptByName(promptName)
-            if not promptConfig:
-                raise ValueError(f"Prompt '{promptName}' not found in configuration")
-            attachmentType = promptConfig['attachment']
-            promptHeader = f"{promptConfig['user-prompt']}\\n"
+        promptConfig = self.configManager.getPromptByName(promptName)
+        if not promptConfig:
+            raise ValueError(f"Prompt '{promptName}' not found in configuration")
+        attachmentType = promptConfig['attachment']
+        promptHeader = f"{promptConfig['user-prompt']}\\n"
 
-        promptFooter = self.configManager.get('promptFooter')
-        result = {'client': client, 'model': serviceConfig['model'], 'systemPrompt': self.systemPrompt}
-        if ideazingMode and self.responseID:
+        result = {'senderID':senderID, 'client': client, 'model': serviceConfig['model'], 'systemPrompt': self.systemPrompt}
+        if self.responseID:
             result['previousPromptId'] = self.responseID
         if attachmentType == 'selection':
-            fullPrompt = f"{promptHeader}{selectedText}{promptFooter}"
+            fullPrompt = f"{promptHeader}{selectedText}"
             result['prompt'] = fullPrompt
         elif attachmentType == 'pdf':
-            fullPrompt = f"{promptConfig['user-prompt']}{promptFooter}\\n"
+            fullPrompt = f"{promptConfig['user-prompt']}\\n"
             result['prompt'] = fullPrompt
             result['fileName'] = pdfFilePath
         elif attachmentType == 'inquiry':
             inquiryText = promptConfig['user-prompt'].split('|')[1]
             processedPrompt = promptConfig['user-prompt'].replace(f'|{inquiryText}|', inquiryResponse)
-            fullPrompt = f"{processedPrompt}\\n\\n{selectedText}\\n{promptFooter}"
+            fullPrompt = f"{processedPrompt}\\n\\n{selectedText}\\n"
             result['prompt'] = fullPrompt
         else:
             raise ValueError(f"Unknown attachment type '{attachmentType}' for prompt '{promptName}'")

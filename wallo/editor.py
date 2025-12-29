@@ -3,13 +3,15 @@ import re
 from PySide6.QtCore import Qt, Signal, QMimeData  # pylint: disable=no-name-in-module
 from PySide6.QtGui import (QTextOption, QKeyEvent, QAction, QKeySequence, QTextCursor, QTextDocumentFragment,  # pylint: disable=no-name-in-module
                            QContextMenuEvent, QMouseEvent)
-from PySide6.QtWidgets import QApplication, QTextEdit, QMenu  # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import QApplication, QTextEdit, QMenu, QSizePolicy  # pylint: disable=no-name-in-module
 from .editorSpellCheck import ENCHANT_AVAILABLE, SpellCheck
 from .configFileManager import ConfigurationManager
 
 class TextEdit(QTextEdit):
     """ Custom QTextEdit with word wrap mode set to wrap at word boundary or anywhere. """
     sendMessage = Signal(str)
+    focused = Signal()
+
     def __init__(self, configManager:ConfigurationManager) -> None:
         """ Initialize the TextEdit with word wrap mode set to wrap at word boundary or anywhere
         Args:
@@ -26,6 +28,14 @@ class TextEdit(QTextEdit):
         self.reduceAction.triggered.connect(self.reduce)
         self.deleteAction = QAction("Remove block", self, shortcut=QKeySequence('Ctrl+D'))
         self.deleteAction.triggered.connect(self.delete)
+        # default: hide scrollbar and auto-fit when not editing
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.textChanged.connect(self._on_text_changed)
+        # initial fit (resizeEvent will correct after layout)
+        try:
+            self.adjustHeightToContents()
+        except Exception:
+            pass
 
 
     def contextMenuEvent(self, event:QContextMenuEvent) -> None:
@@ -209,3 +219,62 @@ class TextEdit(QTextEdit):
         if self.highlighter and self.highlighter.spellDict:
             self.highlighter.spellDict.add(word)
             self.highlighter.rehighlight()
+
+    def focusInEvent(self, event):
+        """When editor gains focus: allow scrolling and editing size expansion."""
+        self.focused.emit()
+        # allow the widget to expand vertically while editing and show scrollbar as needed
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setMaximumHeight(16777215)
+        self.setMinimumHeight(0)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        super().focusInEvent(event)
+
+
+    def focusOutEvent(self, event):
+        """When losing focus: hide scrollbar and shrink to content height."""
+        super().focusOutEvent(event)
+        # hide scrollbar and shrink to content height so no extra empty lines appear
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.adjustHeightToContents()
+
+
+    def adjustHeightToContents(self) -> None:
+        """Compute document height and set the widget height to match content exactly.
+
+        This hides the vertical scrollbar and avoids stray empty lines by using
+        the document layout size and document margins.
+        """
+        doc = self.document()
+        # ensure layout uses current viewport width for word-wrapping
+        doc.setTextWidth(self.viewport().width())
+        # documentLayout().documentSize() is reliable for the laid-out height
+        try:
+            docHeight = doc.documentLayout().documentSize().height()
+        except Exception:
+            docHeight = doc.size().height()
+        # include document margins and frame width
+        margin = doc.documentMargin()
+        frame = getattr(self, 'frameWidth', lambda: 0)()
+        newHeight = int(docHeight + 2*margin + 2*frame + 2)
+        if newHeight < 1:
+            newHeight = 1
+        # lock height to prevent the parent layout from expanding the editor
+        self.setFixedHeight(newHeight)
+
+
+    def resizeEvent(self, event):
+        """Recompute fitted height when width changes (only if unfocused)."""
+        super().resizeEvent(event)
+        # If not focused, adjust height to the new wrapping
+        if not self.hasFocus():
+            self.adjustHeightToContents()
+
+
+    def _on_text_changed(self):
+        # adjust only when not focused so typing doesn't constantly resize
+        if not self.hasFocus():
+            self.adjustHeightToContents()
+
+    # connect textChanged to our handler
+    # (connect after class definition is created)
