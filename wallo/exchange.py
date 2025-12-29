@@ -25,7 +25,7 @@ class Exchange(QWidget):
     - `QLineEdit` accepts user input. Press Enter or click Send to submit.
     - Replies are simulated with a short delay (echo/backwards text).
     """
-    def __init__(self, parent: "Wallo"):
+    def __init__(self, parent: 'Wallo'):
         """ Initialization
         Args:
             parent (QWidget): The parent widget.

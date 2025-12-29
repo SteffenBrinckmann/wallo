@@ -26,9 +26,9 @@ class SpellCheck(QSyntaxHighlighter):
                 self.spellDict = enchant.Dict(dictionary)
                 self.tokenizer = get_tokenizer(dictionary)
             except enchant.errors.DictNotFoundError:
-                logging.error("Dictionary %s not found. Spell checking disabled.", dictionary)
+                logging.error('Dictionary %s not found. Spell checking disabled.', dictionary)
         self.misspelledFormat = QTextCharFormat()
-        self.misspelledFormat.setUnderlineColor(QColor("red"))
+        self.misspelledFormat.setUnderlineColor(QColor('red'))
         self.misspelledFormat.setUnderlineStyle(QTextCharFormat.UnderlineStyle.WaveUnderline)
         # Add a subtle background to make misspellings more visible
         self.misspelledFormat.setBackground(QColor(255, 200, 200, 30))  # Very light red with transparency

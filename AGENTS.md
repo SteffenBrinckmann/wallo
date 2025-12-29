@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to LLM Agents when working with code in this repository.
 
 ## Project Overview
 
@@ -36,7 +36,6 @@ pylint wallo/
 - **main.py**: Main application window (`Wallo` class) that handles UI, toolbar creation, and orchestrates LLM interactions
 - **editor.py**: Custom `TextEdit` class extending QTextEdit with word wrap configuration
 - **worker.py**: Background worker (`Worker` class) for LLM API calls and PDF processing to keep UI responsive
-- **busyDialog.py**: Progress dialog (`BusyDialog`) for showing work status
 - **fixedStrings.py**: Configuration constants and default settings
 
 ### Key Architecture Patterns
@@ -73,6 +72,9 @@ The application uses a JSON configuration file (`~/.wallo.json`) that includes:
 - **Spacing** use two empty lines between each function
 - **Imports:** `known-third-party=enchant`; no wildcard-with-`__all__` allowed.
 - **Exception:** prefer broad Exceptions as they catch more issues
+- **Spaces:** leave spaces inside a line untouched. The code is for human consumpt
+- **Quotes:** use single quotes, when possible.
+
 
 ### Designed Code Limitations
 

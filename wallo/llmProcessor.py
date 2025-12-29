@@ -31,7 +31,7 @@ class LLMProcessor:
         """
         apiKey = serviceConfig.get('api')
         if not apiKey:
-            raise ValueError("API key not configured for the service")
+            raise ValueError('API key not configured for the service')
         baseUrl = serviceConfig.get('url') or None
         return OpenAI(api_key=apiKey, base_url=baseUrl)
 

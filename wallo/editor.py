@@ -24,9 +24,9 @@ class TextEdit(QTextEdit):
         self.spellCheckEnabled = ENCHANT_AVAILABLE
         self.highlighter  = SpellCheck(self.document(),
                                        self.configManager.get('dictionary')) if self.spellCheckEnabled else None
-        self.reduceAction = QAction("Reduce block to highlighted text", self, shortcut=QKeySequence('Ctrl+R'))
+        self.reduceAction = QAction('Reduce block to highlighted text', self, shortcut=QKeySequence('Ctrl+R'))
         self.reduceAction.triggered.connect(self.reduce)
-        self.deleteAction = QAction("Remove block", self, shortcut=QKeySequence('Ctrl+D'))
+        self.deleteAction = QAction('Remove block', self, shortcut=QKeySequence('Ctrl+D'))
         self.deleteAction.triggered.connect(self.delete)
         # default: hide scrollbar and auto-fit when not editing
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -53,7 +53,7 @@ class TextEdit(QTextEdit):
                         action = menu.addAction(suggestion)
                         action.triggered.connect(lambda checked=False, s=suggestion, c=cursor: self._replaceWord(c, s))
                         menu.insertAction(menu.actions()[0], action)
-                    addToDictAction = QAction("Add to dictionary", self)
+                    addToDictAction = QAction('Add to dictionary', self)
                     addToDictAction.triggered.connect(lambda: self._addToDictionary(word))
                     menu.insertAction(menu.actions()[0], addToDictAction)
                     menu.insertSeparator(menu.actions()[0])
