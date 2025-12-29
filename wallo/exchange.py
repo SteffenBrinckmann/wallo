@@ -35,18 +35,16 @@ class Exchange(QWidget):
         self.uuid  = uuid.uuid4().hex
         self.btnState = 'hidden'
         self.mainWidget = parent
-        self._buildUi()
 
-    def _buildUi(self) -> None:
-        """ Build GUI """
+        # Build GUI
         self.main       = QHBoxLayout(self)
         # Text-Editors
         textLayout = QVBoxLayout()
         self.text1 = TextEdit(self.mainWidget.configManager)
-        self.text1.focused.connect(self.focusEditors)
+        self.text1.focused.connect(self.focusThisExchange)
         textLayout.addWidget(self.text1)
         self.text2 = TextEdit(self.mainWidget.configManager)
-        self.text2.focused.connect(self.focusEditors)
+        self.text2.focused.connect(self.focusThisExchange)
         textLayout.addWidget(self.text2)
         self.main.addLayout(textLayout)
         self.btnWidget = QWidget()
@@ -78,6 +76,7 @@ class Exchange(QWidget):
         self.btnWidget.setFixedWidth(self._btn_width)
 
 
+    ### BUTTON FUNCTIONS
     def hide1(self, _:QEvent|None, state:bool=False) -> tuple[str, str, str]:
         """ Self-contained function: toggle visibility of first text-box
         Args:
@@ -174,7 +173,23 @@ class Exchange(QWidget):
         if senderID==self.uuid:
             self.text2.setMarkdown(content)
 
-    def focusEditors(self) -> None:
+
+    ### GENERAL FUNCTIONS
+    def __repr__(self) -> str:
+        """ Generate a string representation of the object """
+        text = '' if  self.text1.isHidden() else self.text1.toMarkdown().strip()
+        text += '\n'+self.text2.toMarkdown().strip()
+        return text
+
+
+    def setExampleData(self) -> None:
+        """ Populate with example text """
+        self.text1.setMarkdown(random.choice(text.split('\n----\n')))
+
+
+
+    ### FOR DISPLAY OF BUTTON BOX ON RIGHT SIDE
+    def focusThisExchange(self) -> None:
         self.btnState = 'waiting'
         self.mainWidget.changeActive()
 
@@ -200,6 +215,7 @@ class Exchange(QWidget):
             pass
         self.btnState = 'hidden'
 
+
     def populateLLM_CB(self) -> None:
         """ Populate the LLM combo box with available prompts. """
         self.llmCB.clear()
@@ -215,12 +231,13 @@ class Exchange(QWidget):
                 # Create shortcut action
                 shortcutAction = QAction(self)
                 shortcutAction.setShortcut(QKeySequence(shortcut))
-                shortcutAction.triggered.connect(lambda checked, index=i: self.useLLMShortcut(index))
+                shortcutAction.triggered.connect(lambda checked, index=i: self.useShortcut(index))
                 self.addAction(shortcutAction)
             else:
                 self.llmCB.addItem(prompt['description'], prompt['name'])
 
-    def useLLMShortcut(self, index: int) -> None:
+
+    def useShortcut(self, index: int) -> None:
         """ Use LLM via keyboard shortcut.
         Args:
             index (int): The index of the prompt to use.
@@ -228,20 +245,6 @@ class Exchange(QWidget):
         if index < self.llmCB.count():
             self.llmCB.setCurrentIndex(index)
             self.useLLM(index)
-
-
-
-    def __repr__(self) -> str:
-        """ Generate a string representation of the object """
-        text = '' if  self.text1.isHidden() else self.text1.toMarkdown().strip()
-        text += '\n'+self.text2.toMarkdown().strip()
-        return text
-
-
-    def setExampleData(self) -> None:
-        """ Populate with example text """
-        self.text1.setMarkdown(random.choice(text.split('\n----\n')))
-
 
 
 # FOR TESTING: does not pass mypy

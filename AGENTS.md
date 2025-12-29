@@ -80,7 +80,6 @@ The application uses a JSON configuration file (`~/.wallo.json`) that includes:
 
 - **General** Code should be as small as possible as short code, as short code is easy to understand and less prone to bugs. Hence, a broad exception is advantageous as it  catches all exceptions. Also, chopping code into submodules, can lead to more code and hence is not necessarily a great approach.
 - **Security** storing plaintext API keys in `~/.wallo.json`, is allows changing manually the configuration. Since the code is open-source, all other solutions are only window-dressing: a hacker can read the obfuscation approach and counter it.
-- **HTML-Security** Sanitize or whitelist HTML before use, and validate prompt formats defensively. The user and LLM companies send the HTML code, trust both of them. If this program is going mainstream, makes sense to add it.
 - **Unit tests** and **CI (Github)** does not make sense. End-2-End testing makes sense, but unit-tests do not. Testing if a blue button is still blue, makes no sense.
 - **Standardize error output**. It makes more sense to fix errors than to make them pretty, more user focused.
 
