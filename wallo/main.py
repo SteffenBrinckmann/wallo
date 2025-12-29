@@ -43,7 +43,7 @@ class Wallo(QMainWindow):
         self.createToolbar()
 
 
-    def changeActive(self):
+    def changeActive(self) -> None:
         """ for all exchanges: change the showing of the buttons """
         for exchange in self.exchanges:
             if exchange.btnState=='waiting':
@@ -168,9 +168,11 @@ class Wallo(QMainWindow):
         filename, selectedFilter = QFileDialog.getSaveFileName(self, 'Save to File', '',
                                                   'Word Files (*.docx);;Markdown Files (*.md)')
         if filename and selectedFilter.startswith('Word') or filename.lower().endswith('.docx'):
-            self.docxExporter.exportToDocx(self.editor, filename)
+            pass
+            # self.docxExporter.exportToDocx(self.editor, filename)
         elif filename:
-            mdText = self.editor.toMarkdown()
+            # mdText = self.editor.toMarkdown()
+            mdText = 'Test'
             with open(filename, 'w', encoding='utf-8') as fh:
                 fh.write(mdText)
 

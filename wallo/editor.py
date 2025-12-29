@@ -2,7 +2,7 @@
 import re
 from PySide6.QtCore import Qt, Signal, QMimeData  # pylint: disable=no-name-in-module
 from PySide6.QtGui import (QTextOption, QKeyEvent, QAction, QKeySequence, QTextCursor, QTextDocumentFragment,  # pylint: disable=no-name-in-module
-                           QContextMenuEvent, QMouseEvent)
+                           QContextMenuEvent, QMouseEvent, QFocusEvent, QResizeEvent)
 from PySide6.QtWidgets import QApplication, QTextEdit, QMenu, QSizePolicy  # pylint: disable=no-name-in-module
 from .editorSpellCheck import ENCHANT_AVAILABLE, SpellCheck
 from .configFileManager import ConfigurationManager
@@ -220,19 +220,25 @@ class TextEdit(QTextEdit):
             self.highlighter.spellDict.add(word)
             self.highlighter.rehighlight()
 
-    def focusInEvent(self, event):
-        """When editor gains focus: allow scrolling and editing size expansion."""
+    def focusInEvent(self, event:QFocusEvent) -> None:
+        """When editor gains focus: allow scrolling and editing size expansion.
+        Args:
+            event (QFocusEvent): The focus event
+        """
         self.focused.emit()
         # allow the widget to expand vertically while editing and show scrollbar as needed
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setMaximumHeight(16777215)
         self.setMinimumHeight(0)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         super().focusInEvent(event)
 
 
-    def focusOutEvent(self, event):
-        """When losing focus: hide scrollbar and shrink to content height."""
+    def focusOutEvent(self, event:QFocusEvent) -> None:
+        """When losing focus: hide scrollbar and shrink to content height.
+        Args:
+            event (QFocusEvent): The focus event
+        """
         super().focusOutEvent(event)
         # hide scrollbar and shrink to content height so no extra empty lines appear
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -263,18 +269,18 @@ class TextEdit(QTextEdit):
         self.setFixedHeight(newHeight)
 
 
-    def resizeEvent(self, event):
-        """Recompute fitted height when width changes (only if unfocused)."""
+    def resizeEvent(self, event:QResizeEvent) -> None:
+        """Recompute fitted height when width changes (only if unfocused).
+        Args:
+            event (QResizeEvent): The resize event.
+        """
         super().resizeEvent(event)
         # If not focused, adjust height to the new wrapping
         if not self.hasFocus():
             self.adjustHeightToContents()
 
 
-    def _on_text_changed(self):
+    def _on_text_changed(self) -> None:
         # adjust only when not focused so typing doesn't constantly resize
         if not self.hasFocus():
             self.adjustHeightToContents()
-
-    # connect textChanged to our handler
-    # (connect after class definition is created)

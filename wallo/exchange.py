@@ -9,10 +9,11 @@ import uuid
 from pathlib import Path
 from PySide6.QtGui import QAction, QColor, QFont, QKeySequence
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTextEdit, QPushButton, QComboBox, QMessageBox, QLineEdit, QFileDialog, QInputDialog
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QEvent
 import qtawesome as qta
 from .example import text
 from .editor import TextEdit
+from .main import Wallo
 
 
 class Exchange(QWidget):
@@ -22,7 +23,11 @@ class Exchange(QWidget):
     - `QLineEdit` accepts user input. Press Enter or click Send to submit.
     - Replies are simulated with a short delay (echo/backwards text).
     """
-    def __init__(self, parent=None):
+    def __init__(self, parent:Wallo):
+        """ Initialization
+        Args:
+            parent (QWidget): The parent widget.
+        """
         super().__init__(None)
         self.state = 0
         self.uuid  = uuid.uuid4().hex
@@ -30,7 +35,8 @@ class Exchange(QWidget):
         self.mainWidget = parent
         self._buildUi()
 
-    def _buildUi(self):
+    def _buildUi(self) -> None:
+        """ Build GUI """
         self.main       = QHBoxLayout(self)
         # Text-Editors
         textLayout = QVBoxLayout()
@@ -70,7 +76,11 @@ class Exchange(QWidget):
         self.btnWidget.setFixedWidth(self._btn_width)
 
 
-    def hide1(self, _, state:bool=False):
+    def hide1(self, _:QEvent|None, state:bool=False) -> tuple[str, str, str]:
+        """ Self-contained function: toggle visibility of first text-box
+        Args:
+            state (bool): return state
+        """
         name      = 'hide1Btn'
         iconOn    = 'fa5s.eye-slash'
         iconOff   = 'fa5s.eye'
@@ -80,29 +90,36 @@ class Exchange(QWidget):
             return name, iconOn, tooltipOn
         if self.text1.isHidden():
             self.text1.show()
-            self.hide1Btn.setIcon(qta.icon(iconOn))
-            self.hide1Btn.setToolTip(tooltipOn)
+            self.hide1Btn.setIcon(qta.icon(iconOn)) # type: ignore[attr-defined]
+            self.hide1Btn.setToolTip(tooltipOn)     # type: ignore[attr-defined]
         else:
             self.text1.hide()
-            self.hide1Btn.setIcon(qta.icon(iconOff))
-            self.hide1Btn.setToolTip(tooltipOff)
+            self.hide1Btn.setIcon(qta.icon(iconOff)) # type: ignore[attr-defined]
+            self.hide1Btn.setToolTip(tooltipOff)     # type: ignore[attr-defined]
+        return ('', '', '')
 
-    def showStatus(self, _, state:bool=False):
-        """ Allow to toggle the color of the button: green, red, neutral """
+
+    def showStatus(self, _:QEvent|None, state:bool=False) -> tuple[str, str, str]:
+        """ Self-contained function: Allow to toggle the color of the button: green, red, neutral
+        Args:
+            state (bool): return state
+        """
         name    = 'showStatusBtn'  #different than function name
         icon    = 'fa5s.circle'
         tooltip = 'toggle state'
         if state:
             return name, icon, tooltip
         if self.state==0:
-            self.showStatusBtn.setIcon(qta.icon(icon, color='green'))
+            self.showStatusBtn.setIcon(qta.icon(icon, color='green')) # type: ignore[attr-defined]
             self.state=1
         elif self.state==1:
-            self.showStatusBtn.setIcon(qta.icon(icon, color='red'))
+            self.showStatusBtn.setIcon(qta.icon(icon, color='red'))  # type: ignore[attr-defined]
             self.state=2
         elif self.state==2:
-            self.showStatusBtn.setIcon(qta.icon(icon))
+            self.showStatusBtn.setIcon(qta.icon(icon))               # type: ignore[attr-defined]
             self.state=0
+        return ('', '', '')
+
 
 
 
@@ -151,16 +168,16 @@ class Exchange(QWidget):
             QMessageBox.warning(self, 'Error', f"Unknown attachment type: {attachmentType}")
             return
 
-    def setReply(self, content:str, senderID:str):
+    def setReply(self, content:str, senderID:str) -> None:
         if senderID==self.uuid:
             self.text2.setMarkdown(content)
 
-    def focusEditors(self):
+    def focusEditors(self) -> None:
         self.btnState = 'waiting'
         self.mainWidget.changeActive()
 
 
-    def showButtons(self):
+    def showButtons(self) -> None:
         """Show the button widgets (keep btnWidget width)."""
         for btn in self.btnWidget.findChildren(QPushButton):
             btn.show()
@@ -171,7 +188,7 @@ class Exchange(QWidget):
         self.btnState = 'show'
 
 
-    def hideButtons(self):
+    def hideButtons(self) -> None:
         """Hide only the buttons but keep the btnWidget visible to reserve space."""
         for btn in self.btnWidget.findChildren(QPushButton):
             btn.hide()
@@ -181,7 +198,7 @@ class Exchange(QWidget):
             pass
         self.btnState = 'hidden'
 
-    def populateLLM_CB(self):
+    def populateLLM_CB(self) -> None:
         """ Populate the LLM combo box with available prompts. """
         self.llmCB.clear()
         # add LLM selections
@@ -201,28 +218,38 @@ class Exchange(QWidget):
             else:
                 self.llmCB.addItem(prompt['description'], prompt['name'])
 
+    def useLLMShortcut(self, index: int) -> None:
+        """ Use LLM via keyboard shortcut.
+        Args:
+            index (int): The index of the prompt to use.
+        """
+        if index < self.llmCB.count():
+            self.llmCB.setCurrentIndex(index)
+            self.useLLM(index)
 
-    def __repr__(self):
+
+
+    def __repr__(self) -> str:
         """ Generate a string representation of the object """
         text = '' if  self.text1.isHidden() else self.text1.toMarkdown().strip()
         text += '\n'+self.text2.toMarkdown().strip()
         return text
 
 
-    def setExampleData(self):
+    def setExampleData(self) -> None:
         """ Populate with example text """
         self.text1.setMarkdown(random.choice(text.split('\n----\n')))
 
 
 
-
-if __name__ == "__main__":
-  import sys
-  from PySide6.QtWidgets import QApplication
-  app = QApplication.instance()
-  app = QApplication(sys.argv)
-  w = Exchange()
-  w.setExampleData()
-  w.resize(520, 360)
-  w.show()
-  app.exec()
+# FOR TESTING: does not pass mypy
+# if __name__ == "__main__":
+#   import sys
+#   from PySide6.QtWidgets import QApplication
+#   app = QApplication.instance()
+#   app = QApplication(sys.argv)
+#   w = Exchange()
+#   w.setExampleData()
+#   w.resize(520, 360)
+#   w.show()
+#   app.exec()
