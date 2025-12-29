@@ -5,6 +5,7 @@ Exchange widget which includes
   - buttons on the right side
 """
 import random
+from typing import TYPE_CHECKING
 import uuid
 from pathlib import Path
 from PySide6.QtGui import QAction, QColor, QFont, QKeySequence
@@ -13,7 +14,8 @@ from PySide6.QtCore import Qt, QEvent
 import qtawesome as qta
 from .example import text
 from .editor import TextEdit
-from .main import Wallo
+if TYPE_CHECKING:
+    from .main import Wallo
 
 
 class Exchange(QWidget):
@@ -23,7 +25,7 @@ class Exchange(QWidget):
     - `QLineEdit` accepts user input. Press Enter or click Send to submit.
     - Replies are simulated with a short delay (echo/backwards text).
     """
-    def __init__(self, parent:Wallo):
+    def __init__(self, parent: "Wallo"):
         """ Initialization
         Args:
             parent (QWidget): The parent widget.
