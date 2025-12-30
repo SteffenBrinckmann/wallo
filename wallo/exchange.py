@@ -9,7 +9,9 @@ import random
 from typing import TYPE_CHECKING
 import uuid
 from pathlib import Path
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QKeySequence, QPixmap, QPainter, QPen, QTransform, QColor
+from PySide6 import QtGui
+from .misc import ACCENT_COLOR
 from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QComboBox, QMessageBox,
                                QFileDialog, QInputDialog, QLabel, QGraphicsOpacityEffect)
 from PySide6.QtCore import Qt, QEvent, QTimer, QPropertyAnimation
@@ -80,36 +82,26 @@ class Exchange(QWidget):
 
         # Busy overlay (spinner + text)
         self.busyOverlay = QWidget(self)
-        self.busyOverlay.setStyleSheet('background-color: rgba(0, 0, 0, 90);')
         self.busyOverlay.hide()
         overlayLayout = QVBoxLayout(self.busyOverlay)
         overlayLayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.spinnerLabel = QLabel()
         self.spinnerLabel.setFixedSize(48, 48)
-        self.spinnerLabel.setStyleSheet('border: 4px solid #bbb; border-top: 4px solid white; border-radius: 24px;')
+        self.spinnerLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.spinnerLabel.setStyleSheet('background-color: rgb(30, 30, 30); border-radius: 6px;')
         overlayLayout.addWidget(self.spinnerLabel, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        self.busyText = QLabel('Waiting for LLM…')
-        self.busyText.setStyleSheet('color: white; font-size: 12pt;')
-        overlayLayout.addWidget(self.busyText, alignment=Qt.AlignmentFlag.AlignCenter)
+        self._spinnerBase = self._createSpinnerPixmap(48)
+        self.spinnerLabel.setPixmap(self._spinnerBase)
 
+        self.busyText = QLabel('Waiting for LLM…')
+        self.busyText.setStyleSheet(f'color: {ACCENT_COLOR}; font-size: 14pt; background-color: rgb(30, 30, 30); padding: 6px 12px; border-radius: 6px;')
+        overlayLayout.addWidget(self.busyText, alignment=Qt.AlignmentFlag.AlignCenter)
         self._spinAngle = 0
         self._spinnerTimer = QTimer(self)
         self._spinnerTimer.timeout.connect(self._rotateSpinner)
-
-        self._overlayEffect = QGraphicsOpacityEffect(self.busyOverlay)
-        self.busyOverlay.setGraphicsEffect(self._overlayEffect)
-        self._fadeAnim = QPropertyAnimation(self._overlayEffect, b'opacity')
-
-
-    def _rotateSpinner(self) -> None:
-        self._spinAngle = (self._spinAngle + 30) % 360
-        self.spinnerLabel.setStyleSheet(
-            'border: 4px solid #bbb; '
-            'border-top: 4px solid white; '
-            'border-radius: 24px; '
-            f"transform: rotate({self._spinAngle}deg);"
-        )
+        self._overlayEffect = None
+        self._fadeAnim      = None
 
 
     ### BUTTON FUNCTIONS
@@ -210,11 +202,11 @@ class Exchange(QWidget):
 
 
     def setReply(self, content: str, senderID: str) -> None:
-        # stop busy spinner
-        self._spinnerTimer.stop()
-        self.busyOverlay.hide()
         if senderID == self.uuid:
+            self._spinnerTimer.stop()
+            self.busyOverlay.hide()
             self.text2.setMarkdown(content)
+            self.text1.setStyleSheet(f'color: {ACCENT_COLOR}; font-size: 10pt;')
 
 
     ### GENERAL FUNCTIONS
@@ -240,6 +232,8 @@ class Exchange(QWidget):
         """Show the button widgets (keep btnWidget width)."""
         for btn in self.btnWidget.findChildren(QPushButton):
             btn.show()
+        for btn in self.btnWidget.findChildren(QComboBox):
+            btn.show()
         try:
             self.btnWidget.setFixedWidth(self._btn_width)
         except AttributeError:
@@ -250,6 +244,8 @@ class Exchange(QWidget):
     def hideButtons(self) -> None:
         """Hide only the buttons but keep the btnWidget visible to reserve space."""
         for btn in self.btnWidget.findChildren(QPushButton):
+            btn.hide()
+        for btn in self.btnWidget.findChildren(QComboBox):
             btn.hide()
         try:
             self.btnWidget.setFixedWidth(self._btn_width)
@@ -269,7 +265,6 @@ class Exchange(QWidget):
                 shortcut = f"Ctrl+{shortcutNumber}"
                 displayText = f"{prompt['description']} ({shortcut})"
                 self.llmCB.addItem(displayText, prompt['name'])
-
                 # Create shortcut action
                 shortcutAction = QAction(self)
                 shortcutAction.setShortcut(QKeySequence(shortcut))
@@ -287,6 +282,29 @@ class Exchange(QWidget):
         if index < self.llmCB.count():
             self.llmCB.setCurrentIndex(index)
             self.useLLM(index)
+
+
+    ## SPINNER GRAPHICS
+    def _createSpinnerPixmap(self, size: int) -> QPixmap:
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        penBg = QPen(QColor(ACCENT_COLOR), 4)
+        penFg = QPen(Qt.GlobalColor.lightGray, 4)
+        painter.setPen(penBg)
+        painter.drawEllipse(4, 4, size - 8, size - 8)
+        painter.setPen(penFg)
+        painter.drawArc(4, 4, size - 8, size - 8, 90 * 16, 90 * 16)
+        painter.end()
+        return pixmap
+
+
+    def _rotateSpinner(self) -> None:
+         self._spinAngle = (self._spinAngle + 30) % 360
+         transform = self._spinnerBase.transformed(QtGui.QTransform().rotate(self._spinAngle),
+                                                   Qt.TransformationMode.SmoothTransformation)
+         self.spinnerLabel.setPixmap(transform)
 
 
 # FOR TESTING: does not pass mypy

@@ -1,11 +1,12 @@
 from PySide6.QtGui import QColor, QIcon, QPixmap, QImage  # pylint: disable=no-name-in-module
 
+ACCENT_COLOR = "#b4421f"
+
 def invertIcon(icon: QIcon, size: int = 24) -> QIcon:
     """Return a new QIcon with all non-transparent pixels set to the matplotlib 'C0' blue."""
     pix = icon.pixmap(size, size)
     img = pix.toImage().convertToFormat(QImage.Format.Format_ARGB32)
-    # Matplotlib "C0" hex color
-    blue = QColor('#1f77b4')
+    blue = QColor(ACCENT_COLOR)
     for y in range(img.height()):
         for x in range(img.width()):
             col = img.pixelColor(x, y)
