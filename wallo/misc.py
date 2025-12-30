@@ -1,6 +1,6 @@
 from PySide6.QtGui import QColor, QIcon, QPixmap, QImage  # pylint: disable=no-name-in-module
 
-def invertIcon(self, icon: QIcon, size: int = 24) -> QIcon:
+def invertIcon(icon: QIcon, size: int = 24) -> QIcon:
     """Return a new QIcon with all non-transparent pixels set to the matplotlib 'C0' blue."""
     pix = icon.pixmap(size, size)
     img = pix.toImage().convertToFormat(QImage.Format.Format_ARGB32)
@@ -15,4 +15,3 @@ def invertIcon(self, icon: QIcon, size: int = 24) -> QIcon:
             newcol = QColor(blue.red(), blue.green(), blue.blue(), col.alpha())
             img.setPixelColor(x, y, newcol)
     return QIcon(QPixmap.fromImage(img))
-

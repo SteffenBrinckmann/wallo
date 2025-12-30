@@ -4,13 +4,15 @@ Exchange widget which includes
   - text box for result show
   - buttons on the right side
 """
+
 import random
 from typing import TYPE_CHECKING
 import uuid
 from pathlib import Path
-from PySide6.QtGui import QAction, QColor, QFont, QKeySequence
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTextEdit, QPushButton, QComboBox, QMessageBox, QLineEdit, QFileDialog, QInputDialog
-from PySide6.QtCore import Qt, QEvent
+from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QComboBox, QMessageBox,
+                               QFileDialog, QInputDialog, QLabel, QGraphicsOpacityEffect)
+from PySide6.QtCore import Qt, QEvent, QTimer, QPropertyAnimation
 import qtawesome as qta
 from .example import text
 from .editor import TextEdit
@@ -25,19 +27,20 @@ class Exchange(QWidget):
     - `QLineEdit` accepts user input. Press Enter or click Send to submit.
     - Replies are simulated with a short delay (echo/backwards text).
     """
+
     def __init__(self, parent: 'Wallo'):
-        """ Initialization
+        """Initialization
         Args:
             parent (QWidget): The parent widget.
         """
         super().__init__(None)
-        self.state = 0
-        self.uuid  = uuid.uuid4().hex
-        self.btnState = 'hidden'
+        self.state      = 0
+        self.uuid       = uuid.uuid4().hex
+        self.btnState   = 'hidden'
         self.mainWidget = parent
 
         # Build GUI
-        self.main       = QHBoxLayout(self)
+        self.main  = QHBoxLayout(self)
         # Text-Editors
         textLayout = QVBoxLayout()
         self.text1 = TextEdit(self.mainWidget.configManager)
@@ -52,22 +55,22 @@ class Exchange(QWidget):
         self.main.addWidget(self.btnWidget)
         # Buttons
         btns = [
-            #x  y  function
+            # x  y  function
             (1, 1, self.hide1),
             (2, 1, self.showStatus),
         ]
-        for x,y, funct in btns:
+        for x, y, funct in btns:
             name, icon, tooltip = funct(None, True)
             setattr(self, name, QPushButton())
             getattr(self, name).setToolTip(tooltip)
             getattr(self, name).setIcon(qta.icon(icon))
             getattr(self, name).clicked.connect(funct)
             btnLayout.addWidget(getattr(self, name), y, x)
-        self.llmCB     = QComboBox()
+        self.llmCB = QComboBox()
         self.llmCB.setMaximumWidth(80)
         self.populateLLM_CB()
         self.llmCB.activated.connect(self.useLLM)
-        btnLayout.addWidget(self.llmCB,2,1, 1,2)
+        btnLayout.addWidget(self.llmCB, 2, 1, 1, 2)
         # Reserve the button-column space when collapsed: compute width and hide buttons
         self._btn_width = self.btnWidget.sizeHint().width()
         for btn in self.btnWidget.findChildren(QPushButton):
@@ -75,67 +78,103 @@ class Exchange(QWidget):
         # Keep the widget visible but fixed-width so TextEdits don't expand
         self.btnWidget.setFixedWidth(self._btn_width)
 
+        # Busy overlay (spinner + text)
+        self.busyOverlay = QWidget(self)
+        self.busyOverlay.setStyleSheet('background-color: rgba(0, 0, 0, 90);')
+        self.busyOverlay.hide()
+        overlayLayout = QVBoxLayout(self.busyOverlay)
+        overlayLayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.spinnerLabel = QLabel()
+        self.spinnerLabel.setFixedSize(48, 48)
+        self.spinnerLabel.setStyleSheet('border: 4px solid #bbb; border-top: 4px solid white; border-radius: 24px;')
+        overlayLayout.addWidget(self.spinnerLabel, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self.busyText = QLabel('Waiting for LLM…')
+        self.busyText.setStyleSheet('color: white; font-size: 12pt;')
+        overlayLayout.addWidget(self.busyText, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self._spinAngle = 0
+        self._spinnerTimer = QTimer(self)
+        self._spinnerTimer.timeout.connect(self._rotateSpinner)
+
+        self._overlayEffect = QGraphicsOpacityEffect(self.busyOverlay)
+        self.busyOverlay.setGraphicsEffect(self._overlayEffect)
+        self._fadeAnim = QPropertyAnimation(self._overlayEffect, b'opacity')
+
+
+    def _rotateSpinner(self) -> None:
+        self._spinAngle = (self._spinAngle + 30) % 360
+        self.spinnerLabel.setStyleSheet(
+            'border: 4px solid #bbb; '
+            'border-top: 4px solid white; '
+            'border-radius: 24px; '
+            f"transform: rotate({self._spinAngle}deg);"
+        )
+
 
     ### BUTTON FUNCTIONS
-    def hide1(self, _:QEvent|None, state:bool=False) -> tuple[str, str, str]:
-        """ Self-contained function: toggle visibility of first text-box
+    def hide1(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: toggle visibility of first text-box
         Args:
             state (bool): return state
         """
-        name      = 'hide1Btn'
-        iconOn    = 'fa5s.eye-slash'
-        iconOff   = 'fa5s.eye'
-        tooltipOn = 'Hide history'
-        tooltipOff= 'Show history'
+        name       = 'hide1Btn'
+        iconOn     = 'fa5s.eye-slash'
+        iconOff    = 'fa5s.eye'
+        tooltipOn  = 'Hide history'
+        tooltipOff = 'Show history'
         if state:
             return name, iconOn, tooltipOn
         if self.text1.isHidden():
             self.text1.show()
-            self.hide1Btn.setIcon(qta.icon(iconOn)) # type: ignore[attr-defined]
-            self.hide1Btn.setToolTip(tooltipOn)     # type: ignore[attr-defined]
+            self.hide1Btn.setIcon(qta.icon(iconOn))  # type: ignore[attr-defined]
+            self.hide1Btn.setToolTip(tooltipOn)  # type: ignore[attr-defined]
         else:
             self.text1.hide()
-            self.hide1Btn.setIcon(qta.icon(iconOff)) # type: ignore[attr-defined]
-            self.hide1Btn.setToolTip(tooltipOff)     # type: ignore[attr-defined]
+            self.hide1Btn.setIcon(qta.icon(iconOff))  # type: ignore[attr-defined]
+            self.hide1Btn.setToolTip(tooltipOff)  # type: ignore[attr-defined]
         return ('', '', '')
 
 
-    def showStatus(self, _:QEvent|None, state:bool=False) -> tuple[str, str, str]:
-        """ Self-contained function: Allow to toggle the color of the button: green, red, neutral
+    def showStatus(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: Allow to toggle the color of the button: green, red, neutral
         Args:
             state (bool): return state
         """
-        name    = 'showStatusBtn'  #different than function name
+        name    = 'showStatusBtn'  # different than function name
         icon    = 'fa5s.circle'
         tooltip = 'toggle state'
         if state:
             return name, icon, tooltip
-        if self.state==0:
-            self.showStatusBtn.setIcon(qta.icon(icon, color='green')) # type: ignore[attr-defined]
-            self.state=1
-        elif self.state==1:
+        if self.state == 0:
+            self.showStatusBtn.setIcon(qta.icon(icon, color='green'))  # type: ignore[attr-defined]
+            self.state = 1
+        elif self.state == 1:
             self.showStatusBtn.setIcon(qta.icon(icon, color='red'))  # type: ignore[attr-defined]
-            self.state=2
-        elif self.state==2:
-            self.showStatusBtn.setIcon(qta.icon(icon))               # type: ignore[attr-defined]
-            self.state=0
+            self.state = 2
+        elif self.state == 2:
+            self.showStatusBtn.setIcon(qta.icon(icon))  # type: ignore[attr-defined]
+            self.state = 0
         return ('', '', '')
 
 
-
-
-    def useLLM(self, _:int) -> None:
-        """ Use the selected LLM to process the text in the editor
+    def useLLM(self, _: int) -> None:
+        """Use the selected LLM to process the text in the editor
         Args:
             _ (int): The index of the selected item in the combo box.
         """
-        promptName = self.llmCB.currentData()
-        serviceName = self.mainWidget.serviceCB.currentText()
+        promptName   = self.llmCB.currentData()
+        serviceName  = self.mainWidget.serviceCB.currentText()
         promptConfig = self.mainWidget.configManager.getPromptByName(promptName)
         if not promptConfig:
             QMessageBox.warning(self, 'Error', f"Prompt '{promptName}' not found")
             return
         attachmentType = promptConfig['attachment']
+        # show busy spinner
+        self.busyOverlay.setGeometry(self.rect())
+        self.busyOverlay.show()
+        self._spinnerTimer.start(50)
+
         if attachmentType == 'selection':
             if not self.text1.toPlainText().strip():
                 QMessageBox.information(self, 'Warning', 'You have to have text in the upper text-box for the tool to work')
@@ -169,23 +208,26 @@ class Exchange(QWidget):
             QMessageBox.warning(self, 'Error', f"Unknown attachment type: {attachmentType}")
             return
 
-    def setReply(self, content:str, senderID:str) -> None:
-        if senderID==self.uuid:
+
+    def setReply(self, content: str, senderID: str) -> None:
+        # stop busy spinner
+        self._spinnerTimer.stop()
+        self.busyOverlay.hide()
+        if senderID == self.uuid:
             self.text2.setMarkdown(content)
 
 
     ### GENERAL FUNCTIONS
     def __repr__(self) -> str:
-        """ Generate a string representation of the object """
-        text = '' if  self.text1.isHidden() else self.text1.toMarkdown().strip()
-        text += '\n'+self.text2.toMarkdown().strip()
+        """Generate a string representation of the object"""
+        text = '' if self.text1.isHidden() else self.text1.toMarkdown().strip()
+        text += '\n' + self.text2.toMarkdown().strip()
         return text
 
 
     def setExampleData(self) -> None:
-        """ Populate with example text """
+        """Populate with example text"""
         self.text1.setMarkdown(random.choice(text.split('\n----\n')))
-
 
 
     ### FOR DISPLAY OF BUTTON BOX ON RIGHT SIDE
@@ -217,7 +259,7 @@ class Exchange(QWidget):
 
 
     def populateLLM_CB(self) -> None:
-        """ Populate the LLM combo box with available prompts. """
+        """Populate the LLM combo box with available prompts."""
         self.llmCB.clear()
         # add LLM selections
         prompts = self.mainWidget.configManager.get('prompts')
@@ -238,7 +280,7 @@ class Exchange(QWidget):
 
 
     def useShortcut(self, index: int) -> None:
-        """ Use LLM via keyboard shortcut.
+        """Use LLM via keyboard shortcut.
         Args:
             index (int): The index of the prompt to use.
         """
