@@ -51,6 +51,7 @@ class Exchange(QWidget):
             self.text1.setMarkdown(text)
         textLayout.addWidget(self.text1)
         self.text2 = TextEdit(self.mainWidget.configManager)
+        self.text2.hide()
         self.text2.focused.connect(self.focusThisExchange)
         textLayout.addWidget(self.text2)
         self.main.addLayout(textLayout)
@@ -259,6 +260,7 @@ class Exchange(QWidget):
         if senderID == self.uuid:
             self._spinnerTimer.stop()
             self.busyOverlay.hide()
+            self.text2.show()
             self.text2.setMarkdown(content)
             self.text1.setStyleSheet(f'color: {ACCENT_COLOR}; font-size: 10pt;')
 

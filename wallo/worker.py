@@ -10,7 +10,7 @@ class Worker(QObject):
     """ Worker class to handle background tasks such as LLM processing or PDF extraction.
     Attention: this class is recreated for each work request, there is no persistence.
     """
-    finished = Signal(str,str,str)  # Content and previous-prompt ID, senderID
+    finished = Signal(str,str)  # Content and previous-prompt ID, senderID
     error = Signal(str,str)         # Error message, senderID
 
     def __init__(self, workType:str, objects:dict[str, Any]) -> None:
@@ -34,6 +34,7 @@ class Worker(QObject):
     def run(self) -> None:
         """ Run the worker based on the specified work type. """
         try:
+            print('Start work', self.prompt)
             if not getattr(self.runnable, 'systemPromptInjected', False):
                 try:
                     self.runnable.get_history('global').add_message(SystemMessage(content=self.systemPrompt))
@@ -42,6 +43,7 @@ class Worker(QObject):
                     pass
             result = self.runnable.invoke(self.prompt, {'configurable': {'session_id': 'global'}})
             content = result.content if hasattr(result, 'content') else str(result)
-            self.finished.emit(content, '', self.senderID)
+            print('End work', content, self.senderID)
+            self.finished.emit(content, self.senderID)
         except Exception as e:
             self.error.emit(str(e), self.senderID)

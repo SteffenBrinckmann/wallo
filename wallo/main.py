@@ -38,7 +38,7 @@ class Wallo(QMainWindow):
         container = QWidget(self)
         self.mainLayout = QVBoxLayout(container)
         self.exchanges = []
-        for _ in range(3):
+        for _ in range(2):
             exchange = Exchange(self)
             self.exchanges.append(exchange)
         scrollArea = QScrollArea(self)
@@ -60,7 +60,7 @@ class Wallo(QMainWindow):
         wideSep1.setFixedWidth(20)
         self.toolbar.addWidget(wideSep1)
         # save action
-        saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='save as docx or markdown')  # Save as docx or markdown
+        saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='Save as docx or markdown')  # Save as docx or markdown
         saveAction.triggered.connect(self.saveToFile)
         self.toolbar.addAction(saveAction)
         wideSep2 = QWidget()
@@ -102,6 +102,7 @@ class Wallo(QMainWindow):
             else:
                 exchange.hideButtons()
 
+
     def addExchanges(self, uuid: str, texts: list[str]) -> None:
         """ Add exchanges """
         idx = [i.uuid for i in self.exchanges].index(uuid)
@@ -112,6 +113,7 @@ class Wallo(QMainWindow):
             for text in texts:
                 self.exchanges.append(Exchange(self, text))
         self.layoutExchanges()
+
 
     def saveToFile(self) -> None:
         """Save the content of the editor as a .docx or .md file."""
