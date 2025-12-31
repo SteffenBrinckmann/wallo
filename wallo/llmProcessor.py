@@ -1,7 +1,8 @@
 """LLM processing and interaction logic for the Wallo application."""
 import re
 from typing import Any, Optional
-from openai import OpenAI
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from .configFileManager import ConfigurationManager
 
 class LLMProcessor:
@@ -16,25 +17,27 @@ class LLMProcessor:
         self.configManager = configManager
         self.systemPrompt = 'You are a helpful assistant.'
         #TODO change to langchain
-        self.responseID = ''
+        self.conversations: dict[str, list[dict[str, str]]] = {}
 
 
-    def createClientFromConfig(self, serviceConfig: dict) -> OpenAI:
-        """Create an OpenAI client from a service config dict.
+    def createClientFromConfig(self, serviceConfig: dict):
+        """Create a LangChain LLM from service config.
 
-        Args:
-            serviceConfig: Service configuration dictionary with keys `api` and optionally `url`.
-        Returns:
-            OpenAI client instance.
-        Raises:
-            ValueError: If API key is missing.
+        Supported types:
+        - openai (OpenAI + compatible endpoints)
+        - gemini (Google Gemini)
         """
+        serviceType = serviceConfig.get('type', 'openai')
+        model = serviceConfig.get('model')
         apiKey = serviceConfig.get('api')
+        baseUrl = serviceConfig.get('url') or None
         if not apiKey:
             raise ValueError('API key not configured for the service')
-        baseUrl = serviceConfig.get('url') or None
-        return OpenAI(api_key=apiKey, base_url=baseUrl)
-
+        if serviceType == 'openai':
+            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, temperature=0.7)
+        if serviceType == 'gemini':
+            return ChatGoogleGenerativeAI(model=model, google_api_key=apiKey, temperature=0.7)
+        raise ValueError(f"Unknown service type '{serviceType}'")
 
 
     def setSystemPrompt(self, promptName: str) -> None:
@@ -77,7 +80,7 @@ class LLMProcessor:
         serviceConfig = self.configManager.getServiceByName(serviceName)
         if not serviceConfig:
             raise ValueError(f"Service '{serviceName}' not found in configuration")
-        client = self.createClientFromConfig(serviceConfig)
+        llm = self.createClientFromConfig(serviceConfig)
 
         # Prepare prompt configuration if needed
         promptConfig: dict[str, Any] = {}
@@ -87,7 +90,7 @@ class LLMProcessor:
         attachmentType = promptConfig['attachment']
         promptHeader = f"{promptConfig['user-prompt']}\\n"
 
-        result = {'senderID':senderID, 'client': client, 'model': serviceConfig['model'], 'systemPrompt': self.systemPrompt}
+        result = {'senderID': senderID, 'llm': llm, 'systemPrompt': self.systemPrompt}
         if self.responseID:
             result['previousPromptId'] = self.responseID
         if attachmentType == 'selection':

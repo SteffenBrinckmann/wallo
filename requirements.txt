@@ -1,6 +1,8 @@
 pyside6
 QtAwesome
-openai
+langchain
+langchain-openai
+langchain-google-genai
 pdfplumber
 python-docx
 pyenchant

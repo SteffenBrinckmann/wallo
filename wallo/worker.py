@@ -22,8 +22,7 @@ class Worker(QObject):
         super().__init__()
         self.workType              = workType
         self.senderID              = objects['senderID']
-        self.client                = objects['client']
-        self.model                 = objects['model']
+        self.llm                   = objects['llm']
         self.prompt                = objects['prompt']
         self.systemPrompt          = objects.get('systemPrompt','You are a helpful assistant.')
         self.fileName              = objects.get('fileName','')
@@ -40,16 +39,10 @@ class Worker(QObject):
             userContent = f"{self.prompt}{extractedContent}"
             messages = [{'role': 'system', 'content': self.systemPrompt},
                         {'role': 'user', 'content': userContent}]
-            print('start api request')
-            if self.previousPromptId:
-                response = self.client.responses.create(model=self.model, input=messages,
-                                                            previous_response_id=self.previousPromptId)
-            else:
-                response = self.client.responses.create(model=self.model, input=messages)
-            print('api request done')
-            content = [i.content[0].text for i in response.output
-                        if hasattr(i, 'content') and i.content is not None][0]
-            responseID = response.id
-            self.finished.emit(content, responseID, self.senderID)
+            print('start llm request')
+            result = self.llm.invoke(messages)
+            content = result.content if hasattr(result, 'content') else str(result)
+            print('llm request done')
+            self.finished.emit(content, '', self.senderID)
         except Exception as e:
             self.error.emit(str(e), self.senderID)
