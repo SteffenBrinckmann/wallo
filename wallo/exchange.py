@@ -5,19 +5,16 @@ Exchange widget which includes
   - buttons on the right side
 """
 
-import random
 from typing import TYPE_CHECKING
 import uuid
 from pathlib import Path
-from PySide6.QtGui import QAction, QKeySequence, QPixmap, QPainter, QPen, QTransform, QColor
-from PySide6 import QtGui
-from .misc import ACCENT_COLOR
-from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QComboBox, QMessageBox,
-                               QFileDialog, QInputDialog, QLabel, QGraphicsOpacityEffect)
-from PySide6.QtCore import Qt, QEvent, QTimer, QPropertyAnimation
+from PySide6.QtGui import QAction, QKeySequence, QPixmap, QPainter, QPen, QColor, QTransform # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QComboBox, QMessageBox,  # pylint: disable=no-name-in-module
+                               QFileDialog, QInputDialog, QLabel)
+from PySide6.QtCore import Qt, QEvent, QTimer  # pylint: disable=no-name-in-module
 import qtawesome as qta
-from .example import text
 from .editor import TextEdit
+from .misc import ACCENT_COLOR
 if TYPE_CHECKING:
     from .main import Wallo
 
@@ -77,17 +74,17 @@ class Exchange(QWidget):
             btnLayout.addWidget(getattr(self, name), y, x)
         self.llmCB = QComboBox()
         self.llmCB.setMaximumWidth(120)
-        self.populateLLM_CB()
+        self.populateLlmComboBox()
         self.llmCB.activated.connect(self.useLLM)
         btnLayout.addWidget(self.llmCB, 9, 1, 1, 3)
         # Reserve the button-column space when collapsed: compute width and hide buttons
-        self._btn_width = self.btnWidget.sizeHint().width()
-        for btn in self.btnWidget.findChildren(QPushButton):
-            btn.hide()
-        for btn in self.btnWidget.findChildren(QComboBox):
-            btn.hide()
+        self.btnBoxWidth = self.btnWidget.sizeHint().width()
+        for btn1 in self.btnWidget.findChildren(QPushButton):
+            btn1.hide()
+        for btn2 in self.btnWidget.findChildren(QComboBox):
+            btn2.hide()
         # Keep the widget visible but fixed-width so TextEdits don't expand
-        self.btnWidget.setFixedWidth(self._btn_width)
+        self.btnWidget.setFixedWidth(self.btnBoxWidth)
 
         # Busy overlay (spinner + text)
         self.busyOverlay = QWidget(self)
@@ -104,7 +101,8 @@ class Exchange(QWidget):
         self.spinnerLabel.setPixmap(self._spinnerBase)
 
         self.busyText = QLabel('Waiting for LLM…')
-        self.busyText.setStyleSheet(f'color: {ACCENT_COLOR}; font-size: 14pt; background-color: rgb(30, 30, 30); padding: 6px 12px; border-radius: 6px;')
+        self.busyText.setStyleSheet(f'color: {ACCENT_COLOR}; font-size: 14pt; background-color: rgb(30, 30, 30);'\
+                                    ' padding: 6px 12px; border-radius: 6px;')
         overlayLayout.addWidget(self.busyText, alignment=Qt.AlignmentFlag.AlignCenter)
         self._spinAngle = 0
         self._spinnerTimer = QTimer(self)
@@ -218,9 +216,10 @@ class Exchange(QWidget):
 
         if attachmentType == 'selection':
             if not self.text1.toPlainText().strip():
-                QMessageBox.information(self, 'Warning', 'You have to have text in the upper text-box for the tool to work')
+                QMessageBox.information(self, 'Warning', 'No text in upper text-box.')
                 return
-            workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, promptName, serviceName, self.text1.toMarkdown())
+            workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, promptName, serviceName,
+                                                                    self.text1.toMarkdown())
             self.mainWidget.runWorker('chatAPI', workParams)
         elif attachmentType == 'pdf':
             res = QFileDialog.getOpenFileName(self, 'Open pdf file', str(Path.home()), '*.pdf')
@@ -234,7 +233,7 @@ class Exchange(QWidget):
             self.mainWidget.runWorker('pdfExtraction', workParams)
         elif attachmentType == 'inquiry':
             if not self.text1.toPlainText().strip():
-                QMessageBox.information(self, 'Warning', 'You have to have text in the upper text-box for the tool to work')
+                QMessageBox.information(self, 'Warning', 'No text in upper text-box.')
                 return
             inquiryText = self.mainWidget.llmProcessor.getInquiryText(promptName)
             if not inquiryText:
@@ -243,7 +242,8 @@ class Exchange(QWidget):
             userInput, ok = QInputDialog.getText(self, 'Enter input', f"Please enter {inquiryText}")
             if not ok or not userInput:
                 return
-            workParams = self.mainWidget.llmProcessor.processPrompt(promptName, serviceName, self.text1.toMarkdown(), userInput)
+            workParams = self.mainWidget.llmProcessor.processPrompt(promptName, serviceName,
+                                                                    self.text1.toMarkdown(), userInput)
             self.mainWidget.runWorker('chatAPI', workParams)
         else:
             QMessageBox.warning(self, 'Error', f"Unknown attachment type: {attachmentType}")
@@ -251,6 +251,11 @@ class Exchange(QWidget):
 
 
     def setReply(self, content: str, senderID: str) -> None:
+        """ Get reply form LLM and change data of exchange accordingly
+        Args:
+            content (str): The content generated by the LLM worker.
+            senderID (str): The sender ID of the exchange
+        """
         if senderID == self.uuid:
             self._spinnerTimer.stop()
             self.busyOverlay.hide()
@@ -266,13 +271,9 @@ class Exchange(QWidget):
         return text
 
 
-    def setExampleData(self) -> None:
-        """Populate with example text"""
-        self.text1.setMarkdown(random.choice(text.split('\n----\n')))
-
-
     ### FOR DISPLAY OF BUTTON BOX ON RIGHT SIDE
     def focusThisExchange(self) -> None:
+        """ User clicks into this exchange..."""
         self.btnState = 'waiting'
         self.mainWidget.changeActive()
 
@@ -282,14 +283,14 @@ class Exchange(QWidget):
         - Show the button widgets (keep btnWidget width).
         - Activate actions
         """
-        for btn in self.btnWidget.findChildren(QPushButton):
-            btn.show()
-        for btn in self.btnWidget.findChildren(QComboBox):
-            btn.show()
+        for btn1 in self.btnWidget.findChildren(QPushButton):
+            btn1.show()
+        for btn2 in self.btnWidget.findChildren(QComboBox):
+            btn2.show()
         for action in self.actions():
             action.setEnabled(True)
         try:
-            self.btnWidget.setFixedWidth(self._btn_width)
+            self.btnWidget.setFixedWidth(self.btnBoxWidth)
         except AttributeError:
             pass
         self.btnState = 'show'
@@ -300,20 +301,20 @@ class Exchange(QWidget):
         - Hide only the buttons but keep the btnWidget visible to reserve space.
         - Deactivate actions
         """
-        for btn in self.btnWidget.findChildren(QPushButton):
-            btn.hide()
-        for btn in self.btnWidget.findChildren(QComboBox):
-            btn.hide()
+        for btn1 in self.btnWidget.findChildren(QPushButton):
+            btn1.hide()
+        for btn2 in self.btnWidget.findChildren(QComboBox):
+            btn2.hide()
         for action in self.actions():
             action.setEnabled(False)
         try:
-            self.btnWidget.setFixedWidth(self._btn_width)
+            self.btnWidget.setFixedWidth(self.btnBoxWidth)
         except AttributeError:
             pass
         self.btnState = 'hidden'
 
 
-    def populateLLM_CB(self) -> None:
+    def populateLlmComboBox(self) -> None:
         """Populate the LLM combo box with available prompts."""
         self.llmCB.clear()
         # add LLM selections
@@ -361,10 +362,10 @@ class Exchange(QWidget):
 
 
     def _rotateSpinner(self) -> None:
-         self._spinAngle = (self._spinAngle + 30) % 360
-         transform = self._spinnerBase.transformed(QtGui.QTransform().rotate(self._spinAngle),
-                                                   Qt.TransformationMode.SmoothTransformation)
-         self.spinnerLabel.setPixmap(transform)
+        self._spinAngle = (self._spinAngle + 30) % 360
+        transform = self._spinnerBase.transformed(QTransform().rotate(self._spinAngle),
+                                                  Qt.TransformationMode.SmoothTransformation)
+        self.spinnerLabel.setPixmap(transform)
 
 
 # FOR TESTING: does not pass mypy

@@ -1,5 +1,6 @@
 """ Worker class to handle background tasks such as LLM processing or PDF extraction."""
 from typing import Any
+from langchain_core.messages import SystemMessage
 from PySide6.QtCore import QObject, Signal  # pylint: disable=no-name-in-module
 from .pdfDocumentProcessor import PdfDocumentProcessor
 
@@ -33,23 +34,14 @@ class Worker(QObject):
     def run(self) -> None:
         """ Run the worker based on the specified work type. """
         try:
-            extractedContent = ''
-            if self.workType == 'pdfExtraction':
-                extractedContent = self.documentProcessor.extractTextFromPdf(self.fileName)
-            userContent = f"{self.prompt}{extractedContent}"
-            messages = [{'role': 'system', 'content': self.systemPrompt},
-                        {'role': 'user', 'content': userContent}]
-            print('start llm request')
             if not getattr(self.runnable, 'systemPromptInjected', False):
                 try:
-                    from langchain_core.messages import SystemMessage
                     self.runnable.get_history('global').add_message(SystemMessage(content=self.systemPrompt))
                     self.runnable.systemPromptInjected = True
                 except Exception:
                     pass
             result = self.runnable.invoke(self.prompt, {'configurable': {'session_id': 'global'}})
             content = result.content if hasattr(result, 'content') else str(result)
-            print('llm request done')
             self.finished.emit(content, '', self.senderID)
         except Exception as e:
             self.error.emit(str(e), self.senderID)

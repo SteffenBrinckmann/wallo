@@ -30,7 +30,7 @@ class TextEdit(QTextEdit):
         self.deleteAction.triggered.connect(self.delete)
         # default: hide scrollbar and auto-fit when not editing
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.textChanged.connect(self._on_text_changed)
+        self.textChanged.connect(self.onTextChanged)
         # initial fit (resizeEvent will correct after layout)
         try:
             self.adjustHeightToContents()
@@ -263,8 +263,7 @@ class TextEdit(QTextEdit):
         margin = doc.documentMargin()
         frame = getattr(self, 'frameWidth', lambda: 0)()
         newHeight = int(docHeight + 2*margin + 2*frame + 2)
-        if newHeight < 1:
-            newHeight = 1
+        newHeight = max(newHeight, 1)
         # lock height to prevent the parent layout from expanding the editor
         self.setFixedHeight(newHeight)
 
@@ -280,7 +279,8 @@ class TextEdit(QTextEdit):
             self.adjustHeightToContents()
 
 
-    def _on_text_changed(self) -> None:
+    def onTextChanged(self) -> None:
+        """ Adopt size of the text-editor to its content, if not focused. """
         # adjust only when not focused so typing doesn't constantly resize
         if not self.hasFocus():
             self.adjustHeightToContents()

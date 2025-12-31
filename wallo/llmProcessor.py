@@ -3,8 +3,9 @@ import re
 from typing import Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import InMemoryChatMessageHistory
+from langchain_core.messages import SystemMessage
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from .configFileManager import ConfigurationManager
 
 class LLMProcessor:
@@ -20,10 +21,10 @@ class LLMProcessor:
         self.systemPrompt = 'You are a helpful assistant.'
         self.messageHistory = InMemoryChatMessageHistory()
         self.systemPromptInjected = False
-        self.runnable = None
+        self.runnable:None|RunnableWithMessageHistory = None
 
 
-    def createClientFromConfig(self, serviceConfig: dict):
+    def createClientFromConfig(self, serviceConfig: dict[str,str]) -> Any:
         """Create a LangChain LLM from service config.
 
         Supported types:
@@ -31,13 +32,13 @@ class LLMProcessor:
         - gemini (Google Gemini)
         """
         serviceType = serviceConfig.get('type', 'openai')
-        model = serviceConfig.get('model')
-        apiKey = serviceConfig.get('api')
-        baseUrl = serviceConfig.get('url') or None
+        model       = serviceConfig.get('model','')
+        apiKey      = serviceConfig.get('api')
+        baseUrl     = serviceConfig.get('url') or None
         if not apiKey:
             raise ValueError('API key not configured for the service')
         if serviceType == 'openai':
-            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, temperature=0.7)
+            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, temperature=0.7) # type: ignore[arg-type]
         if serviceType == 'gemini':
             return ChatGoogleGenerativeAI(model=model, google_api_key=apiKey, temperature=0.7)
         raise ValueError(f"Unknown service type '{serviceType}'")
@@ -54,7 +55,6 @@ class LLMProcessor:
             if prompt['name'] == promptName:
                 self.systemPrompt = prompt['system-prompt']
                 try:
-                    from langchain_core.messages import SystemMessage
                     self.messageHistory.add_message(SystemMessage(content=self.systemPrompt))
                     self.systemPromptInjected = True
                 except Exception:
@@ -97,9 +97,13 @@ class LLMProcessor:
         promptHeader = f"{promptConfig['user-prompt']}\\n"
 
         if self.runnable is None:
-            def get_history(_session_id: str):
+            def getHistoryLocal(_: str) -> InMemoryChatMessageHistory:
+                """ Get the history (local function)
+                Args:
+                    _ (str): not used
+                """
                 return self.messageHistory
-            self.runnable = RunnableWithMessageHistory(llm, get_history)
+            self.runnable = RunnableWithMessageHistory(llm, getHistoryLocal)
         result = {'runnable': self.runnable, 'prompt': None, 'senderID': senderID}
         if attachmentType == 'selection':
             fullPrompt = f"{promptHeader}{selectedText}"

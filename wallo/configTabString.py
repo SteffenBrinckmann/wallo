@@ -7,8 +7,8 @@ try:
 except ImportError:
     ENCHANT_AVAILABLE = False
 from PySide6.QtGui import QColor  # pylint: disable=no-name-in-module
-from PySide6.QtWidgets import (QColorDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, # pylint: disable=no-name-in-module
-                               QTextEdit, QVBoxLayout, QWidget, QComboBox)
+from PySide6.QtWidgets import (QColorDialog, QFormLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, # pylint: disable=no-name-in-module
+                               QWidget, QComboBox)
 from .configFileManager import ConfigurationManager
 
 

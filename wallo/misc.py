@@ -1,9 +1,16 @@
+""" Misc. functions that do not require an instance """
 from PySide6.QtGui import QColor, QIcon, QPixmap, QImage  # pylint: disable=no-name-in-module
 
 ACCENT_COLOR = "#b4421f"
 
 def invertIcon(icon: QIcon, size: int = 24) -> QIcon:
-    """Return a new QIcon with all non-transparent pixels set to the matplotlib 'C0' blue."""
+    """Return a new QIcon with all non-transparent pixels set to the matplotlib 'C0' blue.
+    Args:
+        icon (QIcon): The icon to be inverted.
+        size (int): The size of the icon.
+    Returns:
+        QIcon: The inverted icon.
+    """
     pix = icon.pixmap(size, size)
     img = pix.toImage().convertToFormat(QImage.Format.Format_ARGB32)
     blue = QColor(ACCENT_COLOR)
