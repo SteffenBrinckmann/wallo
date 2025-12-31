@@ -39,12 +39,13 @@ class Wallo(QMainWindow):
         for _ in range(3):
             exchange = Exchange(self)
             exchange.setExampleData()
-            self.mainLayout.addWidget(exchange)
             self.exchanges.append(exchange)
         scrollArea = QScrollArea(self)
         scrollArea.setWidgetResizable(True)
         scrollArea.setWidget(container)
         self.setCentralWidget(scrollArea)
+        self.repaint()
+        self.exchanges[0].showButtons()
 
         ## Create the toolbar with formatting actions and LLM selection
         self.toolbar = QToolBar('Main')
@@ -77,6 +78,14 @@ class Wallo(QMainWindow):
         self.onConfigChanged()
 
 
+    def repaint(self) -> None:
+        for widget in self.mainLayout.children():
+            widget.deleteLater()
+        for exchange in self.exchanges:
+            self.mainLayout.addWidget(exchange)
+        self.mainLayout.addStretch(2)
+
+
     def changeActive(self) -> None:
         """for all exchanges: change the showing of the buttons"""
         for exchange in self.exchanges:
@@ -85,6 +94,16 @@ class Wallo(QMainWindow):
             else:
                 exchange.hideButtons()
 
+    def addExchanges(self, uuid: str, texts: list[str]) -> None:
+        """ Add exchanges """
+        idx = [i.uuid for i in self.exchanges].index(uuid)
+        if idx<len(self.exchanges)-1:
+            for text in texts:
+                self.exchanges.insert(idx+1, Exchange(self, text))
+        else:
+            for text in texts:
+                self.exchanges.append(Exchange(self, text))
+        self.repaint()
 
     def saveToFile(self) -> None:
         """Save the content of the editor as a .docx or .md file."""

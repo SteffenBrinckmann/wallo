@@ -30,7 +30,7 @@ class Exchange(QWidget):
     - Replies are simulated with a short delay (echo/backwards text).
     """
 
-    def __init__(self, parent: 'Wallo'):
+    def __init__(self, parent: 'Wallo', text: str = ''):
         """Initialization
         Args:
             parent (QWidget): The parent widget.
@@ -43,10 +43,15 @@ class Exchange(QWidget):
 
         # Build GUI
         self.main  = QHBoxLayout(self)
+        self.setObjectName('exchangeWidget')
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet('QWidget#exchangeWidget { border: 1px solid gray; border-radius: 6px; }')
         # Text-Editors
         textLayout = QVBoxLayout()
         self.text1 = TextEdit(self.mainWidget.configManager)
         self.text1.focused.connect(self.focusThisExchange)
+        if text:
+            self.text1.setMarkdown(text)
         textLayout.addWidget(self.text1)
         self.text2 = TextEdit(self.mainWidget.configManager)
         self.text2.focused.connect(self.focusThisExchange)
@@ -60,6 +65,8 @@ class Exchange(QWidget):
             # x  y  function
             (1, 1, self.hide1),
             (2, 1, self.showStatus),
+            (3, 1, self.splitParagraphs),
+            (1, 2, self.chatExchange),
         ]
         for x, y, funct in btns:
             name, icon, tooltip = funct(None, True)
@@ -69,13 +76,15 @@ class Exchange(QWidget):
             getattr(self, name).clicked.connect(funct)
             btnLayout.addWidget(getattr(self, name), y, x)
         self.llmCB = QComboBox()
-        self.llmCB.setMaximumWidth(80)
+        self.llmCB.setMaximumWidth(120)
         self.populateLLM_CB()
         self.llmCB.activated.connect(self.useLLM)
-        btnLayout.addWidget(self.llmCB, 2, 1, 1, 2)
+        btnLayout.addWidget(self.llmCB, 9, 1, 1, 3)
         # Reserve the button-column space when collapsed: compute width and hide buttons
         self._btn_width = self.btnWidget.sizeHint().width()
         for btn in self.btnWidget.findChildren(QPushButton):
+            btn.hide()
+        for btn in self.btnWidget.findChildren(QComboBox):
             btn.hide()
         # Keep the widget visible but fixed-width so TextEdits don't expand
         self.btnWidget.setFixedWidth(self._btn_width)
@@ -148,6 +157,46 @@ class Exchange(QWidget):
             self.showStatusBtn.setIcon(qta.icon(icon))  # type: ignore[attr-defined]
             self.state = 0
         return ('', '', '')
+
+
+    def splitParagraphs(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: split paragraphs into separate exchanges
+        Args:
+            state (bool): return state
+        """
+        name    = 'splitParagraphsBtn'  # different than function name
+        icon    = 'fa6s.arrows-down-to-line'
+        tooltip = 'split paragraphs into separate exchanges'
+        if state:
+            return name, icon, tooltip
+        texts = [i.strip() for i in self.text1.toMarkdown().split('\n\n') if i.strip()]
+        self.text1.setMarkdown(texts[0])
+        self.mainWidget.addExchanges(self.uuid, texts[1:])
+        return ('', '', '')
+
+    def chatExchange(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: chat with LLM in conventional mode
+        Args:
+            state (bool): return state
+        """
+        name    = 'chatExchangeBtn'  # different than function name
+        icon    = 'mdi.chat'
+        tooltip = 'Send to LLM in chat-mode'
+        if state:
+            return name, icon, tooltip
+        text = self.text1.toMarkdown().strip()
+        if text:
+            # show busy spinner
+            self.busyOverlay.setGeometry(self.rect())
+            self.busyOverlay.show()
+            self._spinnerTimer.start(50)
+            # LLM
+            serviceName  = self.mainWidget.serviceCB.currentText()
+            workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, '', serviceName, text)
+            self.mainWidget.runWorker('chatAPI', workParams)
+
+        return ('', '', '')
+
 
 
     def useLLM(self, _: int) -> None:
@@ -229,11 +278,16 @@ class Exchange(QWidget):
 
 
     def showButtons(self) -> None:
-        """Show the button widgets (keep btnWidget width)."""
+        """Activate this exchange:
+        - Show the button widgets (keep btnWidget width).
+        - Activate actions
+        """
         for btn in self.btnWidget.findChildren(QPushButton):
             btn.show()
         for btn in self.btnWidget.findChildren(QComboBox):
             btn.show()
+        for action in self.actions():
+            action.setEnabled(True)
         try:
             self.btnWidget.setFixedWidth(self._btn_width)
         except AttributeError:
@@ -242,11 +296,16 @@ class Exchange(QWidget):
 
 
     def hideButtons(self) -> None:
-        """Hide only the buttons but keep the btnWidget visible to reserve space."""
+        """Deactivate this exchange:
+        - Hide only the buttons but keep the btnWidget visible to reserve space.
+        - Deactivate actions
+        """
         for btn in self.btnWidget.findChildren(QPushButton):
             btn.hide()
         for btn in self.btnWidget.findChildren(QComboBox):
             btn.hide()
+        for action in self.actions():
+            action.setEnabled(False)
         try:
             self.btnWidget.setFixedWidth(self._btn_width)
         except AttributeError:
@@ -268,6 +327,7 @@ class Exchange(QWidget):
                 # Create shortcut action
                 shortcutAction = QAction(self)
                 shortcutAction.setShortcut(QKeySequence(shortcut))
+                shortcutAction.setEnabled(False)
                 shortcutAction.triggered.connect(lambda checked, index=i: self.useShortcut(index))
                 self.addAction(shortcutAction)
             else:

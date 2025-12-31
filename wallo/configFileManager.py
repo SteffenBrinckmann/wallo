@@ -111,7 +111,8 @@ class ConfigurationManager:
         for prompt in prompts:
             if prompt['name'] == name:
                 return prompt  # type: ignore
-        return {}
+        default = {"name": "", "description": "Conventional chat exchange", "user-prompt": "", "attachment": "selection"}
+        return default
 
 
     def getServiceByName(self, name: str) -> Optional[dict[str, Any]]:
