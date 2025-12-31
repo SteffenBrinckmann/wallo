@@ -22,7 +22,7 @@ class Worker(QObject):
         super().__init__()
         self.workType              = workType
         self.senderID              = objects['senderID']
-        self.llm                   = objects['llm']
+        self.runnable              = objects['runnable']
         self.prompt                = objects['prompt']
         self.systemPrompt          = objects.get('systemPrompt','You are a helpful assistant.')
         self.fileName              = objects.get('fileName','')
@@ -40,7 +40,14 @@ class Worker(QObject):
             messages = [{'role': 'system', 'content': self.systemPrompt},
                         {'role': 'user', 'content': userContent}]
             print('start llm request')
-            result = self.llm.invoke(messages)
+            if not getattr(self.runnable, 'systemPromptInjected', False):
+                try:
+                    from langchain_core.messages import SystemMessage
+                    self.runnable.get_history('global').add_message(SystemMessage(content=self.systemPrompt))
+                    self.runnable.systemPromptInjected = True
+                except Exception:
+                    pass
+            result = self.runnable.invoke(self.prompt, {'configurable': {'session_id': 'global'}})
             content = result.content if hasattr(result, 'content') else str(result)
             print('llm request done')
             self.finished.emit(content, '', self.senderID)

@@ -3,6 +3,8 @@ import re
 from typing import Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.chat_history import InMemoryChatMessageHistory
 from .configFileManager import ConfigurationManager
 
 class LLMProcessor:
@@ -16,8 +18,9 @@ class LLMProcessor:
         """
         self.configManager = configManager
         self.systemPrompt = 'You are a helpful assistant.'
-        #TODO change to langchain
-        self.conversations: dict[str, list[dict[str, str]]] = {}
+        self.messageHistory = InMemoryChatMessageHistory()
+        self.systemPromptInjected = False
+        self.runnable = None
 
 
     def createClientFromConfig(self, serviceConfig: dict):
@@ -41,18 +44,21 @@ class LLMProcessor:
 
 
     def setSystemPrompt(self, promptName: str) -> None:
-        """Set the system prompt to be used by the LLM.
+        """Set (and re-inject) the system prompt to be used by the LLM.
 
-        Args:
-            promptName: Name of the system prompt to use.
-
-        Raises:
-            ValueError: If system prompt is not found.
+        When the system prompt changes, it is appended as a new SystemMessage
+        so the conversation continues chronologically.
         """
         systemPrompts = self.configManager.get('system-prompts')
         for prompt in systemPrompts:
             if prompt['name'] == promptName:
                 self.systemPrompt = prompt['system-prompt']
+                try:
+                    from langchain_core.messages import SystemMessage
+                    self.messageHistory.add_message(SystemMessage(content=self.systemPrompt))
+                    self.systemPromptInjected = True
+                except Exception:
+                    self.systemPromptInjected = False
                 return
         raise ValueError(f"System prompt '{promptName}' not found in configuration")
 
@@ -90,9 +96,11 @@ class LLMProcessor:
         attachmentType = promptConfig['attachment']
         promptHeader = f"{promptConfig['user-prompt']}\\n"
 
-        result = {'senderID': senderID, 'llm': llm, 'systemPrompt': self.systemPrompt}
-        if self.responseID:
-            result['previousPromptId'] = self.responseID
+        if self.runnable is None:
+            def get_history(_session_id: str):
+                return self.messageHistory
+            self.runnable = RunnableWithMessageHistory(llm, get_history)
+        result = {'runnable': self.runnable, 'prompt': None, 'senderID': senderID}
         if attachmentType == 'selection':
             fullPrompt = f"{promptHeader}{selectedText}"
             result['prompt'] = fullPrompt
