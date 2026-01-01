@@ -7,6 +7,7 @@ from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from .configFileManager import ConfigurationManager
+from .ragIndexer import RagIndexer
 
 class LLMProcessor:
     """Handles LLM API interactions and prompt processing."""
@@ -22,6 +23,7 @@ class LLMProcessor:
         self.messageHistory = InMemoryChatMessageHistory()
         self.systemPromptInjected = False
         self.runnable:None|RunnableWithMessageHistory = None
+        self.ragIndexer = RagIndexer(configManager)
 
 
     def createClientFromConfig(self, serviceConfig: dict[str,str]) -> Any:
@@ -65,7 +67,7 @@ class LLMProcessor:
 
     def processPrompt(self, senderID:str, promptName: str, serviceName: str,
                       selectedText: str = '', pdfFilePath: str = '',
-                      inquiryResponse: str = '') -> dict[str, Any]:
+                      inquiryResponse: str = '', ragUsage: bool = False) -> dict[str, Any]:
         """Process a prompt based on its attachment type.
 
         Args:
@@ -105,17 +107,30 @@ class LLMProcessor:
                 return self.messageHistory
             self.runnable = RunnableWithMessageHistory(llm, getHistoryLocal)
         result = {'runnable': self.runnable, 'prompt': None, 'senderID': senderID}
+        # RAG retrieval
+        ragContext = ''
+        if ragUsage:
+            retrieved = self.ragIndexer.retrieve(selectedText or promptHeader)
+            if retrieved:
+                joined = '\n\n'.join(retrieved)
+                print('RAG context:', joined)
+                ragContext = f"\n\nContext:\n---\n{joined}\n---\n"
+            else:
+                print('No RAG context found')
+        else:
+            print('No RAG usage')
+
         if attachmentType == 'selection':
-            fullPrompt = f"{promptHeader}{selectedText}"
+            fullPrompt = f"{promptHeader}{ragContext}{selectedText}"
             result['prompt'] = fullPrompt
         elif attachmentType == 'pdf':
-            fullPrompt = f"{promptConfig['user-prompt']}\\n"
+            fullPrompt = f"{promptConfig['user-prompt']}\n{ragContext}"
             result['prompt'] = fullPrompt
             result['fileName'] = pdfFilePath
         elif attachmentType == 'inquiry':
             inquiryText = promptConfig['user-prompt'].split('|')[1]
             processedPrompt = promptConfig['user-prompt'].replace(f'|{inquiryText}|', inquiryResponse)
-            fullPrompt = f"{processedPrompt}\\n\\n{selectedText}\\n"
+            fullPrompt = f"{processedPrompt}\n\n{ragContext}{selectedText}\n"
             result['prompt'] = fullPrompt
         else:
             raise ValueError(f"Unknown attachment type '{attachmentType}' for prompt '{promptName}'")

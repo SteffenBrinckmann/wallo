@@ -33,10 +33,12 @@ class Exchange(QWidget):
             parent (QWidget): The parent widget.
         """
         super().__init__(None)
-        self.state      = 0
         self.uuid       = uuid.uuid4().hex
         self.btnState   = 'hidden'
         self.mainWidget = parent
+        #function states
+        self.state      = 0
+        self.ragUsage   = False
 
         # Build GUI
         self.main  = QHBoxLayout(self)
@@ -65,6 +67,7 @@ class Exchange(QWidget):
             (2, 1, self.showStatus),
             (3, 1, self.splitParagraphs),
             (1, 2, self.chatExchange),
+            (1, 3, self.toggleRag),
         ]
         for x, y, funct in btns:
             name, icon, tooltip = funct(None, True)
@@ -158,6 +161,26 @@ class Exchange(QWidget):
         return ('', '', '')
 
 
+
+    def toggleRag(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: Allow to toggle RAG usage
+        Args:
+            state (bool): return state
+        """
+        name    = 'toggleRagBtn'  # different than function name
+        icon    = 'fa5s.database'
+        tooltip = 'toggle database / RAG usage'
+        if state:
+            return name, icon, tooltip
+        if self.ragUsage:
+            self.toggleRagBtn.setIcon(qta.icon(icon))  # type: ignore[attr-defined]
+            self.ragUsage = False
+        else:
+            self.toggleRagBtn.setIcon(qta.icon(icon, color=ACCENT_COLOR))  # type: ignore[attr-defined]
+            self.ragUsage = True
+        return ('', '', '')
+
+
     def splitParagraphs(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
         """Self-contained function: split paragraphs into separate exchanges
         Args:
@@ -172,6 +195,7 @@ class Exchange(QWidget):
         self.text1.setMarkdown(texts[0])
         self.mainWidget.addExchanges(self.uuid, texts[1:])
         return ('', '', '')
+
 
     def chatExchange(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
         """Self-contained function: chat with LLM in conventional mode
@@ -191,12 +215,13 @@ class Exchange(QWidget):
             self._spinnerTimer.start(50)
             # LLM
             serviceName  = self.mainWidget.serviceCB.currentText()
-            workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, '', serviceName, text)
+            workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, '', serviceName, text,
+                                                                    ragUsage=self.ragUsage)
             self.mainWidget.runWorker('chatAPI', workParams)
-
         return ('', '', '')
 
 
+    ### END BUTTON FUNCTIONS
 
     def useLLM(self, _: int) -> None:
         """Use the selected LLM to process the text in the editor

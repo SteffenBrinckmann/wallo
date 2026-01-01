@@ -10,11 +10,12 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QMainWindow
 from .configFileManager import ConfigurationManager
 from .configMain import ConfigurationWidget
 from .docxExport import DocxExporter
+from .exchange import Exchange
 from .misc import invertIcon
 from .llmProcessor import LLMProcessor
 from .pdfDocumentProcessor import PdfDocumentProcessor
+from .ragIndexer import RagIndexer
 from .worker import Worker
-from .exchange import Exchange
 
 class Wallo(QMainWindow):
     """Main window for the Wallo application, providing a text editor with LLM assistance."""
@@ -22,10 +23,12 @@ class Wallo(QMainWindow):
         super().__init__()
         # Initialize business logic components
         self.configManager = ConfigurationManager()
-        self.llmProcessor = LLMProcessor(self.configManager)
-        self.documentProcessor = PdfDocumentProcessor()
-        self.configWidget: ConfigurationWidget | None = None
         self.docxExporter = DocxExporter(self)
+        self.documentProcessor = PdfDocumentProcessor()
+        self.llmProcessor = LLMProcessor(self.configManager)
+        self.ragIndexer = RagIndexer(self.configManager)
+
+        self.configWidget: ConfigurationWidget | None = None
         self.subThread:None|QThread = QThread()
         self.worker:None|Worker = None
         self.spellcheck = True
@@ -74,7 +77,7 @@ class Wallo(QMainWindow):
         self.serviceCB = QComboBox()
         self.toolbar.addWidget(self.serviceCB)
         # add RAG ingestion action
-        ragAction = QAction('', self, icon=qta.icon('fa5s.database'), toolTip='Add files to knowledge base')
+        ragAction = QAction('', self, icon=qta.icon('mdi.database-plus'), toolTip='Add files to knowledge base')
         ragAction.triggered.connect(self.addRagSources)
         self.toolbar.addAction(ragAction)
         # configuration action
@@ -176,31 +179,16 @@ class Wallo(QMainWindow):
 
 
     def addRagSources(self) -> None:
-        """Open a file or folder dialog to add sources to the RAG knowledge base.
-
-        This is UI-only for now; ingestion is handled elsewhere.
-        """
-        filePaths, _ = QFileDialog.getOpenFileNames(
-            self,
-            'Select files to add to knowledge base',
-            '',
-            'All Files (*)'
-        )
+        """Open a file or folder dialog to add sources to the RAG knowledge base."""
+        filePaths, _ = QFileDialog.getOpenFileNames(self, 'Select files to add to knowledge base', '','All Files (*)')
         if not filePaths:
-            directory = QFileDialog.getExistingDirectory(
-                self,
-                'Select folder to add to knowledge base'
-            )
+            directory = QFileDialog.getExistingDirectory(self, 'Select folder to add to knowledge base')
             if directory:
                 filePaths = [directory]
         if not filePaths:
             return
-        # Placeholder: actual ingestion will be wired in the RAG implementation
-        QMessageBox.information(
-            self,
-            'RAG sources selected',
-            f"Selected {len(filePaths)} path(s) for knowledge ingestion."
-        )
+        chunks = self.ragIndexer.ingestPaths(filePaths)
+        QMessageBox.information(self, 'Success', f'Chunks indexed: {chunks}')
 
 
     def showConfiguration(self) -> None:

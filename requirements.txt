@@ -3,7 +3,10 @@ QtAwesome
 langchain
 langchain-openai
 langchain-google-genai
+langchain-community
+chromadb
 pdfplumber
+pypdf
 python-docx
 pyenchant
 pycountry
