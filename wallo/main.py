@@ -7,7 +7,7 @@ from PySide6.QtCore import QThread  # pylint: disable=no-name-in-module
 from PySide6.QtGui import QAction, QKeySequence  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QMainWindow, QMessageBox,  QToolBar, # pylint: disable=no-name-in-module
                                QVBoxLayout, QWidget, QScrollArea)
-from .configFileManager import ConfigurationManager
+from .configManager import ConfigurationManager
 from .configMain import ConfigurationWidget
 from .docxExport import DocxExporter
 from .exchange import Exchange

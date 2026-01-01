@@ -5,7 +5,7 @@ from PySide6.QtGui import (QTextOption, QKeyEvent, QAction, QKeySequence, QTextC
                            QContextMenuEvent, QMouseEvent, QFocusEvent, QResizeEvent)
 from PySide6.QtWidgets import QApplication, QTextEdit, QMenu, QSizePolicy  # pylint: disable=no-name-in-module
 from .editorSpellCheck import ENCHANT_AVAILABLE, SpellCheck
-from .configFileManager import ConfigurationManager
+from .configManager import ConfigurationManager
 
 class TextEdit(QTextEdit):
     """ Custom QTextEdit with word wrap mode set to wrap at word boundary or anywhere. """

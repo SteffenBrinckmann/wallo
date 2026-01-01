@@ -3,7 +3,7 @@ from typing import Any, Optional
 from PySide6.QtCore import Signal  # pylint: disable=no-name-in-module
 from PySide6.QtGui import QKeyEvent  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTabWidget, QVBoxLayout, QWidget # pylint: disable=no-name-in-module
-from .configFileManager import ConfigurationManager
+from .configManager import ConfigurationManager
 from .configTabPrompts import PromptTab, PromptType
 from .configTabServices import ServiceTab
 from .configTabString import StringTab

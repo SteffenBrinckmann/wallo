@@ -9,10 +9,10 @@ import os
 import traceback
 from typing import Iterable, List
 from langchain_community.document_loaders import TextLoader, PyPDFLoader, Docx2txtLoader
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
-from .configFileManager import ConfigurationManager
+from .configManager import ConfigurationManager
 
 RAG_DB_PATH = os.path.expanduser('~/.wallo_rag')
 CHUNK_SIZE = 800

@@ -3,8 +3,8 @@ from typing import Any, Optional
 from PySide6.QtCore import Qt  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, # pylint: disable=no-name-in-module
                                QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton,
-                               QVBoxLayout, QWidget)
-from .configFileManager import ConfigurationManager
+                               QVBoxLayout, QWidget, QComboBox)
+from .configManager import ConfigurationManager
 
 
 class ServiceTab(QWidget):
@@ -50,10 +50,12 @@ class ServiceTab(QWidget):
         self.urlLabel = QLabel()
         self.apiLabel = QLabel()
         self.modelLabel = QLabel()
-        previewLayout.addRow('Name:', self.nameLabel)
-        previewLayout.addRow('URL:', self.urlLabel)
+        self.typeLabel = QLabel()
+        previewLayout.addRow('Name:',    self.nameLabel)
+        previewLayout.addRow('URL:',     self.urlLabel)
         previewLayout.addRow('API Key:', self.apiLabel)
-        previewLayout.addRow('Model:', self.modelLabel)
+        previewLayout.addRow('Model:',   self.modelLabel)
+        previewLayout.addRow('Type:',    self.typeLabel)
         rightLayout.addWidget(self.previewGroup)
         rightLayout.addStretch()
         # Add left and right layouts to main layout
@@ -82,12 +84,14 @@ class ServiceTab(QWidget):
             self.nameLabel.setText(serviceName)
             self.urlLabel.setText(service.get('url', ''))
             self.apiLabel.setText('***' if service.get('api') else 'None')
-            self.modelLabel.setText(service.get('model', ''))
+            self.modelLabel.setText(service['model'])
+            self.typeLabel.setText(service['type'])
         else:
             self.nameLabel.clear()
             self.urlLabel.clear()
             self.apiLabel.clear()
             self.modelLabel.clear()
+            self.typeLabel.clear()
 
 
     def addService(self) -> None:
@@ -166,6 +170,10 @@ class ServiceEditDialog(QDialog):
         formLayout.addRow('API Key:', self.apiEdit)
         self.modelEdit = QLineEdit()
         formLayout.addRow('Model:', self.modelEdit)
+        self.typeEdit = QComboBox()
+        self.typeEdit.addItems(['openai', 'gemini'])
+        self.typeEdit.setCurrentText(self.service['type'])
+        formLayout.addRow('Type:', self.typeEdit)
         layout.addLayout(formLayout)
         # Button box
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -181,6 +189,7 @@ class ServiceEditDialog(QDialog):
             self.urlEdit.setText(self.service.get('url', ''))
             self.apiEdit.setText(self.service.get('api', '') or '')
             self.modelEdit.setText(self.service.get('model', ''))
+            self.typeEdit.setCurrentText(self.service.get('type', 'openai'))
 
 
     def getService(self) -> tuple[str, dict[str, Any]]:
@@ -189,7 +198,8 @@ class ServiceEditDialog(QDialog):
         service = {
             'url': self.urlEdit.text().strip(),
             'api': self.apiEdit.text().strip() or None,
-            'model': self.modelEdit.text().strip()
+            'model': self.modelEdit.text().strip(),
+            'type': self.typeEdit.currentText()
         }
         return name, service
 

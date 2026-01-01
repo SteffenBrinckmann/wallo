@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFormLayout
                                QTextEdit, QVBoxLayout, QWidget)
 from qtawesome import icon as qta_icon
 
-from .configFileManager import ConfigurationManager
+from .configManager import ConfigurationManager
 
 
 class PromptType(Enum):

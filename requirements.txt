@@ -4,7 +4,7 @@ langchain
 langchain-openai
 langchain-google-genai
 langchain-community
-chromadb
+langchain-chroma
 pdfplumber
 pypdf
 python-docx

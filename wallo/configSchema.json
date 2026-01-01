@@ -36,20 +36,12 @@
         "properties": {
           "url": { "type": "string" },
           "api": { "type": "string" },
+          "type": { "type": "string" },
           "model": { "type": "string" }
         },
-        "required": ["api", "model"],
+        "required": ["api", "model", "type"],
         "additionalProperties": true
       }
-    },
-    "promptFooter": { "type": "string" },
-    "footer": { "type": "string" },
-    "header": { "type": "string" },
-    "colorOriginal": { "type": "string" },
-    "colorReply": { "type": "string" },
-    "shortcuts": {
-      "type": "object",
-      "additionalProperties": { "type": "string" }
     },
     "dictionary": { "type": "string" }
   },

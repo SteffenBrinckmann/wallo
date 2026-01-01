@@ -9,7 +9,7 @@ except ImportError:
 from PySide6.QtGui import QColor  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (QColorDialog, QFormLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, # pylint: disable=no-name-in-module
                                QWidget, QComboBox)
-from .configFileManager import ConfigurationManager
+from .configManager import ConfigurationManager
 
 
 class StringTab(QWidget):

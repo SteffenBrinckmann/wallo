@@ -6,7 +6,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from .configFileManager import ConfigurationManager
+from .configManager import ConfigurationManager
 from .ragIndexer import RagIndexer
 
 class LLMProcessor:
@@ -33,8 +33,8 @@ class LLMProcessor:
         - openai (OpenAI + compatible endpoints)
         - gemini (Google Gemini)
         """
-        serviceType = serviceConfig.get('type', 'openai')
-        model       = serviceConfig.get('model','')
+        serviceType = serviceConfig.get('type')
+        model       = serviceConfig.get('model')
         apiKey      = serviceConfig.get('api')
         baseUrl     = serviceConfig.get('url') or None
         if not apiKey:

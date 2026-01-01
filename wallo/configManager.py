@@ -13,10 +13,10 @@ DEFAULT_CONFIGURATION = {
             'attachment':  'selection'
         },
         {
-        'name': 'summarize_paper',
-        'description': 'Summarize pdf after uploading it',
-        'user-prompt': 'Can you summarize the following paper:',
-        'attachment':  'pdf'
+            'name': 'summarize_paper',
+            'description': 'Summarize pdf after uploading it',
+            'user-prompt': 'Can you summarize the following paper:',
+            'attachment':  'pdf'
         }
     ],
     'system-prompts': [
@@ -26,21 +26,9 @@ DEFAULT_CONFIGURATION = {
         }
     ],
     'services': {
-        'openAI': {'url':'', 'api':None, 'model': 'gpt-4o'}
+        'openAI': {'url':'', 'api':None, 'model': 'gpt-4o', 'type': 'openai'}
     },
-  'promptFooter': '\nPlease reply with the html formatted string only',
-  'header': f'\n{"-"*5} Start LLM generated {"-"*5}',
-  'footer': f'\n{"-"*5}  End LLM generated  {"-"*5}',
-  'colorOriginal': '#000000',
-  'colorReply':  '#0000FF',
-  'dictionary': 'en_US',
-  'shortcuts': {
-      'Ideazing mode':'Ctrl-I',
-      'Reduce to highlighted text':'Ctrl-R',
-      'Remove block':'Ctrl-D',
-      'Clear all formatting':'Ctrl-Space',
-      'Configuration':'Ctrl-0'
-  }
+  'dictionary': 'en_US'
 }
 
 
@@ -120,6 +108,15 @@ class ConfigurationManager:
         """Get a specific service by name."""
         services = self._config['services']
         return services.get(name)  # type: ignore
+
+
+    def getOpenAiTypeServices(self) -> list[str]:
+        """ Get all services that are of type 'openai'
+        Returns:
+            List of service names
+        """
+        services = self._config['services']
+        return [name for name, service in services.items() if service.get('type') == 'openai']
 
 
     def saveConfig(self) -> None:
