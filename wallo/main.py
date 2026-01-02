@@ -3,7 +3,7 @@
 import sys
 from typing import Any, Optional
 import qtawesome as qta
-from PySide6.QtCore import QThread  # pylint: disable=no-name-in-module
+from PySide6.QtCore import QThread, Qt  # pylint: disable=no-name-in-module
 from PySide6.QtGui import QAction, QKeySequence  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QMainWindow, QMessageBox,  QToolBar, # pylint: disable=no-name-in-module
                                QVBoxLayout, QWidget, QScrollArea)
@@ -40,6 +40,7 @@ class Wallo(QMainWindow):
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
         container = QWidget(self)
         self.mainLayout = QVBoxLayout(container)
+        self.mainLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.exchanges = []
         for _ in range(2):
             exchange = Exchange(self)
@@ -94,7 +95,6 @@ class Wallo(QMainWindow):
             widget.deleteLater()
         for exchange in self.exchanges:
             self.mainLayout.addWidget(exchange)
-        self.mainLayout.addStretch(2)
 
 
     def changeActive(self) -> None:

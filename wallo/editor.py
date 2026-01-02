@@ -21,7 +21,6 @@ class TextEdit(QTextEdit):
         super().__init__()
         self.configManager = configManager
         self.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
-        self.ideazingMode = False
         self.spellCheckEnabled = ENCHANT_AVAILABLE
         self.highlighter  = SpellCheck(self.document(),
                                        self.configManager.get('dictionary')) if self.spellCheckEnabled else None
@@ -80,7 +79,7 @@ class TextEdit(QTextEdit):
 
 
     def keyPressEvent(self, event:QKeyEvent) -> None:
-        """ Handle key press events for ideazing mode message sending.
+        """ Handle key press events
         Args:
             event (QKeyEvent): The key press event.
         """
@@ -95,31 +94,8 @@ class TextEdit(QTextEdit):
                 fragment = QTextDocumentFragment(cursor)
                 md = fragment.toMarkdown()
                 QApplication.clipboard().setText(md)
-        elif self.ideazingMode and event.key() == Qt.Key.Key_Return and \
-                                   event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            text = self.toPlainText().strip()
-            if text:
-                self.sendMessage.emit(text)
-            event.accept()
         else:
             super().keyPressEvent(event)
-
-
-    def mouseReleaseEvent(self, e:QMouseEvent) -> None:
-        """ Handle mouse release events.
-        Args:
-            e: The mouse release event.
-        """
-        if self.ideazingMode and e.modifiers()==Qt.KeyboardModifier.ControlModifier and \
-                                 self.textCursor().hasSelection():
-            cursor = self.textCursor()
-            selectedText = cursor.selectedText()
-            cursor.removeSelectedText()
-            cursor.clearSelection()
-            styledContent = f'<span style="background-color: #777700;">{selectedText}</span>'
-            cursor.insertHtml(styledContent)
-            e.accept()
-        return super().mouseReleaseEvent(e)
 
 
     def reduce(self) -> None:
@@ -176,14 +152,6 @@ class TextEdit(QTextEdit):
         return results
 
 
-    def setIdeazingMode(self, enabled:bool) -> None:
-        """ Enable or disable ideazing mode.
-        Args:
-            enabled (bool): True to enable ideazing mode, False to disable.
-        """
-        self.ideazingMode = enabled
-
-
     def setSpellCheckEnabled(self, enabled:bool) -> None:
         """ Enable or disable spell checking.
         Args:
@@ -235,23 +203,13 @@ class TextEdit(QTextEdit):
         super().focusInEvent(event)
 
 
-    def focusOutEvent(self, event:QFocusEvent) -> None:
-        """When losing focus: hide scrollbar and shrink to content height.
-        Args:
-            event (QFocusEvent): The focus event
-        """
-        super().focusOutEvent(event)
-        # hide scrollbar and shrink to content height so no extra empty lines appear
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.adjustHeightToContents()
-
-
     def adjustHeightToContents(self) -> None:
         """Compute document height and set the widget height to match content exactly.
 
         This hides the vertical scrollbar and avoids stray empty lines by using
         the document layout size and document margins.
         """
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         doc = self.document()
         # ensure layout uses current viewport width for word-wrapping
         doc.setTextWidth(self.viewport().width())

@@ -60,6 +60,8 @@ class Exchange(QWidget):
         self.main.addLayout(textLayout)
         self.btnWidget = QWidget()
         btnLayout  = QGridLayout(self.btnWidget)
+        btnLayout.setVerticalSpacing(0)
+        btnLayout.setHorizontalSpacing(0)
         self.main.addWidget(self.btnWidget)
         # Buttons
         btns = [
@@ -405,6 +407,9 @@ class Exchange(QWidget):
         except AttributeError:
             pass
         self.btnState = 'hidden'
+        self.text1.adjustHeightToContents()
+        self.text2.adjustHeightToContents()
+
 
 
     def populateLlmComboBox(self) -> None:
