@@ -48,6 +48,7 @@ class Exchange(QWidget):
         # Text-Editors
         textLayout = QVBoxLayout()
         self.text1 = TextEdit(self.mainWidget.configManager)
+        self.defaultStyle = self.text1.styleSheet()
         self.text1.focused.connect(self.focusThisExchange)
         if text:
             self.text1.setMarkdown(text)
@@ -64,10 +65,15 @@ class Exchange(QWidget):
         btns = [
             # x  y  function
             (1, 1, self.hide1),
-            (2, 1, self.showStatus),
-            (3, 1, self.splitParagraphs),
+            (2, 1, self.audio1),
+            (3, 1, self.clear1),
             (1, 2, self.chatExchange),
-            (1, 3, self.toggleRag),
+            (2, 2, self.toggleRag),
+            (3, 2, self.move2to1),
+            (1, 3, self.splitParagraphs),
+            (2, 3, self.addExchangeNext),
+            (3, 3, self.showStatus),
+
         ]
         for x, y, funct in btns:
             name, icon, tooltip = funct(None, True)
@@ -139,6 +145,52 @@ class Exchange(QWidget):
         return ('', '', '')
 
 
+    def clear1(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: clear first text-box
+        Args:
+            state (bool): return state
+        """
+        name       = 'clear1Btn'
+        icon       = 'mdi.delete'
+        tooltip    = 'Delete history'
+        if state:
+            return name, icon, tooltip
+        self.text1.setMarkdown('')
+        return ('', '', '')
+
+
+    def audio1(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: append audio input via STT to first text-box
+        Args:
+            state (bool): return state
+        """
+        name       = 'audio1Btn'
+        icon       = 'fa5s.microphone'
+        tooltip    = 'Add speech to history'
+        if state:
+            return name, icon, tooltip
+        #TODO
+        self.text1.setMarkdown('DUMMY TEXT')
+        return ('', '', '')
+
+
+    def move2to1(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: move content of 2nd text-box to 1st
+        Args:
+            state (bool): return state
+        """
+        name       = 'move2to1Btn'
+        icon       = 'fa5s.angle-double-up'
+        tooltip    = 'Move answer to history'
+        if state:
+            return name, icon, tooltip
+        self.text1.setMarkdown(self.text2.toMarkdown())
+        self.text2.setMarkdown('')
+        self.text2.hide()
+        self.text1.setStyleSheet(self.defaultStyle)
+        return ('', '', '')
+
+
     def showStatus(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
         """Self-contained function: Allow to toggle the color of the button: green, red, neutral
         Args:
@@ -146,7 +198,7 @@ class Exchange(QWidget):
         """
         name    = 'showStatusBtn'  # different than function name
         icon    = 'fa5s.circle'
-        tooltip = 'toggle state'
+        tooltip = 'Toggle state'
         if state:
             return name, icon, tooltip
         if self.state == 0:
@@ -169,7 +221,7 @@ class Exchange(QWidget):
         """
         name    = 'toggleRagBtn'  # different than function name
         icon    = 'fa5s.database'
-        tooltip = 'toggle database / RAG usage'
+        tooltip = 'Toggle database / RAG usage'
         if state:
             return name, icon, tooltip
         if self.ragUsage:
@@ -181,6 +233,20 @@ class Exchange(QWidget):
         return ('', '', '')
 
 
+    def addExchangeNext(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: add an empty exchange after this to the list
+        Args:
+            state (bool): return state
+        """
+        name    = 'addExchangeNextBtn'  # different than function name
+        icon    = 'fa5s.plus'
+        tooltip = 'Add an empty exchange after this'
+        if state:
+            return name, icon, tooltip
+        self.mainWidget.addExchanges(self.uuid, [''])
+        return ('', '', '')
+
+
     def splitParagraphs(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
         """Self-contained function: split paragraphs into separate exchanges
         Args:
@@ -188,7 +254,7 @@ class Exchange(QWidget):
         """
         name    = 'splitParagraphsBtn'  # different than function name
         icon    = 'fa6s.arrows-down-to-line'
-        tooltip = 'split paragraphs into separate exchanges'
+        tooltip = 'Split paragraphs into separate exchanges'
         if state:
             return name, icon, tooltip
         texts = [i.strip() for i in self.text1.toMarkdown().split('\n\n') if i.strip()]
