@@ -26,7 +26,7 @@ DEFAULT_CONFIGURATION = {
         }
     ],
     'services': {
-        'openAI': {'url':'', 'api':None, 'model': 'gpt-4o', 'type': 'openai'}
+        'openAI': {'url':'', 'api':None, 'model': 'gpt-4o', 'type': 'openAI'}
     },
   'dictionary': 'en_US'
 }
@@ -83,12 +83,11 @@ class ConfigurationManager:
 
     def get(self, info:str) -> Any:
         """Get configuration value by key."""
-        if info not in ['prompts', 'system-prompts','services', 'promptFooter', 'header', 'footer',
-                        'colorOriginal','colorReply','shortcuts','dictionary']:
+        if info not in ['prompts', 'system-prompts','services','dictionary']:
             raise ValueError(f"Invalid info type '{info}' requested")
         if info in ['prompts', 'system-prompts', 'services']:
             return self._config[info]
-        if info in ['promptFooter', 'header', 'footer','colorOriginal','colorReply', 'shortcuts','dictionary']:
+        if info in ['dictionary']:
             return self._config.get(info, DEFAULT_CONFIGURATION[info])
         return []
 
@@ -104,19 +103,19 @@ class ConfigurationManager:
         return default
 
 
-    def getServiceByName(self, name: str) -> Optional[dict[str, Any]]:
+    def getServiceByName(self, name: str) -> dict[str, Any]:
         """Get a specific service by name."""
         services = self._config['services']
-        return services.get(name)  # type: ignore
+        return services[name]  # type: ignore
 
 
-    def getOpenAiTypeServices(self) -> list[str]:
+    def getOpenAiServices(self) -> list[str]:
         """ Get all services that are of type 'openai'
         Returns:
             List of service names
         """
         services = self._config['services']
-        return [name for name, service in services.items() if service.get('type') == 'openai']
+        return [name for name, service in services.items() if service['type'] == 'openAI' and service['url']=='']
 
 
     def saveConfig(self) -> None:

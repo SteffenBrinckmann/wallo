@@ -171,7 +171,7 @@ class ServiceEditDialog(QDialog):
         self.modelEdit = QLineEdit()
         formLayout.addRow('Model:', self.modelEdit)
         self.typeEdit = QComboBox()
-        self.typeEdit.addItems(['openai', 'gemini'])
+        self.typeEdit.addItems(['openAI', 'Gemini'])
         self.typeEdit.setCurrentText(self.service['type'])
         formLayout.addRow('Type:', self.typeEdit)
         layout.addLayout(formLayout)
@@ -189,7 +189,7 @@ class ServiceEditDialog(QDialog):
             self.urlEdit.setText(self.service.get('url', ''))
             self.apiEdit.setText(self.service.get('api', '') or '')
             self.modelEdit.setText(self.service.get('model', ''))
-            self.typeEdit.setCurrentText(self.service.get('type', 'openai'))
+            self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
 
 
     def getService(self) -> tuple[str, dict[str, Any]]:

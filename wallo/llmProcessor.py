@@ -1,5 +1,6 @@
-"""LLM processing and interaction logic for the Wallo application."""
-import re
+"""LLM processing and interaction logic for the Wallo application.
+- All LLM logic is here
+"""
 from typing import Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -33,15 +34,15 @@ class LLMProcessor:
         - openai (OpenAI + compatible endpoints)
         - gemini (Google Gemini)
         """
-        serviceType = serviceConfig.get('type')
-        model       = serviceConfig.get('model')
-        apiKey      = serviceConfig.get('api')
-        baseUrl     = serviceConfig.get('url') or None
+        serviceType = serviceConfig['type']
+        model       = serviceConfig['model']
+        apiKey      = serviceConfig['api']
+        baseUrl     = serviceConfig.get('url') or None  #None if url-string==''
         if not apiKey:
             raise ValueError('API key not configured for the service')
-        if serviceType == 'openai':
+        if serviceType == 'openAI':
             return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, temperature=0.7) # type: ignore[arg-type]
-        if serviceType == 'gemini':
+        if serviceType == 'Gemini':
             return ChatGoogleGenerativeAI(model=model, google_api_key=apiKey, temperature=0.7)
         raise ValueError(f"Unknown service type '{serviceType}'")
 
@@ -76,6 +77,7 @@ class LLMProcessor:
             selectedText: Selected text from the editor.
             pdfFilePath: Path to the PDF file.
             inquiryResponse: User's response to the inquiry.
+            ragUsage: Whether to use RAG for retrieval.
 
         Returns:
             Dictionary with processing parameters for the worker.
@@ -83,8 +85,6 @@ class LLMProcessor:
         Raises:
             ValueError: If prompt or service is not found.
         """
-        if not re.match(r'^[0-9a-f]{32}$', senderID):
-            raise ValueError(f"SenderID '{senderID}' is not a valid uuid4")
         serviceConfig = self.configManager.getServiceByName(serviceName)
         if not serviceConfig:
             raise ValueError(f"Service '{serviceName}' not found in configuration")
@@ -96,30 +96,21 @@ class LLMProcessor:
         if not promptConfig:
             raise ValueError(f"Prompt '{promptName}' not found in configuration")
         attachmentType = promptConfig['attachment']
-        promptHeader = f"{promptConfig['user-prompt']}\\n"
+        promptHeader = f"{promptConfig['user-prompt']}\\n" if promptConfig['user-prompt'] else ''
 
+        # since LLM is defined, check if message-history defined. If not, define it
         if self.runnable is None:
-            def getHistoryLocal(_: str) -> InMemoryChatMessageHistory:
-                """ Get the history (local function)
-                Args:
-                    _ (str): not used
-                """
-                return self.messageHistory
-            self.runnable = RunnableWithMessageHistory(llm, getHistoryLocal)
-        result = {'runnable': self.runnable, 'prompt': None, 'senderID': senderID}
+            self.runnable = RunnableWithMessageHistory(llm, lambda: self.messageHistory)
+
         # RAG retrieval
         ragContext = ''
         if ragUsage:
-            retrieved = self.ragIndexer.retrieve(selectedText or promptHeader)
-            if retrieved:
-                joined = '\n\n'.join(retrieved)
-                print('RAG context:', joined)
-                ragContext = f"\n\nContext:\n---\n{joined}\n---\n"
-            else:
-                print('No RAG context found')
-        else:
-            print('No RAG usage')
+            if retrieved:= self.ragIndexer.retrieve(selectedText or promptHeader): #get list of strings from RAG database
+                print('RAG context:', '\n\n'.join(retrieved))
+                ragContext = f"\n\nContext:\n---\n{'\n\n'.join(retrieved)}\n---\n"
 
+        # Assemble work for 2nd thread based on task
+        result = {'runnable': self.runnable, 'prompt': None, 'senderID': senderID}
         if attachmentType == 'selection':
             fullPrompt = f"{promptHeader}{ragContext}{selectedText}"
             result['prompt'] = fullPrompt

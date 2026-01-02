@@ -1,4 +1,5 @@
-""" Custom QTextEdit with word wrap mode set to wrap at word boundary or anywhere. """
+""" Used for all multiline text editors.
+- Custom QTextEdit with word wrap mode set to wrap at word boundary or anywhere. """
 import re
 from PySide6.QtCore import Qt, Signal, QMimeData  # pylint: disable=no-name-in-module
 from PySide6.QtGui import (QTextOption, QKeyEvent, QAction, QKeySequence, QTextCursor, QTextDocumentFragment,  # pylint: disable=no-name-in-module

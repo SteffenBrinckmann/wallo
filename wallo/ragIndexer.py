@@ -1,9 +1,8 @@
 """RAG document ingestion and indexing logic for Wallo.
-
-Keeps things explicit and local:
 - Loads local files / folders
 - Chunks text
 - Embeds and stores in a persistent vector store
+- Retrieve text strings based on query
 """
 import os
 import traceback
@@ -12,6 +11,7 @@ from langchain_community.document_loaders import TextLoader, PyPDFLoader, Docx2t
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
+from PySide6.QtWidgets import QMessageBox # pylint: disable=no-name-in-module
 from .configManager import ConfigurationManager
 
 RAG_DB_PATH = os.path.expanduser('~/.wallo_rag')
@@ -23,7 +23,14 @@ class RagIndexer:
     """Handles ingestion and retrieval of local files into a RAG vector store."""
 
     def __init__(self, configManager: ConfigurationManager) -> None:
-        self.embeddings = OpenAIEmbeddings(api_key=configManager.getServiceByName('openAI')['api'])  #TODO make sure this exists and always openAI
+        # TODO currently, only OpenAI embeddings are implemented, get those that quality
+        # Future: user chooses service to use for RAG, always. Configuration changes to save for that
+        # then this preference is used during this initiation
+        possServices = configManager.getOpenAiServices()
+        if not possServices:
+            QMessageBox.critical(None, 'Error', 'No OpenAI services configured')
+            return
+        self.embeddings = OpenAIEmbeddings(api_key=configManager.getServiceByName(possServices[0])['api'])
         self.textSplitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
         self.vectorStore = Chroma(persist_directory=RAG_DB_PATH, embedding_function=self.embeddings)
 
@@ -47,7 +54,6 @@ class RagIndexer:
             return 0
         chunks = self.textSplitter.split_documents(documents)
         self.vectorStore.add_documents(chunks)
-        self.vectorStore.persist()
         return len(chunks)
 
 
