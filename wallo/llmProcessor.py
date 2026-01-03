@@ -3,8 +3,10 @@
 """
 from typing import Any, Optional
 from langchain_openai import ChatOpenAI
+from langchain_community.document_loaders.parsers.audio import OpenAIWhisperParser
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.chat_history import InMemoryChatMessageHistory
+from langchain_core.documents.base import Blob
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from .configManager import ConfigurationManager
@@ -165,3 +167,19 @@ class LLMProcessor:
         if content.startswith('```'):
             content = content.split('\n', 1)[-1].strip()
         return content
+
+
+    def transcribeAudio(self, audioFilePath):
+        #TODO move to Backend thread
+        try:
+            possOpenAI = self.configManager.getOpenAiServices()
+            if not possOpenAI:
+                return 'No OpenAI services configured'
+            parser = OpenAIWhisperParser(api_key=self.configManager.getServiceByName(possOpenAI[0])['api'])
+            blob = Blob.from_path(audioFilePath)
+            docs = parser.parse(blob)
+            if not docs:
+                return ''
+            return docs[0].page_content
+        except Exception as e:
+            return f'[STT failed: {e}]'

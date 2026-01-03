@@ -19,6 +19,8 @@ CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100
 
 
+#TODO move entire class and calling to backend worker
+
 class RagIndexer:
     """Handles ingestion and retrieval of local files into a RAG vector store."""
 

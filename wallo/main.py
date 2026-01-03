@@ -52,6 +52,8 @@ class Wallo(QMainWindow):
         self.layoutExchanges()
         self.exchanges[0].showButtons()
 
+        #TODO: add basic introduction to first 5 calls
+
         ## Create the toolbar with formatting actions and LLM selection
         self.toolbar = QToolBar('Main')
         self.addToolBar(self.toolbar)

@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, Q
 from PySide6.QtCore import Qt, QEvent, QTimer  # pylint: disable=no-name-in-module
 import qtawesome as qta
 from .editor import TextEdit
-from .misc import ACCENT_COLOR
+from .misc import ACCENT_COLOR, PushToTalkRecorder
 if TYPE_CHECKING:
     from .main import Wallo
 
@@ -39,6 +39,9 @@ class Exchange(QWidget):
         #function states
         self.state      = 0
         self.ragUsage   = False
+        self.recording  = False
+        self.pushToTalkRecorder = PushToTalkRecorder()
+
 
         # Build GUI
         self.main  = QHBoxLayout(self)
@@ -171,8 +174,16 @@ class Exchange(QWidget):
         tooltip    = 'Add speech to history'
         if state:
             return name, icon, tooltip
-        #TODO
-        self.text1.setMarkdown('DUMMY TEXT')
+        if self.recording:
+            self.audio1Btn.setIcon(qta.icon(icon))  # type: ignore[attr-defined]
+            self.recording = False
+            path = self.pushToTalkRecorder.stop()
+            text = self.mainWidget.llmProcessor.transcribeAudio(path)
+            self.text1.append(text)
+        else:
+            self.audio1Btn.setIcon(qta.icon(icon, color=ACCENT_COLOR))  # type: ignore[attr-defined]
+            self.recording = True
+            self.pushToTalkRecorder.start()
         return ('', '', '')
 
 

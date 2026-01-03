@@ -5,6 +5,12 @@ langchain-openai
 langchain-google-genai
 langchain-community
 langchain-chroma
+
+sounddevice
+soundfile
+numpy
+pydub
+
 pdfplumber
 pypdf
 python-docx
