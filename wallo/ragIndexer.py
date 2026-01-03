@@ -6,7 +6,8 @@
 """
 import os
 import traceback
-from typing import Iterable, List
+from typing import List
+from collections.abc import Iterable
 from langchain_community.document_loaders import TextLoader, PyPDFLoader, Docx2txtLoader
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -74,7 +75,7 @@ class RagIndexer:
             return []
 
 
-    def _loadDirectory(self, directory: str) -> List:
+    def _loadDirectory(self, directory: str) -> list:
         """ Load all files in a directory into the vector store
         Args:
           directory (str): directory path
@@ -88,7 +89,7 @@ class RagIndexer:
         return docs
 
 
-    def _loadFile(self, filePath: str) -> List:
+    def _loadFile(self, filePath: str) -> list:
         """ Load a single file into the vector store
         Args:
           filePath (str): file path

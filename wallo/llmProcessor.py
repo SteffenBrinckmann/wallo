@@ -169,7 +169,13 @@ class LLMProcessor:
         return content
 
 
-    def transcribeAudio(self, audioFilePath):
+    def transcribeAudio(self, audioFilePath:str) -> str:
+        """ Transcribe audio to string using LLM
+        Args:
+            audioFilePath (str): The path to the audio file .wav
+        Returns:
+            str: The transcribed text.
+        """
         #TODO move to Backend thread
         try:
             possOpenAI = self.configManager.getOpenAiServices()

@@ -98,8 +98,8 @@ class ConfigurationManager:
         for prompt in prompts:
             if prompt['name'] == name:
                 return prompt  # type: ignore
-        default = {"name": "", "description": "Conventional chat exchange", "user-prompt": "",
-                   "attachment": "selection"}
+        default = {'name': '', 'description': 'Conventional chat exchange', 'user-prompt': '',
+                   'attachment': 'selection'}
         return default
 
 

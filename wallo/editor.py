@@ -3,7 +3,7 @@
 import re
 from PySide6.QtCore import Qt, Signal, QMimeData  # pylint: disable=no-name-in-module
 from PySide6.QtGui import (QTextOption, QKeyEvent, QAction, QKeySequence, QTextCursor, QTextDocumentFragment,  # pylint: disable=no-name-in-module
-                           QContextMenuEvent, QMouseEvent, QFocusEvent, QResizeEvent)
+                           QContextMenuEvent, QFocusEvent, QResizeEvent)
 from PySide6.QtWidgets import QApplication, QTextEdit, QMenu, QSizePolicy  # pylint: disable=no-name-in-module
 from .editorSpellCheck import ENCHANT_AVAILABLE, SpellCheck
 from .configManager import ConfigurationManager
