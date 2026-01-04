@@ -176,7 +176,7 @@ class LLMProcessor:
         Returns:
             str: The transcribed text.
         """
-        #TODO move to Backend thread
+        #TODO P2 move to Backend thread
         try:
             possOpenAI = self.configManager.getOpenAiServices()
             if not possOpenAI:

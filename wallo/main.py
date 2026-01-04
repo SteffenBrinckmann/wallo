@@ -52,7 +52,7 @@ class Wallo(QMainWindow):
         self.layoutExchanges()
         self.exchanges[0].showButtons()
 
-        #TODO: add basic introduction to first 5 calls
+        #TODO: P1 add basic introduction to first 5 calls
 
         ## Create the toolbar with formatting actions and LLM selection
         self.toolbar = QToolBar('Main')
@@ -69,6 +69,7 @@ class Wallo(QMainWindow):
         saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='Save as docx or markdown')  # Save as docx or markdown
         saveAction.triggered.connect(self.saveToFile)
         self.toolbar.addAction(saveAction)
+        #TODO P3 add Text2Speech
         wideSep2 = QWidget()
         wideSep2.setFixedWidth(20)
         self.toolbar.addWidget(wideSep2)
@@ -83,6 +84,7 @@ class Wallo(QMainWindow):
         ragAction = QAction('', self, icon=qta.icon('mdi.database-plus'), toolTip='Add files to knowledge base')
         ragAction.triggered.connect(self.addRagSources)
         self.toolbar.addAction(ragAction)
+        # TODO P3 connection to database: how
         # configuration action
         configAction = QAction('', self, icon=qta.icon('fa5s.cog'), toolTip='Configuration',
                                shortcut=QKeySequence('Ctrl+0'))
@@ -90,6 +92,7 @@ class Wallo(QMainWindow):
         self.toolbar.addAction(configAction)
         self.onConfigChanged()
 
+    #TODO P3 How can Agents be written for pasta-help and extractor-writing
 
     def layoutExchanges(self) -> None:
         """ Put the exchanges into the main layout """
@@ -122,6 +125,7 @@ class Wallo(QMainWindow):
 
     def saveToFile(self) -> None:
         """Save the content of the editor as a .docx or .md file."""
+        #TODO P2 export
         filename, selectedFilter = QFileDialog.getSaveFileName(self, 'Save to File', '',
                                                                'Word Files (*.docx);;Markdown Files (*.md)')
         if (filename and selectedFilter.startswith('Word') or filename.lower().endswith('.docx')):
