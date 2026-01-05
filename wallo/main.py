@@ -11,7 +11,7 @@ from .configManager import ConfigurationManager
 from .configMain import ConfigurationWidget
 from .docxExport import DocxExporter
 from .exchange import Exchange
-from .misc import invertIcon
+from .misc import invertIcon, helpText
 from .llmProcessor import LLMProcessor
 from .pdfDocumentProcessor import PdfDocumentProcessor
 from .ragIndexer import RagIndexer
@@ -23,6 +23,10 @@ class Wallo(QMainWindow):
         super().__init__()
         # Initialize business logic components
         self.configManager = ConfigurationManager()
+        self.beginner = self.configManager.get('startCounts')>0
+        if self.beginner:
+            self.configManager.updateConfig({'startCounts': self.configManager.get('startCounts')-1})
+
         self.docxExporter = DocxExporter(self)
         self.documentProcessor = PdfDocumentProcessor()
         self.llmProcessor = LLMProcessor(self.configManager)
@@ -51,8 +55,10 @@ class Wallo(QMainWindow):
         self.setCentralWidget(scrollArea)
         self.layoutExchanges()
         self.exchanges[0].showButtons()
+        if self.beginner:
+            self.exchanges[0].text1.setMarkdown(helpText)
 
-        #TODO: P1 add basic introduction to first 5 calls
+        #TODO P2: add more short-cuts: next exchange... switch between history/reply
 
         ## Create the toolbar with formatting actions and LLM selection
         self.toolbar = QToolBar('Main')
@@ -96,10 +102,13 @@ class Wallo(QMainWindow):
 
     def layoutExchanges(self) -> None:
         """ Put the exchanges into the main layout """
-        for widget in self.mainLayout.children():
-            widget.deleteLater()
+        for i in reversed(range(self.mainLayout.count())):
+            self.mainLayout.itemAt(i).widget().setParent(None)
         for exchange in self.exchanges:
             self.mainLayout.addWidget(exchange)
+        dummy = QWidget()
+        self.mainLayout.addWidget(dummy, stretch=2)
+
 
 
     def changeActive(self) -> None:

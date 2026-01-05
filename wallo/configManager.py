@@ -28,7 +28,8 @@ DEFAULT_CONFIGURATION = {
     'services': {
         'openAI': {'url':'', 'api':None, 'model': 'gpt-4o', 'type': 'openAI'}
     },
-  'dictionary': 'en_US'
+  'dictionary': 'en_US',
+  'startCounts': 4
 }
 
 
@@ -83,11 +84,11 @@ class ConfigurationManager:
 
     def get(self, info:str) -> Any:
         """Get configuration value by key."""
-        if info not in ['prompts', 'system-prompts','services','dictionary']:
+        if info not in ['prompts', 'system-prompts','services','dictionary','startCounts']:
             raise ValueError(f"Invalid info type '{info}' requested")
         if info in ['prompts', 'system-prompts', 'services']:
             return self._config[info]
-        if info in ['dictionary']:
+        if info in ['dictionary','startCounts']:
             return self._config.get(info, DEFAULT_CONFIGURATION[info])
         return []
 

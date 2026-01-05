@@ -43,7 +43,8 @@
         "additionalProperties": true
       }
     },
-    "dictionary": { "type": "string" }
+    "dictionary": { "type": "string" },
+    "startCounts": { "type": "integer"}
   },
   "required": ["prompts", "services"],
   "additionalProperties": false

@@ -83,7 +83,7 @@ class Exchange(QWidget):
         shortcuts = {'11':'9','12':'8','13':'7','21':'6','22':'5','23':'4','31':'3','32':'2','33':'1'}
         for x, y, funct in btns:
             name, icon, tooltip = funct(None, True)
-            shortcut = 'Ctrl+'+shortcuts.get(f'{x}{y}')
+            shortcut = 'Alt+'+shortcuts.get(f'{x}{y}')
             setattr(self, name, QPushButton())
             getattr(self, name).setToolTip(f'{tooltip} ({shortcut})')
             getattr(self, name).setShortcut(QKeySequence(shortcut))
@@ -421,8 +421,8 @@ class Exchange(QWidget):
         except AttributeError:
             pass
         self.btnState = 'hidden'
-        self.text1.adjustHeightToContents() #TODO P1 set minimum height according to, if 1 or 2 editors are visible
-        self.text2.adjustHeightToContents()
+        self.text1.adjustHeightToContents(1 if self.text2.isHidden() else 2)
+        self.text2.adjustHeightToContents(1 if self.text1.isHidden() else 2)
 
 
 

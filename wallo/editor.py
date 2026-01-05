@@ -70,10 +70,7 @@ class TextEdit(QTextEdit):
             source (QMimeData): The mime data being pasted.
         """
         if source.hasText():
-            text = source.text()
-            # Replace single newlines with spaces, but preserve double newlines (paragraph breaks)
-            text = re.sub(r'(?<!\n)\n(?!\n)', ' ', text)
-            self.insertPlainText(text)
+            self.insertPlainText(source.text())
         else:
             super().insertFromMimeData(source)
 
@@ -203,11 +200,13 @@ class TextEdit(QTextEdit):
         super().focusInEvent(event)
 
 
-    def adjustHeightToContents(self) -> None:
+    def adjustHeightToContents(self, editorsShown:int=1) -> None:
         """Compute document height and set the widget height to match content exactly.
 
         This hides the vertical scrollbar and avoids stray empty lines by using
         the document layout size and document margins.
+        Args:
+            editorsShown (int): Number of editors shown
         """
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         doc = self.document()
@@ -222,7 +221,7 @@ class TextEdit(QTextEdit):
         margin = doc.documentMargin()
         frame = getattr(self, 'frameWidth', lambda: 0)()
         newHeight = int(docHeight + 2*margin + 2*frame + 2)
-        newHeight = max(newHeight, 1)
+        newHeight = max(newHeight, int(95/editorsShown) )
         # lock height to prevent the parent layout from expanding the editor
         self.setFixedHeight(newHeight)
 

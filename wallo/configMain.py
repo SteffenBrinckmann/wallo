@@ -1,12 +1,14 @@
 """Configuration widget for managing application settings."""
 from typing import Any, Optional
-from PySide6.QtCore import Signal  # pylint: disable=no-name-in-module
+from PySide6.QtCore import Signal, Qt  # pylint: disable=no-name-in-module
 from PySide6.QtGui import QKeyEvent  # pylint: disable=no-name-in-module
-from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTabWidget, QVBoxLayout, QWidget # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTabWidget, QTextEdit, QVBoxLayout, QWidget # pylint: disable=no-name-in-module
 from .configManager import ConfigurationManager
 from .configTabPrompts import PromptTab, PromptType
 from .configTabServices import ServiceTab
 from .configTabString import StringTab
+from .misc import helpText
+
 
 class ConfigurationWidget(QWidget):
     """Main configuration widget with tabs."""
@@ -28,10 +30,12 @@ class ConfigurationWidget(QWidget):
         self.sysPromptTab = PromptTab(self.configManager, PromptType.SYSTEM_PROMPT)
         self.serviceTab = ServiceTab(self.configManager)
         self.stringTab = StringTab(self.configManager)
+        self.helpTab = Help()
         self.tabWidget.addTab(self.promptTab, 'Prompts')
         self.tabWidget.addTab(self.sysPromptTab, 'System-Prompts')
         self.tabWidget.addTab(self.serviceTab, 'Services')
         self.tabWidget.addTab(self.stringTab, 'Interface')
+        self.tabWidget.addTab(self.helpTab, 'Help')
         layout.addWidget(self.tabWidget)
 
         # Close button
@@ -57,3 +61,18 @@ class ConfigurationWidget(QWidget):
         """Handle close event."""
         self.configChanged.emit()
         super().closeEvent(event)
+
+
+class Help(QWidget):
+    """Tab for showing the help text."""
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self.layout = QVBoxLayout(self)
+        text = QTextEdit()
+        text.setMarkdown(helpText)
+        text.setReadOnly(True)
+        self.layout.addWidget(text)
+
+
+
+

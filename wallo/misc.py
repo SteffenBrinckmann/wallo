@@ -69,3 +69,20 @@ class PushToTalkRecorder:
             _status (int): The status.
         """
         self.frames.append(indata.copy())
+
+
+helpText = """
+# WALLO — Writing Assistance by Large Language Model
+
+- Document structure: A document is a sequence of exchanges. Each exchange contains a task history and the LLM's reply.
+- User workflow: Users enter or edit the task history, request the LLM to perform a task, and receive an editable reply. Both the task history and the
+  LLM reply can always be modified. While the LLM is running, users may edit other exchanges.
+- Tools and shortcuts:
+  - Nine tools are arranged in a numeric-pad layout to support the user:
+    - First row: task-history tools
+    - Second row: LLM tools
+    - Third row: miscellaneous tools
+  - A drop-down menu provides access to all LLM prompts.
+  - Keyboard shortcuts: Ctrl+1 … Ctrl+9 trigger LLM prompts; Alt+1 … Alt+9
+    activate the corresponding tools.
+"""
