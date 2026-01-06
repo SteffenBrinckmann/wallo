@@ -81,9 +81,9 @@ class PromptTab(QWidget):
         self.userPromptLabel.setWordWrap(True)
         if self.cType == PromptType.PROMPT:
             self.descriptionLabel = QLabel()
-            self.attachmentLabel = QLabel()
+            self.inquiryLabel = QLabel()
             previewLayout.addRow('Description:', self.descriptionLabel)
-            previewLayout.addRow('Attachment:', self.attachmentLabel)
+            previewLayout.addRow('Inquiry:', self.inquiryLabel)
             previewLayout.addRow('User-Prompt:', self.userPromptLabel)
         else:
             previewLayout.addRow('System-Prompt:', self.userPromptLabel)
@@ -121,7 +121,7 @@ class PromptTab(QWidget):
             self.nameLabel.setText(prompt['name'])
             if self.cType == PromptType.PROMPT:
                 self.descriptionLabel.setText(prompt['description'])
-                self.attachmentLabel.setText(prompt['attachment'])
+                self.inquiryLabel.setText('Yes' if prompt['inquiry'] else 'No')
                 self.userPromptLabel.setText(prompt['user-prompt'])
             else:
                 self.userPromptLabel.setText(prompt['system-prompt'])
@@ -132,7 +132,7 @@ class PromptTab(QWidget):
             self.nameLabel.clear()
             if self.cType == PromptType.PROMPT:
                 self.descriptionLabel.clear()
-                self.attachmentLabel.clear()
+                self.inquiryLabel.clear()
             self.userPromptLabel.clear()
             self.upPromptBtn.setEnabled(False)
             self.downPromptBtn.setEnabled(False)
@@ -245,9 +245,9 @@ class PromptEditDialog(QDialog):
             self.userPromptEdit.setMinimumHeight(150)
             self.userPromptEdit.setMaximumHeight(200)
             formLayout.addRow('User-Prompt:', self.userPromptEdit)
-            self.attachmentCombo = QComboBox()
-            self.attachmentCombo.addItems(['selection', 'pdf', 'inquiry'])
-            formLayout.addRow('Attachment Type:', self.attachmentCombo)
+            self.inquiryCombo = QComboBox()
+            self.inquiryCombo.addItems(['No', 'Yes'])
+            formLayout.addRow('Inquiry:', self.inquiryCombo)
         else:
             self.userPromptEdit.setMinimumHeight(500)
             self.userPromptEdit.setMaximumHeight(600)
@@ -267,10 +267,7 @@ class PromptEditDialog(QDialog):
             if self.cType == PromptType.PROMPT:
                 self.userPromptEdit.setPlainText(self.prompt.get('user-prompt', ''))
                 self.descriptionEdit.setText(self.prompt.get('description', ''))
-                attachment = self.prompt.get('attachment', 'selection')
-                index = self.attachmentCombo.findText(attachment)
-                if index >= 0:
-                    self.attachmentCombo.setCurrentIndex(index)
+                self.inquiryCombo.setCurrentText('Yes' if self.prompt.get('inquiry') else 'No')
             else:
                 self.userPromptEdit.setPlainText(self.prompt.get('system-prompt', ''))
 
@@ -282,7 +279,7 @@ class PromptEditDialog(QDialog):
                 'name': self.nameEdit.text().strip(),
                 'description': self.descriptionEdit.text().strip(),
                 'user-prompt': self.userPromptEdit.toPlainText().strip(),
-                'attachment': self.attachmentCombo.currentText()
+                'inquiry': self.inquiryCombo.currentText()=='Yes'
             }
         return {
             'name': self.nameEdit.text().strip(),

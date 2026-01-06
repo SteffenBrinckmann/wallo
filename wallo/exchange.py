@@ -38,6 +38,7 @@ class Exchange(QWidget):
         self.mainWidget = parent
         #function states
         self.state      = 0
+        self.filePath   = ''
         self.ragUsage   = False
         self.recording  = False
         self.pushToTalkRecorder = PushToTalkRecorder()
@@ -71,19 +72,20 @@ class Exchange(QWidget):
             # x  y  function
             (1, 1, self.hide1),
             (2, 1, self.audio1),
-            (3, 1, self.clear1),
+            (3, 1, self.move2to1),
             (1, 2, self.chatExchange),
             (2, 2, self.toggleRag),
-            (3, 2, self.move2to1),
+            (3, 2, self.attachFile),
             (1, 3, self.splitParagraphs),
             (2, 3, self.addExchangeNext),
             (3, 3, self.showStatus),
 
         ]
-        shortcuts = {'11':'9','12':'8','13':'7','21':'6','22':'5','23':'4','31':'3','32':'2','33':'1'}
+        shortcuts = {'11':'7','21':'8','31':'9','12':'4','22':'5','32':'6','13':'1','23':'2','33':'3'}
         for x, y, funct in btns:
             name, icon, tooltip = funct(None, True)
-            shortcut = 'Alt+'+shortcuts.get(f'{x}{y}')
+            shortcut = 'Alt+'+shortcuts[f'{x}{y}']
+            print(name, shortcut, tooltip)
             setattr(self, name, QPushButton())
             getattr(self, name).setToolTip(f'{tooltip} ({shortcut})')
             getattr(self, name).setShortcut(QKeySequence(shortcut))
@@ -181,8 +183,13 @@ class Exchange(QWidget):
             self.audio1Btn.setIcon(qta.icon(icon))  # type: ignore[attr-defined]
             self.recording = False
             path = self.pushToTalkRecorder.stop()
-            text = self.mainWidget.llmProcessor.transcribeAudio(path)
-            self.text1.append(text)
+            # show busy spinner
+            self.busyOverlay.setGeometry(self.rect())
+            self.busyOverlay.show()
+            self._spinnerTimer.start(50)
+            # assemble prompt
+            self.mainWidget.runWorker('transcribeAudio', {'runnable':self.mainWidget.llmProcessor.sttParser,
+                                                          'senderID':self.uuid, 'path':path})
         else:
             self.audio1Btn.setIcon(qta.icon(icon, color=ACCENT_COLOR))  # type: ignore[attr-defined]
             self.recording = True
@@ -270,12 +277,31 @@ class Exchange(QWidget):
         """
         name    = 'splitParagraphsBtn'  # different than function name
         icon    = 'fa6s.arrows-down-to-line'
-        tooltip = 'Split paragraphs into separate exchanges'
+        tooltip = 'Split paragraphs of history into separate exchanges'
         if state:
             return name, icon, tooltip
         texts = [i.strip() for i in self.text1.toMarkdown().split('\n\n') if i.strip()]
         self.text1.setMarkdown(texts[0])
         self.mainWidget.addExchanges(self.uuid, texts[1:])
+        return ('', '', '')
+
+
+    def attachFile(self, _event: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: attach a file to exchange for summary....
+        Args:
+            _event (QEvent | None): event
+            state (bool): return state
+        """
+        name    = 'attachFileBtn'  # different than function name
+        icon    = 'fa5s.file-medical'
+        tooltip = 'Attach a file to supply context'
+        if state:
+            return name, icon, tooltip
+        filePath, _selectedFilter = QFileDialog.getOpenFileName(self, 'Select a pdf-file to add as context',
+                                                                str(Path.home()), 'pdf-files (*.pdf)')
+        if filePath:
+            self.filePath = filePath
+            self.attachFileBtn.setIcon(qta.icon(icon, color=ACCENT_COLOR))  # type: ignore[attr-defined]
         return ('', '', '')
 
 
@@ -302,7 +328,6 @@ class Exchange(QWidget):
             self.mainWidget.runWorker('chatAPI', workParams)
         return ('', '', '')
 
-
     ### END BUTTON FUNCTIONS
 
     def useLLM(self, _: int) -> None:
@@ -316,49 +341,30 @@ class Exchange(QWidget):
         if not promptConfig:
             QMessageBox.warning(self, 'Error', f"Prompt '{promptName}' not found")
             return
-        attachmentType = promptConfig['attachment']
+        if not (self.filePath or self.text1.toPlainText().strip()):
+            QMessageBox.information(self, 'Warning', 'No text in upper text-box.')
+            return
+        userInput = ''
+        if promptConfig['inquiry']:
+            if not self.text1.toPlainText().strip():
+                QMessageBox.information(self, 'Warning', 'No text in upper text-box.')
+                return
+            inquiryText = promptConfig['user-prompt'].split('|')[1]
+            userInput, ok = QInputDialog.getText(self, 'Enter input', f"Please enter {inquiryText}")
+            if not ok or not userInput:
+                return
         # show busy spinner
         self.busyOverlay.setGeometry(self.rect())
         self.busyOverlay.show()
         self._spinnerTimer.start(50)
-
-        if attachmentType == 'selection':
-            if not self.text1.toPlainText().strip():
-                QMessageBox.information(self, 'Warning', 'No text in upper text-box.')
-                return
-            workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, promptName, serviceName,
-                                                                    self.text1.toMarkdown())
-            self.mainWidget.runWorker('chatAPI', workParams)
-        elif attachmentType == 'pdf':
-            res = QFileDialog.getOpenFileName(self, 'Open pdf file', str(Path.home()), '*.pdf')
-            if not res or not res[0]:
-                return
-            # Validate PDF file
-            if not self.mainWidget.documentProcessor.validatePdfFile(res[0]):
-                QMessageBox.warning(self, 'Error', 'Invalid PDF file selected')
-                return
-            workParams = self.mainWidget.llmProcessor.processPrompt(promptName, serviceName, res[0])
-            self.mainWidget.runWorker('pdfExtraction', workParams)
-        elif attachmentType == 'inquiry':
-            if not self.text1.toPlainText().strip():
-                QMessageBox.information(self, 'Warning', 'No text in upper text-box.')
-                return
-            inquiryText = self.mainWidget.llmProcessor.getInquiryText(promptName)
-            if not inquiryText:
-                QMessageBox.warning(self, 'Error', 'Invalid inquiry prompt configuration')
-                return
-            userInput, ok = QInputDialog.getText(self, 'Enter input', f"Please enter {inquiryText}")
-            if not ok or not userInput:
-                return
-            workParams = self.mainWidget.llmProcessor.processPrompt(promptName, serviceName,
-                                                                    self.text1.toMarkdown(), userInput)
-            self.mainWidget.runWorker('chatAPI', workParams)
-        else:
-            QMessageBox.warning(self, 'Error', f"Unknown attachment type: {attachmentType}")
-            return
+        # assemble prompt
+        workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, promptName, serviceName,
+                                                                self.text1.toMarkdown(), self.filePath,
+                                                                userInput, self.ragUsage)
+        self.mainWidget.runWorker('chatAPI', workParams)
 
 
-    def setReply(self, content: str, senderID: str) -> None:
+    def setReply(self, content: str, senderID: str, worktype:str) -> None:
         """ Get reply form LLM and change data of exchange accordingly
         Args:
             content (str): The content generated by the LLM worker.
@@ -367,9 +373,12 @@ class Exchange(QWidget):
         if senderID == self.uuid:
             self._spinnerTimer.stop()
             self.busyOverlay.hide()
-            self.text2.show()
-            self.text2.setMarkdown(content)
-            self.text1.setStyleSheet(f'color: {ACCENT_COLOR}; font-size: 10pt;')
+            if worktype == 'chatAPI':
+                self.text2.show()
+                self.text2.setMarkdown(content)
+                self.text1.setStyleSheet(f'color: {ACCENT_COLOR}; font-size: 10pt;')
+            else:
+                self.text1.append(content)
 
 
     ### GENERAL FUNCTIONS

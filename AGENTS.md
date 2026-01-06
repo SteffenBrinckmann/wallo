@@ -41,9 +41,11 @@ pylint wallo/
 ### Key Architecture Patterns
 
 1. **Threading Model**: Uses QThread for background LLM processing with signals/slots for communication
+   1. Each call to backand with a work package creates a new thread. More advanced systems could be implemented in the future.
 2. **Configuration System**: JSON-based configuration stored in `~/.wallo.json` with runtime defaults
 3. **Prompt System**: Configurable prompts with different attachment modes (selection, PDF, inquiry)
 4. **Service Architecture**: Multiple LLM service support through unified OpenAI-compatible interface
+   1.  RAG and STT is only supported via OpenAI, currently
 
 ### Configuration Management
 
@@ -51,18 +53,11 @@ The application uses a JSON configuration file (`~/.wallo.json`) that includes:
 - **prompts**: Array of prompt configurations with name, description, user-prompt, and attachment type
 - **services**: Dictionary of LLM service configurations with API endpoints and models
 - **promptFooter**: Default footer text appended to prompts
-
-### Prompt Attachment Types
-
-- `selection`: Works with selected text in the editor
-- `pdf`: Processes uploaded PDF files using pdfplumber
-- `inquiry`: Prompts user for input with dynamic text replacement
-
 ### Dependencies
 
 - **PySide6**: Qt-based GUI framework
 - **qtawesome**: Icon library for toolbar buttons
-- **openai**: OpenAI API client (used for all LLM services)
+- **langchain**: All API calls are wrapped in langchain to get consistent API arguments
 - **pdfplumber**: PDF text extraction
 
 ### Code Standards

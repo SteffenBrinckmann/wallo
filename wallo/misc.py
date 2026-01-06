@@ -31,9 +31,9 @@ def invertIcon(icon: QIcon, size: int = 24) -> QIcon:
 
 class PushToTalkRecorder:
     """ Push to talk recorder, saving temporary data in temp-folder"""
-    def __init__(self, samplerate:int=16000, channels:int=1):
-        self.samplerate = samplerate
-        self.channels = channels
+    def __init__(self, sampleRate:int=16000, channels:int=1):
+        self.sampleRate = sampleRate
+        self.channels   = channels
         self.frames:list[np.ndarray] = []
         self.stream:sd.InputStream | None = None
 
@@ -41,7 +41,7 @@ class PushToTalkRecorder:
     def start(self) -> None:
         """ Start recording """
         self.frames = []
-        self.stream = sd.InputStream(samplerate=self.samplerate, channels=self.channels, callback=self._callback)
+        self.stream = sd.InputStream(samplerate=self.sampleRate, channels=self.channels, callback=self._callback)
         self.stream.start()
 
 
@@ -56,7 +56,7 @@ class PushToTalkRecorder:
         self.stream.close()
         audio = np.concatenate(self.frames, axis=0)
         _, path = tempfile.mkstemp(suffix='.wav')
-        sf.write(path, audio, self.samplerate)
+        sf.write(path, audio, self.sampleRate)
         return path
 
 
@@ -71,7 +71,7 @@ class PushToTalkRecorder:
         self.frames.append(indata.copy())
 
 
-helpText = """
+HELP_TEXT = """
 # WALLO — Writing Assistance by Large Language Model
 
 - Document structure: A document is a sequence of exchanges. Each exchange contains a task history and the LLM's reply.

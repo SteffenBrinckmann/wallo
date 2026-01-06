@@ -6,34 +6,21 @@
 """
 import os
 import traceback
-from typing import List
 from collections.abc import Iterable
 from langchain_community.document_loaders import TextLoader, PyPDFLoader, Docx2txtLoader
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
-from PySide6.QtWidgets import QMessageBox # pylint: disable=no-name-in-module
-from .configManager import ConfigurationManager
 
 RAG_DB_PATH = os.path.expanduser('~/.wallo_rag')
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100
 
-
-#TODO P2 move entire class and calling to backend worker, not separate worker-class since this needs interaction with the LLM submission (RAG ingest)
-
 class RagIndexer:
     """Handles ingestion and retrieval of local files into a RAG vector store."""
 
-    def __init__(self, configManager: ConfigurationManager) -> None:
-        # P2 TODO currently, only OpenAI embeddings are implemented, get those that quality
-        # Future: user chooses service to use for RAG, always. Configuration changes to save for that
-        # then this preference is used during this initiation
-        possServices = configManager.getOpenAiServices()
-        if not possServices:
-            QMessageBox.critical(None, 'Error', 'No OpenAI services configured')
-            return
-        self.embeddings = OpenAIEmbeddings(api_key=configManager.getServiceByName(possServices[0])['api'])
+    def __init__(self, apiKey: str) -> None:
+        self.embeddings = OpenAIEmbeddings(api_key=apiKey) # type: ignore[arg-type]
         self.textSplitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
         self.vectorStore = Chroma(persist_directory=RAG_DB_PATH, embedding_function=self.embeddings)
 

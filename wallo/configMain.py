@@ -1,13 +1,13 @@
 """Configuration widget for managing application settings."""
 from typing import Any, Optional
-from PySide6.QtCore import Signal, Qt  # pylint: disable=no-name-in-module
+from PySide6.QtCore import Signal  # pylint: disable=no-name-in-module
 from PySide6.QtGui import QKeyEvent  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTabWidget, QTextEdit, QVBoxLayout, QWidget # pylint: disable=no-name-in-module
 from .configManager import ConfigurationManager
 from .configTabPrompts import PromptTab, PromptType
 from .configTabServices import ServiceTab
 from .configTabString import StringTab
-from .misc import helpText
+from .misc import HELP_TEXT
 
 
 class ConfigurationWidget(QWidget):
@@ -67,12 +67,8 @@ class Help(QWidget):
     """Tab for showing the help text."""
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self.layout = QVBoxLayout(self)
+        self.mainLayout = QVBoxLayout(self)
         text = QTextEdit()
-        text.setMarkdown(helpText)
+        text.setMarkdown(HELP_TEXT)
         text.setReadOnly(True)
-        self.layout.addWidget(text)
-
-
-
-
+        self.mainLayout.addWidget(text)

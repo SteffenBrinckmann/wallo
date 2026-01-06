@@ -1,14 +1,14 @@
 """LLM processing and interaction logic for the Wallo application.
 - All LLM logic is here
 """
-from typing import Any, Optional
+from typing import Any
 from langchain_openai import ChatOpenAI
 from langchain_community.document_loaders.parsers.audio import OpenAIWhisperParser
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.chat_history import InMemoryChatMessageHistory
-from langchain_core.documents.base import Blob
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from PySide6.QtWidgets import QMessageBox  # pylint: disable=no-name-in-module
 from .configManager import ConfigurationManager
 from .ragIndexer import RagIndexer
 
@@ -26,7 +26,15 @@ class LLMProcessor:
         self.messageHistory = InMemoryChatMessageHistory()
         self.systemPromptInjected = False
         self.runnable:None|RunnableWithMessageHistory = None
-        self.ragIndexer = RagIndexer(configManager)
+        # TODO P4 Temporary openAI services only
+        # currently, only OpenAI embeddings are implemented, get those that quality
+        # Future: user chooses service to use for RAG, always. Configuration changes to save for that
+        # then this preference is used during this initiation
+        possOpenAI = self.configManager.getOpenAiServices()
+        if not possOpenAI:
+            QMessageBox.critical(None, 'Configuration error', 'No OpenAI services configured')
+        self.sttParser = OpenAIWhisperParser(api_key=self.configManager.getServiceByName(possOpenAI[0])['api'])
+        self.ragIndexer = RagIndexer(self.configManager.getServiceByName(possOpenAI[0])['api'])
 
 
     def createClientFromConfig(self, serviceConfig: dict[str,str]) -> Any:
@@ -92,63 +100,22 @@ class LLMProcessor:
             raise ValueError(f"Service '{serviceName}' not found in configuration")
         llm = self.createClientFromConfig(serviceConfig)
 
-        # Prepare prompt configuration if needed
-        promptConfig: dict[str, Any] = {}
-        promptConfig = self.configManager.getPromptByName(promptName)
-        if not promptConfig:
-            raise ValueError(f"Prompt '{promptName}' not found in configuration")
-        attachmentType = promptConfig['attachment']
-        promptHeader = f"{promptConfig['user-prompt']}\\n" if promptConfig['user-prompt'] else ''
-
         # since LLM is defined, check if message-history defined. If not, define it
         if self.runnable is None:
             self.runnable = RunnableWithMessageHistory(llm, lambda: self.messageHistory)
 
-        # RAG retrieval
-        ragContext = ''
-        if ragUsage:
-            if retrieved:= self.ragIndexer.retrieve(selectedText or promptHeader): #get list of strings from RAG database
-                print('RAG context:', '\n\n'.join(retrieved))
-                ragContext = f"\n\nContext:\n---\n{'\n\n'.join(retrieved)}\n---\n"
+        # Prepare prompt configuration
+        promptConfig: dict[str, Any] = self.configManager.getPromptByName(promptName)
+        prompt = f"{promptConfig['user-prompt']}\\n" if promptConfig['user-prompt'] else ''
+        if promptConfig['inquiry']:
+            inquiryText = promptConfig['user-prompt'].split('|')[1]
+            prompt = promptConfig['user-prompt'].replace(f'|{inquiryText}|', inquiryResponse)
 
         # Assemble work for 2nd thread based on task
-        result = {'runnable': self.runnable, 'prompt': None, 'senderID': senderID}
-        if attachmentType == 'selection':
-            fullPrompt = f"{promptHeader}{ragContext}{selectedText}"
-            result['prompt'] = fullPrompt
-        elif attachmentType == 'pdf':
-            fullPrompt = f"{promptConfig['user-prompt']}\n{ragContext}"
-            result['prompt'] = fullPrompt
-            result['fileName'] = pdfFilePath
-        elif attachmentType == 'inquiry':
-            inquiryText = promptConfig['user-prompt'].split('|')[1]
-            processedPrompt = promptConfig['user-prompt'].replace(f'|{inquiryText}|', inquiryResponse)
-            fullPrompt = f"{processedPrompt}\n\n{ragContext}{selectedText}\n"
-            result['prompt'] = fullPrompt
-        else:
-            raise ValueError(f"Unknown attachment type '{attachmentType}' for prompt '{promptName}'")
+        result = {'runnable': self.runnable, 'prompt': prompt, 'senderID': senderID,
+                  'selectedText': selectedText, 'pdfFilePath': pdfFilePath,
+                  'ragRunnable': self.ragIndexer if ragUsage else None}
         return result
-
-
-    def getInquiryText(self, promptName: str) -> Optional[str]:
-        """Get the inquiry text for a prompt.
-
-        Args:
-            promptName: Name of the prompt to check.
-
-        Returns:
-            Inquiry text if found, None otherwise.
-        """
-        promptConfig = self.configManager.getPromptByName(promptName)
-        if not promptConfig or promptConfig['attachment'] != 'inquiry':
-            return None
-        try:
-            userPrompt = promptConfig['user-prompt']
-            if isinstance(userPrompt, str):
-                return userPrompt.split('|')[1]
-            return None
-        except (IndexError, AttributeError):
-            return None
 
 
     def processLLMResponse(self, content: str) -> str:
@@ -167,25 +134,3 @@ class LLMProcessor:
         if content.startswith('```'):
             content = content.split('\n', 1)[-1].strip()
         return content
-
-
-    def transcribeAudio(self, audioFilePath:str) -> str:
-        """ Transcribe audio to string using LLM
-        Args:
-            audioFilePath (str): The path to the audio file .wav
-        Returns:
-            str: The transcribed text.
-        """
-        #TODO P2 move to Backend thread
-        try:
-            possOpenAI = self.configManager.getOpenAiServices()
-            if not possOpenAI:
-                return 'No OpenAI services configured'
-            parser = OpenAIWhisperParser(api_key=self.configManager.getServiceByName(possOpenAI[0])['api'])
-            blob = Blob.from_path(audioFilePath)
-            docs = parser.parse(blob)
-            if not docs:
-                return ''
-            return docs[0].page_content
-        except Exception as e:
-            return f'[STT failed: {e}]'

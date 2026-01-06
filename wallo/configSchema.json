@@ -11,9 +11,9 @@
           "name": { "type": "string" },
           "description": { "type": "string" },
           "user-prompt": { "type": "string" },
-          "attachment": { "type": "string", "enum": ["selection", "pdf", "inquiry"] }
+          "inquiry": { "type": "boolean"}
         },
-        "required": ["name", "user-prompt", "attachment"],
+        "required": ["name", "user-prompt", "inquiry"],
         "additionalProperties": false
       }
     },
