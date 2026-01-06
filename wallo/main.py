@@ -1,19 +1,19 @@
 """Main window for the Wallo application, providing a text editor with LLM assistance."""
 
 import sys
+from pathlib import Path
 from typing import Any, Optional
 import qtawesome as qta
+import pypandoc
 from PySide6.QtCore import QThread, Qt  # pylint: disable=no-name-in-module
 from PySide6.QtGui import QAction, QKeySequence  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QMainWindow, QMessageBox,  QToolBar, # pylint: disable=no-name-in-module
                                QVBoxLayout, QWidget, QScrollArea)
 from .configManager import ConfigurationManager
 from .configMain import ConfigurationWidget
-from .docxExport import DocxExporter
 from .exchange import Exchange
 from .misc import invertIcon, HELP_TEXT
 from .llmProcessor import LLMProcessor
-from .pdfDocumentProcessor import PdfDocumentProcessor
 from .worker import Worker
 
 class Wallo(QMainWindow):
@@ -25,17 +25,14 @@ class Wallo(QMainWindow):
         self.beginner = self.configManager.get('startCounts')>0
         if self.beginner:
             self.configManager.updateConfig({'startCounts': self.configManager.get('startCounts')-1})
-
-        self.docxExporter = DocxExporter(self)
-        self.documentProcessor = PdfDocumentProcessor()
         self.llmProcessor = LLMProcessor(self.configManager)
 
-        self.configWidget: ConfigurationWidget | None = None
-        self.subThread:None|QThread = QThread()
-        self.worker:None|Worker = None
-        self.spellcheck = True
-        self.serviceCB = QComboBox()
-        self.llmSPCB   = QComboBox()
+        self.configWidget:ConfigurationWidget|None = None
+        self.subThread:None|QThread                = QThread()
+        self.worker:None|Worker                    = None
+        self.spellcheck                            = True
+        self.serviceCB                             = QComboBox()
+        self.llmSPCB                               = QComboBox()
         self.toolbar: Optional['QToolBar'] = None
 
         # GUI
@@ -57,14 +54,15 @@ class Wallo(QMainWindow):
             self.exchanges[0].text1.setMarkdown(HELP_TEXT)
 
         self.exchanges[0].text1.setMarkdown('What is the capital of Germany?')
-        #TODO P2: add more short-cuts: next exchange... switch between history/reply
+        #TODO P1: add more short-cuts: next exchange... switch between history/reply
 
         ## Create the toolbar with formatting actions and LLM selection
         self.toolbar = QToolBar('Main')
         self.addToolBar(self.toolbar)
         self.spellIcon = qta.icon('fa5s.spell-check')
         self.spellIconInverted = invertIcon(self.spellIcon)
-        self.spellcheckAction = QAction('', self, icon=self.spellIconInverted, checkable=True, toolTip='Toggle spellchecker')  # Spellcheck
+        self.spellcheckAction = QAction('', self, icon=self.spellIconInverted, checkable=True,
+                                        toolTip='Toggle spellchecker')  # Spellcheck
         self.spellcheckAction.triggered.connect(self.toggleSpellcheck)
         self.toolbar.addAction(self.spellcheckAction)
         wideSep1 = QWidget()
@@ -89,7 +87,7 @@ class Wallo(QMainWindow):
         ragAction = QAction('', self, icon=qta.icon('mdi.database-plus'), toolTip='Add files to knowledge base')
         ragAction.triggered.connect(self.addRagSources)
         self.toolbar.addAction(ragAction)
-        # TODO P3 connection to database: how
+        # TODO P2 connection to database: how
         # configuration action
         configAction = QAction('', self, icon=qta.icon('fa5s.cog'), toolTip='Configuration',
                                shortcut=QKeySequence('Ctrl+0'))
@@ -97,7 +95,7 @@ class Wallo(QMainWindow):
         self.toolbar.addAction(configAction)
         self.onConfigChanged()
 
-    #TODO P3 How can Agents be written for pasta-help and extractor-writing
+    #TODO P2 How can Agents be written for pasta-help and extractor-writing
 
     def layoutExchanges(self) -> None:
         """ Put the exchanges into the main layout """
@@ -135,17 +133,18 @@ class Wallo(QMainWindow):
 
     def saveToFile(self) -> None:
         """Save the content of the editor as a .docx or .md file."""
-        #TODO P2 export
-        filename, selectedFilter = QFileDialog.getSaveFileName(self, 'Save to File', '',
+        filename, _selectedFilter = QFileDialog.getSaveFileName(self, 'Save to File', str(Path.home()),
                                                                'Word Files (*.docx);;Markdown Files (*.md)')
-        if (filename and selectedFilter.startswith('Word') or filename.lower().endswith('.docx')):
-            pass
-            # self.docxExporter.exportToDocx(self.editor, filename)
-        elif filename:
-            # mdText = self.editor.toMarkdown()
-            mdText = 'Test'
+        if not filename:
+            return
+        content = ''
+        for exchange in self.exchanges:
+            content += str(exchange)
+        if filename.lower().endswith('.docx'):
+            pypandoc.convert_text(content, 'docx', format='md', outputfile=filename, extra_args=['--standalone'])
+        else:
             with open(filename, 'w', encoding='utf-8') as fh:
-                fh.write(mdText)
+                fh.write(content)
 
 
     def runWorker(self, workType: str, work: dict[str, Any]) -> None:

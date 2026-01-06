@@ -13,7 +13,7 @@ pydub
 
 pdfplumber
 pypdf
-python-docx
+pypandoc
 pyenchant
 pycountry
 jsonschema

@@ -85,7 +85,6 @@ class Exchange(QWidget):
         for x, y, funct in btns:
             name, icon, tooltip = funct(None, True)
             shortcut = 'Alt+'+shortcuts[f'{x}{y}']
-            print(name, shortcut, tooltip)
             setattr(self, name, QPushButton())
             getattr(self, name).setToolTip(f'{tooltip} ({shortcut})')
             getattr(self, name).setShortcut(QKeySequence(shortcut))
@@ -384,8 +383,10 @@ class Exchange(QWidget):
     ### GENERAL FUNCTIONS
     def __repr__(self) -> str:
         """Generate a string representation of the object"""
-        text = '' if self.text1.isHidden() else self.text1.toMarkdown().strip()
-        text += '\n' + self.text2.toMarkdown().strip()
+        text = '' if self.text1.isHidden() or self.text1.toMarkdown().strip() == ''else \
+                f'\n```text\n{self.text1.toMarkdown().strip()}\n```'
+        text += '' if self.text2.isHidden() or self.text2.toMarkdown().strip() == ''else \
+                '\n' + self.text2.toMarkdown().strip()
         return text
 
 
