@@ -6,7 +6,7 @@ from typing import Any, Optional
 import qtawesome as qta
 import pypandoc
 from PySide6.QtCore import QThread, Qt  # pylint: disable=no-name-in-module
-from PySide6.QtGui import QAction, QKeySequence  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QAction, QKeySequence, QKeyEvent  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QMainWindow, QMessageBox,  QToolBar, # pylint: disable=no-name-in-module
                                QVBoxLayout, QWidget, QScrollArea)
 from .configManager import ConfigurationManager
@@ -117,6 +117,24 @@ class Wallo(QMainWindow):
                 exchange.showButtons()
             else:
                 exchange.hideButtons()
+
+    def keyPressEvent(self, event:QKeyEvent) -> None:
+        """ Handle key press events
+        Args:
+            event (QKeyEvent): The key press event.
+        """
+        if event.key() == Qt.Key.Key_PageDown and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            idxs = [i for i,j in enumerate(self.exchanges) if j.btnState == 'show']
+            if idxs and idxs[0]<len(self.exchanges)-1:
+                self.exchanges[idxs[0]].hideButtons()
+                self.exchanges[idxs[0]+1].showButtons()
+        elif event.key() == Qt.Key.Key_PageUp   and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            idxs = [i for i,j in enumerate(self.exchanges) if j.btnState == 'show']
+            if idxs and idxs[0]>0:
+                self.exchanges[idxs[0]-1].showButtons()
+                self.exchanges[idxs[0]].hideButtons()
+        else:
+            super().keyPressEvent(event)
 
 
     def addExchanges(self, uuid: str, texts: list[str]) -> None:

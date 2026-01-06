@@ -61,7 +61,7 @@ class TextEdit(QTextEdit):
         menu.addAction(self.reduceAction)
         menu.addAction(self.deleteAction)
         menu.exec(event.globalPos())
-
+    #TODO P3 clean this class
 
     # EVENTS
     def insertFromMimeData(self, source:QMimeData) -> None:
@@ -80,10 +80,6 @@ class TextEdit(QTextEdit):
         Args:
             event (QKeyEvent): The key press event.
         """
-        # For debugging: export current content to HTML file
-        # if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key()==Qt.Key.Key_Escape:
-        #     with open('temp_debug.html', 'w', encoding='utf-8') as f:
-        #         f.write(self.toHtml())
         if event.key() == Qt.Key.Key_C and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             cursor = self.textCursor()
             if cursor.hasSelection():
