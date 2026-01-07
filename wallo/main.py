@@ -57,8 +57,6 @@ class Wallo(QMainWindow):
         self.exchanges[0].text2.setMarkdown('Berlin')
         self.exchanges[0].text2.show()
 
-        #TODO P1: add more short-cuts: next exchange... switch between history/reply
-
         ## Create the toolbar with formatting actions and LLM selection
         self.toolbar = QToolBar('Main')
         self.addToolBar(self.toolbar)
@@ -90,7 +88,6 @@ class Wallo(QMainWindow):
         ragAction = QAction('', self, icon=qta.icon('mdi.database-plus'), toolTip='Add files to knowledge base')
         ragAction.triggered.connect(self.addRagSources)
         self.toolbar.addAction(ragAction)
-        # TODO P2 connection to database: how
         # configuration action
         configAction = QAction('', self, icon=qta.icon('fa5s.cog'), toolTip='Configuration',
                                shortcut=QKeySequence('Ctrl+0'))
@@ -98,7 +95,6 @@ class Wallo(QMainWindow):
         self.toolbar.addAction(configAction)
         self.onConfigChanged()
 
-    #TODO P2 How can Agents be written for pasta-help and extractor-writing
 
     def layoutExchanges(self) -> None:
         """ Put the exchanges into the main layout """
