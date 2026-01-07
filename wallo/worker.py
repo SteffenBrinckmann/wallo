@@ -89,6 +89,7 @@ class Worker(QObject):
                 # response = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=text)
                 # with open(filePath, "wb") as f:
                 #     f.write(response.read())
+                #TODO P4 TTS via Langchain
                 msg = "TTS does not work via langchain! One needs to implement openAI api directly and use that"\
                       "or the one from elevenlabs (also not via langchain). Since wallo should only use langchain"\
                       "to simplify the different api-calls,..those options are not available in Jan. 2026"
