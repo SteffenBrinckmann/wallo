@@ -39,7 +39,10 @@ class TextEdit(QTextEdit):
 
 
     def contextMenuEvent(self, event:QContextMenuEvent) -> None:
-        """Create a context menu based on the standard menu, plus custom actions and spelling suggestions."""
+        """Create a context menu based on the standard menu, plus custom actions and spelling suggestions.
+        Args:
+            event (QContextMenuEvent): The context menu event.
+        """
         menu: QMenu = self.createStandardContextMenu()
         if self.spellCheckEnabled and self.highlighter and self.highlighter.spellDict:
             cursor = self.cursorForPosition(event.pos())
