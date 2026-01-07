@@ -54,6 +54,9 @@ class Wallo(QMainWindow):
             self.exchanges[0].text1.setMarkdown(HELP_TEXT)
 
         self.exchanges[0].text1.setMarkdown('What is the capital of Germany?')
+        self.exchanges[0].text2.setMarkdown('Berlin')
+        self.exchanges[0].text2.show()
+
         #TODO P1: add more short-cuts: next exchange... switch between history/reply
 
         ## Create the toolbar with formatting actions and LLM selection
@@ -128,11 +131,13 @@ class Wallo(QMainWindow):
             if idxs and idxs[0]<len(self.exchanges)-1:
                 self.exchanges[idxs[0]].hideButtons()
                 self.exchanges[idxs[0]+1].showButtons()
+                self.exchanges[idxs[0]+1].focusForTyping()
         elif event.key() == Qt.Key.Key_PageUp   and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             idxs = [i for i,j in enumerate(self.exchanges) if j.btnState == 'show']
             if idxs and idxs[0]>0:
                 self.exchanges[idxs[0]-1].showButtons()
                 self.exchanges[idxs[0]].hideButtons()
+                self.exchanges[idxs[0]-1].focusForTyping()
         else:
             super().keyPressEvent(event)
 

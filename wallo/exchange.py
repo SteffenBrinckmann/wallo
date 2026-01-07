@@ -62,6 +62,18 @@ class Exchange(QWidget):
         self.text2.focused.connect(self.focusThisExchange)
         textLayout.addWidget(self.text2)
         self.main.addLayout(textLayout)
+
+        # Shortcuts
+        self.switchToReplyAction = QAction(self)
+        self.switchToReplyAction.setShortcut(QKeySequence('Ctrl+Down'))
+        self.switchToReplyAction.setEnabled(False)
+        self.switchToReplyAction.triggered.connect(self.switchToReply)
+        self.addAction(self.switchToReplyAction)
+        self.switchToHistoryAction = QAction(self)
+        self.switchToHistoryAction.setShortcut(QKeySequence('Ctrl+Up'))
+        self.switchToHistoryAction.setEnabled(False)
+        self.switchToHistoryAction.triggered.connect(self.switchToHistory)
+        self.addAction(self.switchToHistoryAction)
         self.btnWidget = QWidget()
         btnLayout  = QGridLayout(self.btnWidget)
         btnLayout.setVerticalSpacing(0)
@@ -397,10 +409,19 @@ class Exchange(QWidget):
         self.mainWidget.changeActive()
 
 
+    def focusForTyping(self) -> None:
+        """Move keyboard focus to the primary editor."""
+        if not self.text1.isHidden():
+            self.text1.setFocus()
+        elif not self.text2.isHidden():
+            self.text2.setFocus()
+
+
     def showButtons(self) -> None:
         """Activate this exchange:
         - Show the button widgets (keep btnWidget width).
         - Activate actions
+        - do not overload with focus tasks
         """
         for btn1 in self.btnWidget.findChildren(QPushButton):
             btn1.show()
@@ -465,6 +486,18 @@ class Exchange(QWidget):
         if index < self.llmCB.count():
             self.llmCB.setCurrentIndex(index)
             self.useLLM(index)
+
+
+    def switchToReply(self) -> None:
+        """Switch focus from `text1` (history) to `text2` (reply)."""
+        if self.text1.hasFocus() and not self.text2.isHidden():
+            self.text2.setFocus()
+
+    def switchToHistory(self) -> None:
+        """Switch focus from `text2` (reply) to `text1` (history)."""
+        if self.text2.hasFocus() and not self.text1.isHidden():
+            self.text1.setFocus()
+
 
 
     ## SPINNER GRAPHICS
