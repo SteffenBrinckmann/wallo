@@ -64,9 +64,8 @@ class TextEdit(QTextEdit):
         menu.addAction(self.reduceAction)
         menu.addAction(self.deleteAction)
         menu.exec(event.globalPos())
-    #TODO P3 clean this class
 
-    # EVENTS
+
     def insertFromMimeData(self, source:QMimeData) -> None:
         """Override paste behavior to remove hard line breaks from pasted text.
         Args:

@@ -26,7 +26,8 @@ class LLMProcessor:
         self.messageHistory = InMemoryChatMessageHistory()
         self.systemPromptInjected = False
         self.runnable:None|RunnableWithMessageHistory = None
-        # TODO P4 Temporary openAI services only
+        # TODO P4 system of services for RAG, TTS and STT: all from one provider?
+        # Temporary openAI services only
         # currently, only OpenAI embeddings are implemented, get those that quality
         # Future: user chooses service to use for RAG, always. Configuration changes to save for that
         # then this preference is used during this initiation

@@ -21,8 +21,6 @@ class StringTab(QWidget):
         self.setupUI()
         self.loadStrings()
 
-        #TODO P4 system of services for RAG, TTS and STT: all from one provider?
-
 
     def setupUI(self) -> None:
         """Setup the tab UI."""

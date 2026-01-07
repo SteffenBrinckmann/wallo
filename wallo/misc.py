@@ -71,6 +71,17 @@ class PushToTalkRecorder:
         self.frames.append(indata.copy())
 
 
+class OpenAITTS(Runnable):
+    def __init__(self, model="gpt-4o-mini-tts", voice="alloy"):
+        self.model = model
+        self.voice = voice
+
+    def invoke(self, text: str) -> bytes:
+        client = get_openai_client()
+        audio = client.audio.speech.create(model=self.model, voice=self.voice, input=text)
+        return audio.read()
+
+
 HELP_TEXT = """
 # WALLO — Writing Assistance by Large Language Model
 

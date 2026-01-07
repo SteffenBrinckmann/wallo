@@ -66,7 +66,7 @@ class Worker(QObject):
                 self.finished.emit(content, self.senderID, self.workType)
 
 
-            if self.workType == 'transcribeAudio':
+            elif self.workType == 'transcribeAudio':
                 runnable         = self.objects['runnable']
                 blob = Blob.from_path(self.objects['path'])
                 docs = runnable.parse(blob)
@@ -76,11 +76,25 @@ class Worker(QObject):
                 self.finished.emit(content, self.senderID, self.workType)
 
 
-            if self.workType == 'ingestRAG':
+            elif self.workType == 'ingestRAG':
                 runnable  = self.objects['runnable']
                 filePaths = self.objects['filePaths']
                 chunks    = runnable.ingestPaths(filePaths)
                 self.finished.emit(f'Success | Chunks indexed: {chunks}', self.senderID, self.workType)
+
+            elif self.workType == 'tts':
+                # client = self.objects['runnable']
+                # text = self.objects['content']
+                # filePath = self.objects['filePaths']
+                # response = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=text)
+                # with open(filePath, "wb") as f:
+                #     f.write(response.read())
+                msg = "TTS does not work via langchain! One needs to implement openAI api directly and use that"\
+                      "or the one from elevenlabs (also not via langchain). Since wallo should only use langchain"\
+                      "to simplify the different api-calls,..those options are not available in Jan. 2026"
+                self.error.emit(msg, self.senderID, self.workType)
+            else:
+                self.error.emit('Unknown work type', self.senderID, self.workType)
 
         except Exception as e:
             self.error.emit(str(e), self.senderID, self.workType)

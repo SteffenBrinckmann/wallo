@@ -71,9 +71,11 @@ class Wallo(QMainWindow):
         self.toolbar.addWidget(wideSep1)
         # save action
         saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='Save as docx or markdown')  # Save as docx or markdown
-        saveAction.triggered.connect(self.saveToFile)
+        saveAction.triggered.connect(lambda: self.saveToFile('text'))
         self.toolbar.addAction(saveAction)
-        #TODO P3 add Text2Speech
+        ttsAction = QAction('', self, icon=qta.icon('fa5.file-audio'), toolTip='Save to mp3 file')  # Save as docx or markdown
+        ttsAction.triggered.connect(lambda: self.saveToFile('tts'))
+        self.toolbar.addAction(ttsAction)
         wideSep2 = QWidget()
         wideSep2.setFixedWidth(20)
         self.toolbar.addWidget(wideSep2)
@@ -154,20 +156,28 @@ class Wallo(QMainWindow):
         self.layoutExchanges()
 
 
-    def saveToFile(self) -> None:
-        """Save the content of the editor as a .docx or .md file."""
-        filename, _selectedFilter = QFileDialog.getSaveFileName(self, 'Save to File', str(Path.home()),
-                                                               'Word Files (*.docx);;Markdown Files (*.md)')
+    def saveToFile(self, dType: str) -> None:
+        """Save the content of the editor as a .docx or .md file.
+        Args:
+            type (str): The type of file to save (e.g., 'text' or 'tts').
+        """
+        filter = 'Word Files (*.docx);;Markdown Files (*.md)' if dType == 'text' else 'Audio Files (*.mp3)'
+        filename, _selFilter = QFileDialog.getSaveFileName(self, 'Save to File', str(Path.home()), filter)
         if not filename:
             return
         content = ''
         for exchange in self.exchanges:
             content += str(exchange)
-        if filename.lower().endswith('.docx'):
-            pypandoc.convert_text(content, 'docx', format='md', outputfile=filename, extra_args=['--standalone'])
+        if dType == 'text':
+            if filename.lower().endswith('.docx'):
+                pypandoc.convert_text(content, 'docx', format='md', outputfile=filename,
+                                      extra_args=['--standalone'])
+            else:
+                with open(filename, 'w', encoding='utf-8') as fh:
+                    fh.write(content)
         else:
-            with open(filename, 'w', encoding='utf-8') as fh:
-                fh.write(content)
+            self.runWorker('tts', {'runnable':None, 'filePaths': filename, 'content': content,
+                                   'senderID': 'tts'})
 
 
     def runWorker(self, workType: str, work: dict[str, Any]) -> None:
