@@ -1,6 +1,6 @@
 """ Worker class to handle background tasks such as LLM processing or PDF extraction."""
 from typing import Any
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_core.documents.base import Blob
 from PySide6.QtCore import QObject, Signal  # pylint: disable=no-name-in-module
 from openai import OpenAI
@@ -38,7 +38,6 @@ class Worker(QObject):
                 prompt           = self.objects['prompt']
                 selectedText     = self.objects['selectedText']
                 pdfFilePath      = self.objects['pdfFilePath']
-                systemPrompt     = self.objects.get('systemPrompt','You are a helpful assistant.')
                 # RAG retrieval
                 ragContext = ''
                 if self.objects['ragRunnable'] is not None:
@@ -54,14 +53,14 @@ class Worker(QObject):
                 prompt = f"{prompt}{ragContext}{pdfContext}{selectedText}"
                 if DEBUG_MODE:
                     print(f'Start LLM work:\n  {prompt}')
-                if not getattr(runnable, 'systemPromptInjected', False):
-                    try:
-                        runnable.get_history('global').add_message(SystemMessage(content=systemPrompt))
-                        runnable.systemPromptInjected = True
-                    except Exception:
-                        pass
-                result = runnable.invoke(prompt, {'configurable': {'session_id': 'global'}})
-                content = result.content if hasattr(result, 'content') else str(result)
+                history = self.objects['messageHistory']
+                # Agent usage
+                agentTools = self.objects['agentTools']
+                if agentTools is not None and hasattr(self.objects['llmClient'], 'bind_tools'):
+                    content = self.runAgents(history, prompt)
+                else: # No agent used
+                    result = runnable.invoke(prompt, {'configurable': {'session_id': 'global'}})
+                    content = result.content if hasattr(result, 'content') else str(result)
                 if DEBUG_MODE:
                     print(f'End work: {self.senderID}\n  {content}')
                 self.finished.emit(content, self.senderID, self.workType)
@@ -88,11 +87,64 @@ class Worker(QObject):
                 client = OpenAI(api_key=self.objects['apiKey'])
                 text = self.objects['content']
                 filePath = self.objects['filePaths']
-                response = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=text)
-                with open(filePath, "wb") as f:
+                response = client.audio.speech.create(model='gpt-4o-mini-tts', voice='alloy', input=text)
+                with open(filePath, 'wb') as f:
                     f.write(response.read())
             else:
                 self.error.emit('Unknown work type', self.senderID, self.workType)
 
         except Exception as e:
             self.error.emit(str(e), self.senderID, self.workType)
+
+
+    def runAgents(self, history: Any, prompt: str) -> str:
+        """ Run agents in loop of max 6 iterations.
+        Args:
+            history (Any): history of conversation so far
+            prompt (str): current question
+        Returns:
+            str: answer to question
+        """
+        agentTools = self.objects['agentTools']
+        toolMap = {t.name: t for t in agentTools}
+        llmWithTools = self.objects['llmClient'].bind_tools(agentTools)
+        # assemble massages
+        messages: list[Any] = list(getattr(history, 'messages', []))
+        userMessage = HumanMessage(content=prompt)
+        messages.append(userMessage)
+        newMessages: list[Any] = [userMessage]
+        for _ in range(6):  # max. number of iterations
+            aiMessage = llmWithTools.invoke(messages) # run LLM call
+            messages.append(aiMessage)
+            newMessages.append(aiMessage)
+            toolCalls = getattr(aiMessage, 'tool_calls', None) or []  # did the LLM decide to call a tool?
+            if not toolCalls:
+                if DEBUG_MODE:
+                    print('No tools called')
+                break
+            for toolCall in toolCalls:  # Call all tools the LLM wants
+                name = toolCall['name']
+                if DEBUG_MODE:
+                    print(f'Calling tool: {name}')
+                toolCallId = toolCall.get('id', '')
+                if toolMap[name] is None:
+                    toolResult = f"Tool '{name}' is not available."
+                else:
+                    try:  # close tool into try-except to safeguard
+                        toolResult = toolMap[name].invoke(toolCall.get('args',{}))
+                    except Exception as e:
+                        toolResult = f"Tool '{name}' failed: {str(e)}"
+                if DEBUG_MODE:
+                    print(f'Tool result: {toolResult}')
+                toolMessage = ToolMessage(content=str(toolResult), tool_call_id=toolCallId)
+                messages.append(toolMessage)
+                newMessages.append(toolMessage)
+        # after all iterations, assemble reply
+        if history and hasattr(history, 'add_message'): # changed as call-by-reference
+            for msg in newMessages:
+                try:
+                    history.add_message(msg)
+                except Exception:
+                    pass
+        content = messages[-1].content if hasattr(messages[-1], 'content') else str(messages[-1])
+        return content

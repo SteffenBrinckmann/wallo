@@ -161,8 +161,8 @@ class Wallo(QMainWindow):
         Args:
             type (str): The type of file to save (e.g., 'text' or 'tts').
         """
-        filter = 'Word Files (*.docx);;Markdown Files (*.md)' if dType == 'text' else 'Audio Files (*.mp3)'
-        filename, _selFilter = QFileDialog.getSaveFileName(self, 'Save to File', str(Path.home()), filter)
+        filterText = 'Word Files (*.docx);;Markdown Files (*.md)' if dType == 'text' else 'Audio Files (*.mp3)'
+        filename, _selFilter = QFileDialog.getSaveFileName(self, 'Save to File', str(Path.home()), filterText)
         if not filename:
             return
         content = ''

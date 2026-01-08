@@ -9,6 +9,7 @@ from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from PySide6.QtWidgets import QMessageBox  # pylint: disable=no-name-in-module
+from .agents import USE_AGENTS, getAgentCoordinatorPrompt, getAgentTools
 from .configManager import ConfigurationManager
 from .ragIndexer import RagIndexer
 
@@ -25,6 +26,11 @@ class LLMProcessor:
         self.systemPrompt = 'You are a helpful assistant.'
         self.messageHistory = InMemoryChatMessageHistory()
         self.systemPromptInjected = False
+        try:
+            self.messageHistory.add_message(SystemMessage(content=self.systemPrompt))
+            self.systemPromptInjected = True
+        except Exception:
+            self.systemPromptInjected = False
         self.runnable:None|RunnableWithMessageHistory = None
         # TODO P4 system of services for RAG, TTS and STT: all from one provider?
         # Temporary openAI services only
@@ -68,6 +74,8 @@ class LLMProcessor:
         for prompt in systemPrompts:
             if prompt['name'] == promptName:
                 self.systemPrompt = prompt['system-prompt']
+                if USE_AGENTS:
+                    self.systemPrompt += '\n\n' + getAgentCoordinatorPrompt()
                 try:
                     self.messageHistory.add_message(SystemMessage(content=self.systemPrompt))
                     self.systemPromptInjected = True
@@ -113,9 +121,17 @@ class LLMProcessor:
             prompt = promptConfig['user-prompt'].replace(f'|{inquiryText}|', inquiryResponse)
 
         # Assemble work for 2nd thread based on task
-        result = {'runnable': self.runnable, 'prompt': prompt, 'senderID': senderID,
-                  'selectedText': selectedText, 'pdfFilePath': pdfFilePath,
-                  'ragRunnable': self.ragIndexer if ragUsage else None}
+        result = {
+            'runnable': self.runnable,
+            'llmClient': llm,
+            'messageHistory': self.messageHistory,
+            'prompt': prompt,
+            'senderID': senderID,
+            'selectedText': selectedText,
+            'pdfFilePath': pdfFilePath,
+            'ragRunnable': self.ragIndexer if ragUsage else None,
+            'agentTools': getAgentTools() if USE_AGENTS else None,
+        }
         return result
 
 
