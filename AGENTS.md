@@ -53,12 +53,13 @@ pylint wallo/
 ## Architecture
 
 ### Core Components
-
+Package wallo/
 - **main.py**: Main application window (`Wallo` class) that handles UI, toolbar creation, and creates the list of exchanges
 - **exchange.py**: each exchange is a UI element that has two editors and buttons for the tools
 - **editor.py**: Custom `TextEdit` class extending QTextEdit with word wrap configuration
 - **worker.py**: Background worker (`Worker` class) for LLM API calls and PDF processing to keep UI responsive
 - **llmProcessor.py**: houses all logic regarding the LLM usage
+- **agents.py**: all agents are defined here as well as their functions
 
 ### Key Architecture Patterns
 
