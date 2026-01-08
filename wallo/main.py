@@ -176,8 +176,11 @@ class Wallo(QMainWindow):
                 with open(filename, 'w', encoding='utf-8') as fh:
                     fh.write(content)
         else:
-            self.runWorker('tts', {'runnable':None, 'filePaths': filename, 'content': content,
-                                   'senderID': 'tts'})
+            possOpenAI = self.configManager.getOpenAiServices()
+            if not possOpenAI:
+                QMessageBox.critical(None, 'Configuration error', 'No OpenAI services configured')
+            apiKey=self.configManager.getServiceByName(possOpenAI[0])['api']
+            self.runWorker('tts', {'apiKey':apiKey, 'filePaths': filename, 'content': content, 'senderID': 'tts'})
 
 
     def runWorker(self, workType: str, work: dict[str, Any]) -> None:

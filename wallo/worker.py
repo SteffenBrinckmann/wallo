@@ -3,6 +3,7 @@ from typing import Any
 from langchain_core.messages import SystemMessage
 from langchain_core.documents.base import Blob
 from PySide6.QtCore import QObject, Signal  # pylint: disable=no-name-in-module
+from openai import OpenAI
 from .pdfDocumentProcessor import PdfDocumentProcessor
 
 DEBUG_MODE = True  # Set to True to enable debug mode that skips actual LLM calls
@@ -83,17 +84,13 @@ class Worker(QObject):
                 self.finished.emit(f'Success | Chunks indexed: {chunks}', self.senderID, self.workType)
 
             elif self.workType == 'tts':
-                # client = self.objects['runnable']
-                # text = self.objects['content']
-                # filePath = self.objects['filePaths']
-                # response = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=text)
-                # with open(filePath, "wb") as f:
-                #     f.write(response.read())
-                #TODO P4 TTS via Langchain
-                msg = "TTS does not work via langchain! One needs to implement openAI api directly and use that"\
-                      "or the one from elevenlabs (also not via langchain). Since wallo should only use langchain"\
-                      "to simplify the different api-calls,..those options are not available in Jan. 2026"
-                self.error.emit(msg, self.senderID, self.workType)
+                #TODO P4 TTS via Langchain, if available; ElevenLabs other good provider
+                client = OpenAI(api_key=self.objects['apiKey'])
+                text = self.objects['content']
+                filePath = self.objects['filePaths']
+                response = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=text)
+                with open(filePath, "wb") as f:
+                    f.write(response.read())
             else:
                 self.error.emit('Unknown work type', self.senderID, self.workType)
 
