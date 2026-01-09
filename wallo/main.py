@@ -33,7 +33,7 @@ class Wallo(QMainWindow):
         self.spellcheck                            = True
         self.serviceCB                             = QComboBox()
         self.llmSPCB                               = QComboBox()
-        self.toolbar: Optional['QToolBar'] = None
+        self.toolbar: Optional['QToolBar']         = None
 
         # GUI
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
@@ -86,11 +86,32 @@ class Wallo(QMainWindow):
         self.toolbar.addSeparator()
         self.serviceCB = QComboBox()
         self.toolbar.addWidget(self.serviceCB)
+        wideSep3 = QWidget()
+        wideSep3.setFixedWidth(20)
+        self.toolbar.addWidget(wideSep3)
         # add RAG ingestion action
         ragAction = QAction('', self, icon=qta.icon('mdi.database-plus'), toolTip='Add files to knowledge base')
         ragAction.triggered.connect(self.addRagSources)
         self.toolbar.addAction(ragAction)
+        wideSep4 = QWidget()
+        wideSep4.setFixedWidth(20)
+        self.toolbar.addWidget(wideSep4)
+        # add agents use
+        self.agentIcon = qta.icon('fa5s.robot')
+        self.agentIconInverted = invertIcon(self.agentIcon)
+        self.agentUseAction = QAction('', self, icon=self.agentIcon, toolTip='Allow to use LLM Agents')
+        self.agentUseAction.triggered.connect(self.toggleAgentsUse)
+        self.toolbar.addAction(self.agentUseAction)
+        # add connect to PASTA-ELN
+        self.pastaUseIcon = qta.icon('mdi.pasta')
+        self.pastaUseIconInverted = invertIcon(self.pastaUseIcon)
+        self.pastaUseAction = QAction('', self, icon=self.pastaUseIcon, toolTip='Link and use PASTA-ELN database')
+        self.pastaUseAction.triggered.connect(self.linkPastaELN)
+        self.toolbar.addAction(self.pastaUseAction)
         # configuration action
+        wideSep5 = QWidget()
+        wideSep5.setFixedWidth(20)
+        self.toolbar.addWidget(wideSep5)
         configAction = QAction('', self, icon=qta.icon('fa5s.cog'), toolTip='Configuration',
                                shortcut=QKeySequence('Ctrl+0'))
         configAction.triggered.connect(self.showConfiguration)
@@ -229,6 +250,21 @@ class Wallo(QMainWindow):
             exchange.text1.setSpellCheckEnabled(self.spellcheck)
             exchange.text2.setSpellCheckEnabled(self.spellcheck)
         self.spellcheckAction.setIcon(self.spellIconInverted if self.spellcheck else self.spellIcon)
+
+
+    def toggleAgentsUse(self) -> None:
+        """Toggle agent use on or off."""
+        self.llmProcessor.agents.useAgents = not self.llmProcessor.agents.useAgents
+        self.agentUseAction.setIcon(self.agentIconInverted if self.llmProcessor.agents.useAgents else self.agentIcon)
+
+
+    def linkPastaELN(self) -> None:
+        """Toggle PASTA-ELN use on or off."""
+        filename = QFileDialog.getOpenFileName(self, 'Select a PASTA-ELN database', str(Path.home()),
+                                               'SQLite Files (*.db)')
+        if filename:
+            self.llmProcessor.agents.usePastaEln = filename[0]
+            self.pastaUseAction.setIcon(self.pastaUseIconInverted)
 
 
     def addRagSources(self) -> None:

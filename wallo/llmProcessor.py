@@ -9,7 +9,7 @@ from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from PySide6.QtWidgets import QMessageBox  # pylint: disable=no-name-in-module
-from .agents import USE_AGENTS, getAgentCoordinatorPrompt, getAgentTools
+from .agents import Agents
 from .configManager import ConfigurationManager
 from .ragIndexer import RagIndexer
 
@@ -42,7 +42,7 @@ class LLMProcessor:
             QMessageBox.critical(None, 'Configuration error', 'No OpenAI services configured')
         self.sttParser = OpenAIWhisperParser(api_key=self.configManager.getServiceByName(possOpenAI[0])['api'])
         self.ragIndexer = RagIndexer(self.configManager.getServiceByName(possOpenAI[0])['api'])
-
+        self.agents = Agents()
 
     def createClientFromConfig(self, serviceConfig: dict[str,str]) -> Any:
         """Create a LangChain LLM from service config.
@@ -74,8 +74,8 @@ class LLMProcessor:
         for prompt in systemPrompts:
             if prompt['name'] == promptName:
                 self.systemPrompt = prompt['system-prompt']
-                if USE_AGENTS:
-                    self.systemPrompt += '\n\n' + getAgentCoordinatorPrompt()
+                if self.agents.useAgents:
+                    self.systemPrompt += '\n\n' + self.agents.getAgentCoordinatorPrompt()
                 try:
                     self.messageHistory.add_message(SystemMessage(content=self.systemPrompt))
                     self.systemPromptInjected = True
@@ -122,15 +122,15 @@ class LLMProcessor:
 
         # Assemble work for 2nd thread based on task
         result = {
-            'runnable': self.runnable,
-            'llmClient': llm,
+            'runnable'      : self.runnable,
+            'llmClient'     : llm,
             'messageHistory': self.messageHistory,
-            'prompt': prompt,
-            'senderID': senderID,
-            'selectedText': selectedText,
-            'pdfFilePath': pdfFilePath,
-            'ragRunnable': self.ragIndexer if ragUsage else None,
-            'agentTools': getAgentTools() if USE_AGENTS else None,
+            'prompt'        : prompt,
+            'senderID'      : senderID,
+            'selectedText'  : selectedText,
+            'pdfFilePath'   : pdfFilePath,
+            'ragRunnable'   : self.ragIndexer if ragUsage else None,
+            'agentTools'    : self.agents.getAgentTools()
         }
         return result
 
