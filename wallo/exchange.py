@@ -96,13 +96,14 @@ class Exchange(QWidget):
         shortcuts = {'11':'7','21':'8','31':'9','12':'4','22':'5','32':'6','13':'1','23':'2','33':'3'}
         for x, y, funct in btns:
             name, icon, tooltip = funct(None, True)
-            shortcut = 'Alt+'+shortcuts[f'{x}{y}']
-            setattr(self, name, QPushButton())
-            getattr(self, name).setToolTip(f'{tooltip} ({shortcut})')
-            getattr(self, name).setShortcut(QKeySequence(shortcut))
-            getattr(self, name).setIcon(qta.icon(icon))
-            getattr(self, name).clicked.connect(funct)
-            btnLayout.addWidget(getattr(self, name), y, x)
+            shortcut = 'Alt+' + shortcuts[f'{x}{y}']
+            button = QPushButton()
+            button.setToolTip(f'{tooltip} ({shortcut})')
+            button.setShortcut(QKeySequence(shortcut))
+            button.setIcon(qta.icon(icon))
+            button.clicked.connect(funct)
+            setattr(self, name, button)
+            btnLayout.addWidget(button, y, x)
         self.llmCB = QComboBox()
         self.llmCB.setMaximumWidth(120)
         self.populateLlmComboBox()
@@ -110,10 +111,9 @@ class Exchange(QWidget):
         btnLayout.addWidget(self.llmCB, 9, 1, 1, 3)
         # Reserve the button-column space when collapsed: compute width and hide buttons
         self.btnBoxWidth = self.btnWidget.sizeHint().width()
-        for btn1 in self.btnWidget.findChildren(QPushButton):
-            btn1.hide()
-        for btn2 in self.btnWidget.findChildren(QComboBox):
-            btn2.hide()
+        self.btnControls = self.btnWidget.findChildren(QPushButton) + self.btnWidget.findChildren(QComboBox)
+        for control in self.btnControls:
+            control.hide()
         # Keep the widget visible but fixed-width so TextEdits don't expand
         self.btnWidget.setFixedWidth(self.btnBoxWidth)
 
@@ -138,8 +138,6 @@ class Exchange(QWidget):
         self._spinAngle = 0
         self._spinnerTimer = QTimer(self)
         self._spinnerTimer.timeout.connect(self._rotateSpinner)
-        self._overlayEffect = None
-        self._fadeAnim      = None
 
 
     ### BUTTON FUNCTIONS
@@ -157,12 +155,10 @@ class Exchange(QWidget):
             return name, iconOn, tooltipOn
         if self.text1.isHidden():
             self.text1.show()
-            self.hide1Btn.setIcon(qta.icon(iconOn))  # type: ignore[attr-defined]
-            self.hide1Btn.setToolTip(tooltipOn)  # type: ignore[attr-defined]
+            self._setButtonAppearance(name, iconOn, tooltip=tooltipOn)
         else:
             self.text1.hide()
-            self.hide1Btn.setIcon(qta.icon(iconOff))  # type: ignore[attr-defined]
-            self.hide1Btn.setToolTip(tooltipOff)  # type: ignore[attr-defined]
+            self._setButtonAppearance(name, iconOff, tooltip=tooltipOff)
         return ('', '', '')
 
 
@@ -191,18 +187,15 @@ class Exchange(QWidget):
         if state:
             return name, icon, tooltip
         if self.recording:
-            self.audio1Btn.setIcon(qta.icon(icon))  # type: ignore[attr-defined]
+            self._setButtonAppearance(name, icon)
             self.recording = False
             path = self.pushToTalkRecorder.stop()
-            # show busy spinner
-            self.busyOverlay.setGeometry(self.rect())
-            self.busyOverlay.show()
-            self._spinnerTimer.start(50)
+            self.setBusy(True, 'Transcribing…')
             # assemble prompt
             self.mainWidget.runWorker('transcribeAudio', {'runnable':self.mainWidget.llmProcessor.sttParser,
                                                           'senderID':self.uuid, 'path':path})
         else:
-            self.audio1Btn.setIcon(qta.icon(icon, color=ACCENT_COLOR))  # type: ignore[attr-defined]
+            self._setButtonAppearance(name, icon, color=ACCENT_COLOR)
             self.recording = True
             self.pushToTalkRecorder.start()
         return ('', '', '')
@@ -236,13 +229,13 @@ class Exchange(QWidget):
         if state:
             return name, icon, tooltip
         if self.state == 0:
-            self.showStatusBtn.setIcon(qta.icon(icon, color='green'))  # type: ignore[attr-defined]
+            self._setButtonAppearance(name, icon, color='green')
             self.state = 1
         elif self.state == 1:
-            self.showStatusBtn.setIcon(qta.icon(icon, color='red'))  # type: ignore[attr-defined]
+            self._setButtonAppearance(name, icon, color='red')
             self.state = 2
         elif self.state == 2:
-            self.showStatusBtn.setIcon(qta.icon(icon))  # type: ignore[attr-defined]
+            self._setButtonAppearance(name, icon)
             self.state = 0
         return ('', '', '')
 
@@ -259,10 +252,10 @@ class Exchange(QWidget):
         if state:
             return name, icon, tooltip
         if self.ragUsage:
-            self.toggleRagBtn.setIcon(qta.icon(icon))  # type: ignore[attr-defined]
+            self._setButtonAppearance(name, icon)
             self.ragUsage = False
         else:
-            self.toggleRagBtn.setIcon(qta.icon(icon, color=ACCENT_COLOR))  # type: ignore[attr-defined]
+            self._setButtonAppearance(name, icon, color=ACCENT_COLOR)
             self.ragUsage = True
         return ('', '', '')
 
@@ -312,7 +305,7 @@ class Exchange(QWidget):
                                                                 str(Path.home()), 'pdf-files (*.pdf)')
         if filePath:
             self.filePath = filePath
-            self.attachFileBtn.setIcon(qta.icon(icon, color=ACCENT_COLOR))  # type: ignore[attr-defined]
+            self._setButtonAppearance(name, icon, color=ACCENT_COLOR)
         return ('', '', '')
 
 
@@ -328,10 +321,7 @@ class Exchange(QWidget):
             return name, icon, tooltip
         text = self.text1.toMarkdown().strip()
         if text:
-            # show busy spinner
-            self.busyOverlay.setGeometry(self.rect())
-            self.busyOverlay.show()
-            self._spinnerTimer.start(50)
+            self.setBusy(True)
             # LLM
             serviceName  = self.mainWidget.serviceCB.currentText()
             workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, '', serviceName, text,
@@ -352,25 +342,27 @@ class Exchange(QWidget):
         if not promptConfig:
             QMessageBox.warning(self, 'Error', f"Prompt '{promptName}' not found")
             return
-        if not (self.filePath or self.text1.toPlainText().strip()):
+
+        historyPlain = self.text1.toPlainText().strip()
+        historyMarkdown = self.text1.toMarkdown()
+        if not (self.filePath or historyPlain):
             QMessageBox.information(self, 'Warning', 'No text in upper text-box.')
             return
+
         userInput = ''
+        if promptConfig['inquiry'] and not historyPlain:
+            QMessageBox.information(self, 'Warning', 'No text in upper text-box.')
+            return
         if promptConfig['inquiry']:
-            if not self.text1.toPlainText().strip():
-                QMessageBox.information(self, 'Warning', 'No text in upper text-box.')
-                return
             inquiryText = promptConfig['user-prompt'].split('|')[1]
             userInput, ok = QInputDialog.getText(self, 'Enter input', f"Please enter {inquiryText}")
             if not ok or not userInput:
                 return
-        # show busy spinner
-        self.busyOverlay.setGeometry(self.rect())
-        self.busyOverlay.show()
-        self._spinnerTimer.start(50)
-        # assemble prompt
+
+        self.setBusy(True)
+
         workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, promptName, serviceName,
-                                                                self.text1.toMarkdown(), self.filePath,
+                                                                historyMarkdown, self.filePath,
                                                                 userInput, self.ragUsage)
         self.mainWidget.runWorker('chatAPI', workParams)
 
@@ -383,8 +375,7 @@ class Exchange(QWidget):
             worktype (str): The type of work being performed.
         """
         if senderID == self.uuid:
-            self._spinnerTimer.stop()
-            self.busyOverlay.hide()
+            self.setBusy(False)
             if worktype == 'chatAPI':
                 self.text2.show()
                 self.text2.setMarkdown(content)
@@ -393,13 +384,37 @@ class Exchange(QWidget):
                 self.text1.append(content)
 
 
+    def setBusy(self, busy: bool, text: str | None = None) -> None:
+        """Show/hide busy overlay and spinner."""
+        if text is not None:
+            self.busyText.setText(text)
+        if busy:
+            self.busyOverlay.setGeometry(self.rect())
+            self.busyOverlay.show()
+            self._spinnerTimer.start(50)
+        else:
+            self._spinnerTimer.stop()
+            self.busyOverlay.hide()
+
+
+    def _setButtonAppearance(self, buttonName: str, icon: str, color: str | None = None,
+                             tooltip: str | None = None) -> None:
+        """Set a button's icon and (optional) tooltip."""
+        button = getattr(self, buttonName)
+        button.setIcon(qta.icon(icon) if color is None else qta.icon(icon, color=color))
+        if tooltip is not None:
+            button.setToolTip(tooltip)
+
+
     ### GENERAL FUNCTIONS
     def __repr__(self) -> str:
         """Generate a string representation of the object"""
-        text = '' if self.text1.isHidden() or self.text1.toMarkdown().strip() == ''else \
-                f'\n```text\n{self.text1.toMarkdown().strip()}\n```'
-        text += '' if self.text2.isHidden() or self.text2.toMarkdown().strip() == ''else \
-                '\n' + self.text2.toMarkdown().strip()
+        historyText = '' if self.text1.isHidden() else self.text1.toMarkdown().strip()
+        replyText = '' if self.text2.isHidden() else self.text2.toMarkdown().strip()
+
+        text = f'\n```text\n{historyText}\n```' if historyText else ''
+        if replyText:
+            text += '\n' + replyText
         return text
 
 
@@ -424,16 +439,11 @@ class Exchange(QWidget):
         - Activate actions
         - do not overload with focus tasks
         """
-        for btn1 in self.btnWidget.findChildren(QPushButton):
-            btn1.show()
-        for btn2 in self.btnWidget.findChildren(QComboBox):
-            btn2.show()
+        for control in self.btnControls:
+            control.show()
         for action in self.actions():
             action.setEnabled(True)
-        try:
-            self.btnWidget.setFixedWidth(self.btnBoxWidth)
-        except AttributeError:
-            pass
+        self.btnWidget.setFixedWidth(self.btnBoxWidth)
         self.btnState = 'show'
 
 
@@ -442,16 +452,11 @@ class Exchange(QWidget):
         - Hide only the buttons but keep the btnWidget visible to reserve space.
         - Deactivate actions
         """
-        for btn1 in self.btnWidget.findChildren(QPushButton):
-            btn1.hide()
-        for btn2 in self.btnWidget.findChildren(QComboBox):
-            btn2.hide()
+        for control in self.btnControls:
+            control.hide()
         for action in self.actions():
             action.setEnabled(False)
-        try:
-            self.btnWidget.setFixedWidth(self.btnBoxWidth)
-        except AttributeError:
-            pass
+        self.btnWidget.setFixedWidth(self.btnBoxWidth)
         self.btnState = 'hidden'
         self.text1.adjustHeightToContents(1 if self.text2.isHidden() else 2)
         self.text2.adjustHeightToContents(1 if self.text1.isHidden() else 2)
@@ -473,7 +478,7 @@ class Exchange(QWidget):
                 shortcutAction = QAction(self)
                 shortcutAction.setShortcut(QKeySequence(shortcut))
                 shortcutAction.setEnabled(False)
-                shortcutAction.triggered.connect(lambda checked, index=i: self.useShortcut(index))
+                shortcutAction.triggered.connect(lambda _checked=False, index=i: self.useShortcut(index))
                 self.addAction(shortcutAction)
             else:
                 self.llmCB.addItem(prompt['description'], prompt['name'])

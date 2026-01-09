@@ -33,7 +33,6 @@ class Wallo(QMainWindow):
         self.spellcheck                            = True
         self.serviceCB                             = QComboBox()
         self.llmSPCB                               = QComboBox()
-        self.toolbar: Optional['QToolBar']         = None
 
         # GUI
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
