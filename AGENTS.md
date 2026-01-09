@@ -102,6 +102,8 @@ The application uses a JSON configuration file (`~/.wallo.json`) that includes (
 - **Security** storing plaintext API keys in `~/.wallo.json`, allows changing the values manually. Since the code is open-source, all other solutions are only window-dressing: a hacker can read the obfuscation approach and counter it.
 - **Unit tests** and **CI (Github)** We don’t add unit tests; CI is only for lint/type/codespell.
 - Do not implement **standardized error output**; keep error handling minimal.
+- Do not refactor code into a separate function that function is called only a single time.
+- Do not remove comments when changing code. Preserve it.
 - **Use Langchain as much as possible**. It simplifies the code to support multiple services.
 - **Config migration**: This code is in development mode. Do not worry about changing the config precedence.
 
