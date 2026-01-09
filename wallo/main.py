@@ -2,115 +2,91 @@
 
 import sys
 from pathlib import Path
-from typing import Any, Optional
-import qtawesome as qta
+from typing import Any
 import pypandoc
+import qtawesome as qta
 from PySide6.QtCore import QThread, Qt  # pylint: disable=no-name-in-module
 from PySide6.QtGui import QAction, QKeySequence, QKeyEvent  # pylint: disable=no-name-in-module
-from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QMainWindow, QMessageBox,  QToolBar, # pylint: disable=no-name-in-module
-                               QVBoxLayout, QWidget, QScrollArea)
-from .configManager import ConfigurationManager
+from PySide6.QtWidgets import (QApplication,  QComboBox, QFileDialog, QMainWindow, QMessageBox, QScrollArea, # pylint: disable=no-name-in-module
+                               QToolBar, QVBoxLayout, QWidget)
 from .configMain import ConfigurationWidget
+from .configManager import ConfigurationManager
 from .exchange import Exchange
-from .misc import invertIcon, HELP_TEXT
 from .llmProcessor import LLMProcessor
+from .misc import invertIcon, HELP_TEXT
 from .worker import Worker
+
 
 class Wallo(QMainWindow):
     """Main window for the Wallo application, providing a text editor with LLM assistance."""
     def __init__(self) -> None:
         super().__init__()
-        # Initialize business logic components
         self.configManager = ConfigurationManager()
-        self.beginner = self.configManager.get('startCounts')>0
+        self.beginner = self.configManager.get('startCounts') > 0
         if self.beginner:
-            self.configManager.updateConfig({'startCounts': self.configManager.get('startCounts')-1})
+            self.configManager.updateConfig({'startCounts': self.configManager.get('startCounts') - 1})
         self.llmProcessor = LLMProcessor(self.configManager)
-
-        self.configWidget:ConfigurationWidget|None = None
-        self.subThread:None|QThread                = QThread()
-        self.worker:None|Worker                    = None
-        self.spellcheck                            = True
-        self.serviceCB                             = QComboBox()
-        self.llmSPCB                               = QComboBox()
+        self.configWidget: ConfigurationWidget | None = None
+        self.subThread: QThread | None = None
+        self.worker: Worker | None = None
+        self.spellcheck = True
+        self.serviceCB = QComboBox()
+        self.llmSPCB = QComboBox()
 
         # GUI
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
         container = QWidget(self)
         self.mainLayout = QVBoxLayout(container)
         self.mainLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.exchanges = []
-        for _ in range(2):
-            exchange = Exchange(self)
-            self.exchanges.append(exchange)
         scrollArea = QScrollArea(self)
         scrollArea.setWidgetResizable(True)
         scrollArea.setWidget(container)
         self.setCentralWidget(scrollArea)
+
+        # Setup exchanges
+        self.exchanges: list[Exchange] = [Exchange(self) for _ in range(2)]
         self.layoutExchanges()
         self.exchanges[0].showButtons()
         if self.beginner:
             self.exchanges[0].text1.setMarkdown(HELP_TEXT)
 
-        self.exchanges[0].text1.setMarkdown('What is the capital of Germany?')
-        self.exchanges[0].text2.setMarkdown('Berlin')
-        self.exchanges[0].text2.show()
-
-        ## Create the toolbar with formatting actions and LLM selection
         self.toolbar = QToolBar('Main')
         self.addToolBar(self.toolbar)
         self.spellIcon = qta.icon('fa5s.spell-check')
         self.spellIconInverted = invertIcon(self.spellIcon)
         self.spellcheckAction = QAction('', self, icon=self.spellIconInverted, checkable=True,
-                                        toolTip='Toggle spellchecker')  # Spellcheck
+                                        toolTip='Toggle spellchecker')
+        self.spellcheckAction.setChecked(self.spellcheck)
         self.spellcheckAction.triggered.connect(self.toggleSpellcheck)
         self.toolbar.addAction(self.spellcheckAction)
-        wideSep1 = QWidget()
-        wideSep1.setFixedWidth(20)
-        self.toolbar.addWidget(wideSep1)
-        # save action
-        saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='Save as docx or markdown')  # Save as docx or markdown
+        self.toolbar.addWidget(self._toolbarSpacer())
+        saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='Save as docx or markdown')
         saveAction.triggered.connect(lambda: self.saveToFile('text'))
         self.toolbar.addAction(saveAction)
-        ttsAction = QAction('', self, icon=qta.icon('fa5.file-audio'), toolTip='Save to mp3 file')  # Save as docx or markdown
+        ttsAction = QAction('', self, icon=qta.icon('fa5.file-audio'), toolTip='Save to mp3 file')
         ttsAction.triggered.connect(lambda: self.saveToFile('tts'))
         self.toolbar.addAction(ttsAction)
-        wideSep2 = QWidget()
-        wideSep2.setFixedWidth(20)
-        self.toolbar.addWidget(wideSep2)
-        # add system prompt selection
-        self.llmSPCB = QComboBox()
+        self.toolbar.addWidget(self._toolbarSpacer())
         self.toolbar.addWidget(self.llmSPCB)
-        # add service selection
+        self.llmSPCB.activated.connect(self.changeSystemPrompt)
         self.toolbar.addSeparator()
-        self.serviceCB = QComboBox()
         self.toolbar.addWidget(self.serviceCB)
-        wideSep3 = QWidget()
-        wideSep3.setFixedWidth(20)
-        self.toolbar.addWidget(wideSep3)
-        # add RAG ingestion action
+        self.toolbar.addWidget(self._toolbarSpacer())
         ragAction = QAction('', self, icon=qta.icon('mdi.database-plus'), toolTip='Add files to knowledge base')
         ragAction.triggered.connect(self.addRagSources)
         self.toolbar.addAction(ragAction)
-        wideSep4 = QWidget()
-        wideSep4.setFixedWidth(20)
-        self.toolbar.addWidget(wideSep4)
-        # add agents use
+        self.toolbar.addWidget(self._toolbarSpacer())
         self.agentIcon = qta.icon('fa5s.robot')
         self.agentIconInverted = invertIcon(self.agentIcon)
         self.agentUseAction = QAction('', self, icon=self.agentIcon, toolTip='Allow to use LLM Agents')
         self.agentUseAction.triggered.connect(self.toggleAgentsUse)
         self.toolbar.addAction(self.agentUseAction)
-        # add connect to PASTA-ELN
         self.pastaUseIcon = qta.icon('mdi.pasta')
         self.pastaUseIconInverted = invertIcon(self.pastaUseIcon)
         self.pastaUseAction = QAction('', self, icon=self.pastaUseIcon, toolTip='Link and use PASTA-ELN database')
         self.pastaUseAction.triggered.connect(self.linkPastaELN)
         self.toolbar.addAction(self.pastaUseAction)
-        # configuration action
-        wideSep5 = QWidget()
-        wideSep5.setFixedWidth(20)
-        self.toolbar.addWidget(wideSep5)
+        self.toolbar.addWidget(self._toolbarSpacer())
         configAction = QAction('', self, icon=qta.icon('fa5s.cog'), toolTip='Configuration',
                                shortcut=QKeySequence('Ctrl+0'))
         configAction.triggered.connect(self.showConfiguration)
@@ -118,93 +94,109 @@ class Wallo(QMainWindow):
         self.onConfigChanged()
 
 
+    def _toolbarSpacer(self, width: int = 20) -> QWidget:
+        spacer = QWidget()
+        spacer.setFixedWidth(width)
+        return spacer
+
+
+    def _activeExchangeIndex(self) -> int | None:
+        for idx, exchange in enumerate(self.exchanges):
+            if exchange.btnState == 'show':
+                return idx
+        return None
+
+
+    def _moveActiveExchange(self, step: int) -> None:
+        activeIdx = self._activeExchangeIndex()
+        if activeIdx is None:
+            return
+        newIdx = activeIdx + step
+        if not 0 <= newIdx < len(self.exchanges):
+            return
+        self.exchanges[activeIdx].hideButtons()
+        self.exchanges[newIdx].showButtons()
+        self.exchanges[newIdx].focusForTyping()
+
+
     def layoutExchanges(self) -> None:
-        """ Put the exchanges into the main layout """
-        for i in reversed(range(self.mainLayout.count())):
-            widget = self.mainLayout.itemAt(i).widget()
+        """Put the exchanges into the main layout."""
+        while self.mainLayout.count():
+            widget = self.mainLayout.takeAt(0).widget()
             if widget is not None:
                 widget.setParent(None)
         for exchange in self.exchanges:
             self.mainLayout.addWidget(exchange)
-        dummy = QWidget()
-        self.mainLayout.addWidget(dummy, stretch=2)
-
+        self.mainLayout.addStretch(2)
 
 
     def changeActive(self) -> None:
-        """for all exchanges: change the showing of the buttons"""
+        """For all exchanges: change the showing of the buttons."""
         for exchange in self.exchanges:
             if exchange.btnState == 'waiting':
                 exchange.showButtons()
             else:
                 exchange.hideButtons()
 
-    def keyPressEvent(self, event:QKeyEvent) -> None:
-        """ Handle key press events
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Handle key press events.
+
         Args:
             event (QKeyEvent): The key press event.
         """
-        if event.key() == Qt.Key.Key_PageDown and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            idxs = [i for i,j in enumerate(self.exchanges) if j.btnState == 'show']
-            if idxs and idxs[0]<len(self.exchanges)-1:
-                self.exchanges[idxs[0]].hideButtons()
-                self.exchanges[idxs[0]+1].showButtons()
-                self.exchanges[idxs[0]+1].focusForTyping()
-        elif event.key() == Qt.Key.Key_PageUp   and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            idxs = [i for i,j in enumerate(self.exchanges) if j.btnState == 'show']
-            if idxs and idxs[0]>0:
-                self.exchanges[idxs[0]-1].showButtons()
-                self.exchanges[idxs[0]].hideButtons()
-                self.exchanges[idxs[0]-1].focusForTyping()
-        else:
-            super().keyPressEvent(event)
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            if event.key() == Qt.Key.Key_PageDown:
+                self._moveActiveExchange(1)
+                return
+            if event.key() == Qt.Key.Key_PageUp:
+                self._moveActiveExchange(-1)
+                return
+        super().keyPressEvent(event)
 
 
     def addExchanges(self, uuid: str, texts: list[str]) -> None:
-        """ Add exchanges
+        """Add exchanges.
+
         Args:
           uuid (str): The UUID of the exchange.
           texts (list[str]): texts to be added into new exchanges
         """
-        idx = [i.uuid for i in self.exchanges].index(uuid)
-        if idx<len(self.exchanges)-1:
-            for text in texts:
-                self.exchanges.insert(idx+1, Exchange(self, text))
-        else:
-            for text in texts:
-                self.exchanges.append(Exchange(self, text))
+        idx = [exchange.uuid for exchange in self.exchanges].index(uuid)
+        insertPos = idx + 1
+        self.exchanges[insertPos:insertPos] = [Exchange(self, text) for text in texts]
         self.layoutExchanges()
 
 
     def saveToFile(self, dType: str) -> None:
-        """Save the content of the editor as a .docx or .md file.
+        """Save the content of the editor to file.
+
         Args:
-            type (str): The type of file to save (e.g., 'text' or 'tts').
+            dType (str): The type of file to save (e.g., 'text' or 'tts').
         """
         filterText = 'Word Files (*.docx);;Markdown Files (*.md)' if dType == 'text' else 'Audio Files (*.mp3)'
-        filename, _selFilter = QFileDialog.getSaveFileName(self, 'Save to File', str(Path.home()), filterText)
+        filename, _ = QFileDialog.getSaveFileName(self, 'Save to File', str(Path.home()), filterText)
         if not filename:
             return
-        content = ''
-        for exchange in self.exchanges:
-            content += str(exchange)
+        content = ''.join(str(exchange) for exchange in self.exchanges)
         if dType == 'text':
             if filename.lower().endswith('.docx'):
-                pypandoc.convert_text(content, 'docx', format='md', outputfile=filename,
-                                      extra_args=['--standalone'])
-            else:
-                with open(filename, 'w', encoding='utf-8') as fh:
-                    fh.write(content)
-        else:
-            possOpenAI = self.configManager.getOpenAiServices()
-            if not possOpenAI:
-                QMessageBox.critical(None, 'Configuration error', 'No OpenAI services configured')
-            apiKey=self.configManager.getServiceByName(possOpenAI[0])['api']
-            self.runWorker('tts', {'apiKey':apiKey, 'filePaths': filename, 'content': content, 'senderID': 'tts'})
+                pypandoc.convert_text(content, 'docx', format='md', outputfile=filename, extra_args=['--standalone'])
+                return
+            with open(filename, 'w', encoding='utf-8') as fh:
+                fh.write(content)
+            return
+        possOpenAI = self.configManager.getOpenAiServices()
+        if not possOpenAI:
+            QMessageBox.critical(None, 'Configuration error', 'No OpenAI services configured')
+            return
+        apiKey = self.configManager.getServiceByName(possOpenAI[0])['api']
+        self.runWorker('tts', {'apiKey': apiKey, 'filePaths': filename, 'content': content, 'senderID': 'tts'})
 
 
     def runWorker(self, workType: str, work: dict[str, Any]) -> None:
         """Run a worker thread to perform the specified work -> keep GUI responsive.
+
         Args:
             workType (str): The type of work to be performed (e.g., 'chatAPI', 'pdfExtraction').
             work (dict): The work parameters, such as client, model, prompt, and fileName.
@@ -223,23 +215,25 @@ class Wallo(QMainWindow):
 
     def onWorkerFinished(self, content: str, senderID: str, workType: str) -> None:
         """Handle the completion of the LLM worker.
+
         Args:
             content (str): The content generated by the LLM worker.
             senderID (str): The sender ID of the exchange
             workType (str): The type of work performed (e.g., 'chatAPI', 'pdfExtraction')
         """
-        processContent = self.llmProcessor.processLLMResponse(content)  # remove starting / trailing stuff
+        processContent = self.llmProcessor.processLLMResponse(content)
         for exchange in self.exchanges:
             exchange.setReply(processContent, senderID, workType)
 
 
     def onWorkerError(self, errorMsg: str, senderID: str) -> None:
         """Handle errors from the LLM worker.
+
         Args:
             errorMsg (str): The error message from the worker.
             senderID (str): The sender ID of the exchange
         """
-        QMessageBox.critical(self, 'Worker Error', f"{errorMsg} by senderID {senderID}")
+        QMessageBox.critical(self, 'Worker Error', f'{errorMsg} by senderID {senderID}')
 
 
     def toggleSpellcheck(self) -> None:
@@ -259,23 +253,23 @@ class Wallo(QMainWindow):
 
     def linkPastaELN(self) -> None:
         """Toggle PASTA-ELN use on or off."""
-        filename = QFileDialog.getOpenFileName(self, 'Select a PASTA-ELN database', str(Path.home()),
-                                               'SQLite Files (*.db)')
+        filename, _ = QFileDialog.getOpenFileName(self, 'Select a PASTA-ELN database', str(Path.home()),
+                                                  'SQLite Files (*.db)')
         if filename:
-            self.llmProcessor.agents.usePastaEln = filename[0]
+            self.llmProcessor.agents.usePastaEln = filename
             self.pastaUseAction.setIcon(self.pastaUseIconInverted)
 
 
     def addRagSources(self) -> None:
         """Open a file or folder dialog to add sources to the RAG knowledge base."""
-        filePaths, _ = QFileDialog.getOpenFileNames(self, 'Select files to add to knowledge base', '','All Files (*)')
+        filePaths, _ = QFileDialog.getOpenFileNames(self, 'Select files to add to knowledge base', '', 'All Files (*)')
         if not filePaths:
             directory = QFileDialog.getExistingDirectory(self, 'Select folder to add to knowledge base')
             if directory:
                 filePaths = [directory]
         if not filePaths:
             return
-        self.runWorker('ingestRAG', {'runnable':self.llmProcessor.ragIndexer, 'filePaths': filePaths})
+        self.runWorker('ingestRAG', {'runnable': self.llmProcessor.ragIndexer, 'filePaths': filePaths})
 
 
     def showConfiguration(self) -> None:
@@ -294,7 +288,6 @@ class Wallo(QMainWindow):
         systemPrompts = self.configManager.get('system-prompts')
         for prompt in systemPrompts:
             self.llmSPCB.addItem(prompt['name'])
-        self.llmSPCB.activated.connect(self.changeSystemPrompt)
         self.serviceCB.clear()
         services = self.configManager.get('services')
         if isinstance(services, dict):
@@ -303,6 +296,7 @@ class Wallo(QMainWindow):
 
     def changeSystemPrompt(self, _: int) -> None:
         """Change the system prompt used by the LLM.
+
         Args:
             _ (int): The index of the selected system prompt.
         """
@@ -310,7 +304,7 @@ class Wallo(QMainWindow):
         try:
             self.llmProcessor.setSystemPrompt(promptName)
         except Exception as e:
-            QMessageBox.critical(self, 'Error', f"An unexpected error occurred: {str(e)}")
+            QMessageBox.critical(self, 'Error', f'An unexpected error occurred: {str(e)}')
 
 
 if __name__ == '__main__':

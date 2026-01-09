@@ -2,16 +2,17 @@
 - All LLM logic is here
 """
 from typing import Any
-from langchain_openai import ChatOpenAI
 from langchain_community.document_loaders.parsers.audio import OpenAIWhisperParser
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from PySide6.QtWidgets import QMessageBox  # pylint: disable=no-name-in-module
 from .agents import Agents
 from .configManager import ConfigurationManager
 from .ragIndexer import RagIndexer
+
 
 class LLMProcessor:
     """Handles LLM API interactions and prompt processing."""
@@ -26,12 +27,8 @@ class LLMProcessor:
         self.systemPrompt = 'You are a helpful assistant.'
         self.messageHistory = InMemoryChatMessageHistory()
         self.systemPromptInjected = False
-        try:
-            self.messageHistory.add_message(SystemMessage(content=self.systemPrompt))
-            self.systemPromptInjected = True
-        except Exception:
-            self.systemPromptInjected = False
-        self.runnable:None|RunnableWithMessageHistory = None
+        self._injectSystemPrompt(self.systemPrompt)
+        self.runnable: RunnableWithMessageHistory | None = None
         # TODO P4 system of services for RAG, TTS and STT: all from one provider?
         # Temporary openAI services only
         # currently, only OpenAI embeddings are implemented, get those that quality
@@ -40,11 +37,24 @@ class LLMProcessor:
         possOpenAI = self.configManager.getOpenAiServices()
         if not possOpenAI:
             QMessageBox.critical(None, 'Configuration error', 'No OpenAI services configured')
-        self.sttParser = OpenAIWhisperParser(api_key=self.configManager.getServiceByName(possOpenAI[0])['api'])
-        self.ragIndexer = RagIndexer(self.configManager.getServiceByName(possOpenAI[0])['api'])
+            return
+        apiKey = self.configManager.getServiceByName(possOpenAI[0])['api']
+        self.sttParser = OpenAIWhisperParser(api_key=apiKey)
+        self.ragIndexer = RagIndexer(apiKey)
         self.agents = Agents()
 
-    def createClientFromConfig(self, serviceConfig: dict[str,str]) -> Any:
+
+    def _injectSystemPrompt(self, prompt: str) -> None:
+        """Inject a system prompt into the message history."""
+        self.systemPromptInjected = False
+        try:
+            self.messageHistory.add_message(SystemMessage(content=prompt))
+            self.systemPromptInjected = True
+        except Exception:
+            pass
+
+
+    def createClientFromConfig(self, serviceConfig: dict[str, str]) -> Any:
         """Create a LangChain LLM from service config.
 
         Supported types:
@@ -58,7 +68,7 @@ class LLMProcessor:
         if not apiKey:
             raise ValueError('API key not configured for the service')
         if serviceType == 'openAI':
-            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, temperature=0.7) # type: ignore[arg-type]
+            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, temperature=0.7)  # type: ignore[arg-type]
         if serviceType == 'Gemini':
             return ChatGoogleGenerativeAI(model=model, google_api_key=apiKey, temperature=0.7)
         raise ValueError(f"Unknown service type '{serviceType}'")
@@ -70,24 +80,18 @@ class LLMProcessor:
         When the system prompt changes, it is appended as a new SystemMessage
         so the conversation continues chronologically.
         """
-        systemPrompts = self.configManager.get('system-prompts')
-        for prompt in systemPrompts:
+        for prompt in self.configManager.get('system-prompts'):
             if prompt['name'] == promptName:
                 self.systemPrompt = prompt['system-prompt']
                 if self.agents.useAgents:
                     self.systemPrompt += '\n\n' + self.agents.getAgentCoordinatorPrompt()
-                try:
-                    self.messageHistory.add_message(SystemMessage(content=self.systemPrompt))
-                    self.systemPromptInjected = True
-                except Exception:
-                    self.systemPromptInjected = False
+                self._injectSystemPrompt(self.systemPrompt)
                 return
         raise ValueError(f"System prompt '{promptName}' not found in configuration")
 
 
-    def processPrompt(self, senderID:str, promptName: str, serviceName: str,
-                      selectedText: str = '', pdfFilePath: str = '',
-                      inquiryResponse: str = '', ragUsage: bool = False) -> dict[str, Any]:
+    def processPrompt(self, senderID: str, promptName: str, serviceName: str, selectedText: str = '',
+                      pdfFilePath: str = '', inquiryResponse: str = '', ragUsage: bool = False) -> dict[str, Any]:
         """Process a prompt based on its attachment type.
 
         Args:
@@ -108,11 +112,9 @@ class LLMProcessor:
         if not serviceConfig:
             raise ValueError(f"Service '{serviceName}' not found in configuration")
         llm = self.createClientFromConfig(serviceConfig)
-
         # since LLM is defined, check if message-history defined. If not, define it
         if self.runnable is None:
             self.runnable = RunnableWithMessageHistory(llm, lambda: self.messageHistory)
-
         # Prepare prompt configuration
         promptConfig: dict[str, Any] = self.configManager.getPromptByName(promptName)
         prompt = f"{promptConfig['user-prompt']}\\n" if promptConfig['user-prompt'] else ''
@@ -120,8 +122,8 @@ class LLMProcessor:
             inquiryText = promptConfig['user-prompt'].split('|')[1]
             prompt = promptConfig['user-prompt'].replace(f'|{inquiryText}|', inquiryResponse)
 
-        # Assemble work for 2nd thread based on task
-        result = {
+        # return work for 2nd thread based on task
+        return {
             'runnable'      : self.runnable,
             'llmClient'     : llm,
             'messageHistory': self.messageHistory,
@@ -132,11 +134,11 @@ class LLMProcessor:
             'ragRunnable'   : self.ragIndexer if ragUsage else None,
             'agentTools'    : self.agents.getAgentTools()
         }
-        return result
 
 
     def processLLMResponse(self, content: str) -> str:
         """Process and clean LLM response content.
+        - Remove code block markers if present
 
         Args:
             content: Raw content from the LLM response.
@@ -145,9 +147,8 @@ class LLMProcessor:
             Cleaned and processed content.
         """
         content = content.strip()
-        # Remove code block markers if present
-        if content.endswith('```'):
-            content = content[:-3].strip()
         if content.startswith('```'):
             content = content.split('\n', 1)[-1].strip()
-        return content
+        if content.endswith('```'):
+            content = content[:-3].rstrip()
+        return content.strip()
