@@ -1,10 +1,50 @@
 """Tab for managing services."""
+import json
 from typing import Any, Optional
-from PySide6.QtCore import Qt  # pylint: disable=no-name-in-module
+from PySide6.QtCore import Qt, QRegularExpression  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QFont, QTextDocument  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, # pylint: disable=no-name-in-module
-                               QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton,
+                               QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton, QTextEdit,
                                QVBoxLayout, QWidget, QComboBox)
 from .configManager import ConfigurationManager
+
+
+class JsonSyntaxHighlighter(QSyntaxHighlighter):
+    """Simple JSON highlighting for the parameter editor."""
+
+    def __init__(self, parent: QTextDocument) -> None:
+        super().__init__(parent)
+        self.keyFormat = self._makeFormat('#9cdcfe')
+        self.stringFormat = self._makeFormat('#ce9178')
+        self.numberFormat = self._makeFormat('#b5cea8')
+        self.keywordFormat = self._makeFormat('#569cd6')
+        self.braceFormat = self._makeFormat('#d7ba7d')
+        self.colonFormat = self._makeFormat('#d4d4d4')
+        self.rules: list[tuple[QRegularExpression, QTextCharFormat]] = [
+            (QRegularExpression(r'"([^"\\]|\\.)*"(?=\s*:)'), self.keyFormat),
+            (QRegularExpression(r'"([^"\\]|\\.)*"(?!\s*:)'), self.stringFormat),
+            (QRegularExpression(r'\b-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b'), self.numberFormat),
+            (QRegularExpression(r'\b(true|false|null)\b'), self.keywordFormat),
+            (QRegularExpression(r'[{}\[\]]'), self.braceFormat),
+            (QRegularExpression(r':'), self.colonFormat)
+        ]
+
+    def highlightBlock(self, text: str) -> None:
+        for pattern, fmt in self.rules:
+            matchIterator = pattern.globalMatch(text)
+            while matchIterator.hasNext():
+                match = matchIterator.next()
+                start = match.capturedStart()
+                length = match.capturedLength()
+                if length > 0:
+                    self.setFormat(start, length, fmt)
+
+    @staticmethod
+    def _makeFormat(color: str, weight: QFont.Weight = QFont.Weight.Normal) -> QTextCharFormat:
+        fmt = QTextCharFormat()
+        fmt.setForeground(QColor(color))
+        fmt.setFontWeight(weight)
+        return fmt
 
 
 class ServiceTab(QWidget):
@@ -50,12 +90,19 @@ class ServiceTab(QWidget):
         self.urlLabel = QLabel()
         self.apiLabel = QLabel()
         self.modelLabel = QLabel()
+        self.parameterPreview = QTextEdit()
+        self.parameterPreview.setReadOnly(True)
+        self.parameterPreview.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+        self.parameterPreview.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.parameterPreviewHighlighter = JsonSyntaxHighlighter(self.parameterPreview.document())
         self.typeLabel = QLabel()
         previewLayout.addRow('Name:',    self.nameLabel)
         previewLayout.addRow('URL:',     self.urlLabel)
         previewLayout.addRow('API Key:', self.apiLabel)
         previewLayout.addRow('Model:',   self.modelLabel)
+        previewLayout.addRow('Parameter:',   self.parameterPreview)
         previewLayout.addRow('Type:',    self.typeLabel)
+
         rightLayout.addWidget(self.previewGroup)
         rightLayout.addStretch()
         # Add left and right layouts to main layout
@@ -85,13 +132,16 @@ class ServiceTab(QWidget):
             self.urlLabel.setText(service.get('url', ''))
             self.apiLabel.setText('***' if service.get('api') else 'None')
             self.modelLabel.setText(service['model'])
+            self.parameterPreview.setPlainText(self._formatJsonPreview(service.get('parameter', '{}')))
             self.typeLabel.setText(service['type'])
         else:
             self.nameLabel.clear()
             self.urlLabel.clear()
             self.apiLabel.clear()
             self.modelLabel.clear()
+            self.parameterPreview.clear()
             self.typeLabel.clear()
+
 
 
     def addService(self) -> None:
@@ -142,6 +192,16 @@ class ServiceTab(QWidget):
             self.configManager.updateConfig({'services': services})
             self.loadServices()
 
+    @staticmethod
+    def _formatJsonPreview(value: str) -> str:
+        if not value:
+            return ''
+        try:
+            parsed = json.loads(value)
+            return json.dumps(parsed, indent=2)
+        except json.JSONDecodeError:
+            return value
+
 
 class ServiceEditDialog(QDialog):
     """Dialog for editing service configuration."""
@@ -170,6 +230,9 @@ class ServiceEditDialog(QDialog):
         formLayout.addRow('API Key:', self.apiEdit)
         self.modelEdit = QLineEdit()
         formLayout.addRow('Model:', self.modelEdit)
+        self.parameterEdit = QTextEdit()
+        self.parameterHighlighter = JsonSyntaxHighlighter(self.parameterEdit.document())
+        formLayout.addRow('Parameter:', self.parameterEdit)
         self.typeEdit = QComboBox()
         self.typeEdit.addItems(['openAI', 'Gemini'])
         self.typeEdit.setCurrentText(self.service['type'])
@@ -189,6 +252,7 @@ class ServiceEditDialog(QDialog):
             self.urlEdit.setText(self.service.get('url', ''))
             self.apiEdit.setText(self.service.get('api', '') or '')
             self.modelEdit.setText(self.service.get('model', ''))
+            self.parameterEdit.setText(json.dumps(json.loads(self.service.get('parameter', '{}')), indent=2))
             self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
 
 
@@ -199,6 +263,7 @@ class ServiceEditDialog(QDialog):
             'url': self.urlEdit.text().strip(),
             'api': self.apiEdit.text().strip() or None,
             'model': self.modelEdit.text().strip(),
+            'parameter': json.dumps(json.loads(self.parameterEdit.toPlainText())),
             'type': self.typeEdit.currentText()
         }
         return name, service

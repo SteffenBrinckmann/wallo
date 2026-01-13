@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Any, Optional
 
 from PySide6.QtCore import Qt  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QTextOption  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, # pylint: disable=no-name-in-module
                                QLabel, QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton,
                                QTextEdit, QVBoxLayout, QWidget)
@@ -77,8 +78,11 @@ class PromptTab(QWidget):
         previewLayout = QFormLayout(self.previewGroup)
         self.nameLabel = QLabel()
         previewLayout.addRow('Name:', self.nameLabel)
-        self.userPromptLabel = QLabel()
-        self.userPromptLabel.setWordWrap(True)
+        self.userPromptLabel = QTextEdit()
+        self.userPromptLabel.setWordWrapMode(QTextOption.WrapMode.NoWrap)
+        self.userPromptLabel.setReadOnly(True)
+
+
         if self.cType == PromptType.PROMPT:
             self.descriptionLabel = QLabel()
             self.inquiryLabel = QLabel()
@@ -225,6 +229,7 @@ class PromptEditDialog(QDialog):
         self.setWindowTitle('Edit Prompt' if prompt else 'Add Prompt')
         self.setModal(True)
         self.resize(500, 400)
+        self.setMaximumHeight(1024)
         self.prompt = prompt or {}
         self.cType = cType
         self.setupUI()

@@ -1,6 +1,7 @@
 """LLM processing and interaction logic for the Wallo application.
 - All LLM logic is here
 """
+import json
 from typing import Any
 from langchain_community.document_loaders.parsers.audio import OpenAIWhisperParser
 from langchain_core.chat_history import InMemoryChatMessageHistory
@@ -63,14 +64,15 @@ class LLMProcessor:
         """
         serviceType = serviceConfig['type']
         model       = serviceConfig['model']
+        parameter   = json.loads(serviceConfig['parameter'])
         apiKey      = serviceConfig['api']
         baseUrl     = serviceConfig.get('url') or None  #None if url-string==''
         if not apiKey:
             raise ValueError('API key not configured for the service')
         if serviceType == 'openAI':
-            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, temperature=0.7)  # type: ignore[arg-type]
+            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, **parameter)
         if serviceType == 'Gemini':
-            return ChatGoogleGenerativeAI(model=model, google_api_key=apiKey, temperature=0.7)
+            return ChatGoogleGenerativeAI(model=model, google_api_key=apiKey, **parameter)
         raise ValueError(f"Unknown service type '{serviceType}'")
 
 

@@ -91,7 +91,7 @@ The application uses a JSON configuration file (`~/.wallo.json`) that includes (
 - **Spacing** use two empty lines between each function
 - **Imports:** no wildcard-with-`__all__` allowed.
 - **Exception:** Prefer no exceptions; if needed, catch broad exceptions only at UI/worker boundaries.
-- **Spaces:** Don’t run auto-formatters; minimize whitespace-only diffs.
+- **Spaces:** Don’t run auto-formatters; preserve whitespaces inside a code line.
 - **Quotes:** use single quotes, when possible.
 - **Reduce get-usage** for dictionaries unless a default value is given. Prefer to use index-notation [] for readability.
 - **Refactoring** Prefer small patches; avoid refactors unless requested.

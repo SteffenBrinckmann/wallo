@@ -37,9 +37,10 @@
           "url": { "type": "string" },
           "api": { "type": "string" },
           "type": { "type": "string" },
-          "model": { "type": "string" }
+          "model": { "type": "string" },
+          "parameter": { "type": "string" }
         },
-        "required": ["api", "model", "type"],
+        "required": ["api", "model", "type","parameter"],
         "additionalProperties": true
       }
     },
