@@ -30,6 +30,10 @@ class JsonSyntaxHighlighter(QSyntaxHighlighter):
         ]
 
     def highlightBlock(self, text: str) -> None:
+        """Highlight the given text block.
+        Args:
+            text (str): The text to highlight.
+        """
         for pattern, fmt in self.rules:
             matchIterator = pattern.globalMatch(text)
             while matchIterator.hasNext():

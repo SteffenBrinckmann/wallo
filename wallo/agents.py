@@ -155,8 +155,9 @@ class Agents:
         )
         if self.usePastaEln:
             coordinator += (
-            '- sqliteDescribe() -> str. (To describe the sql database that PASTA-ELN uses to store scientific, materials science data)\n'
-            '- sqliteQuery(query: str, params: dict|None, limit: int) -> str (read-only. Database that stores the data for PASTA-ELN).\n'
+            '- sqliteDescribe() -> str. (To describe the sql database that PASTA-ELN uses to store scientific,'
+            ' materials science data)\n- sqliteQuery(query: str, params: dict|None, limit: int) -> str (read-only.'
+            ' Database that stores the data for PASTA-ELN).\n'
             )
         coordinator += (
             'If the user asks about the sqlite database, call sqliteDescribe() first.\n'

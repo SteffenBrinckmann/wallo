@@ -90,7 +90,7 @@ class Exchange(QWidget):
             (3, 2, self.attachFile),
             (1, 3, self.splitParagraphs),
             (2, 3, self.addExchangeNext),
-            (3, 3, self.showStatus),
+            (3, 3, self.clearBoth),
 
         ]
         shortcuts = {'11':'7','21':'8','31':'9','12':'4','22':'5','32':'6','13':'1','23':'2','33':'3'}
@@ -106,7 +106,7 @@ class Exchange(QWidget):
             btnLayout.addWidget(button, y, x)
         self.llmCB = QComboBox()
         self.llmCB.setMaximumWidth(120)
-        self.populateLlmComboBox()
+        self._populateLlmComboBox()
         self.llmCB.activated.connect(self.useLLM)
         btnLayout.addWidget(self.llmCB, 9, 1, 1, 3)
         # Reserve the button-column space when collapsed: compute width and hide buttons
@@ -173,6 +173,22 @@ class Exchange(QWidget):
         if state:
             return name, icon, tooltip
         self.text1.setMarkdown('')
+        return ('', '', '')
+
+
+    def clearBoth(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: clear both text-boxes
+        Args:
+            state (bool): return state
+        """
+        name       = 'clearBothBtn'
+        icon       = 'mdi.delete-alert'
+        tooltip    = 'Delete both'
+        if state:
+            return name, icon, tooltip
+        self.text1.setMarkdown('')
+        self.text2.setMarkdown('')
+        self.text2.hide()
         return ('', '', '')
 
 
@@ -445,6 +461,7 @@ class Exchange(QWidget):
             action.setEnabled(True)
         self.btnWidget.setFixedWidth(self.btnBoxWidth)
         self.btnState = 'show'
+        self._populateLlmComboBox()
 
 
     def hideButtons(self) -> None:
@@ -458,12 +475,14 @@ class Exchange(QWidget):
             action.setEnabled(False)
         self.btnWidget.setFixedWidth(self.btnBoxWidth)
         self.btnState = 'hidden'
+        if not self.text2.toMarkdown().strip():
+            self.text2.hide()
         self.text1.adjustHeightToContents(1 if self.text2.isHidden() else 2)
         self.text2.adjustHeightToContents(1 if self.text1.isHidden() else 2)
 
 
 
-    def populateLlmComboBox(self) -> None:
+    def _populateLlmComboBox(self) -> None:
         """Populate the LLM combo box with available prompts."""
         self.llmCB.clear()
         # add LLM selections
@@ -472,7 +491,7 @@ class Exchange(QWidget):
             if i < 10:  # Limit to Ctrl+1 through Ctrl+9 and Ctrl+0
                 shortcutNumber = (i + 1) % 10  # 1-9, then 0 for the 10th item
                 shortcut = f"Ctrl+{shortcutNumber}"
-                displayText = f"{prompt['description']} ({shortcut})"
+                displayText = f"{prompt['name']} ({shortcut})"
                 self.llmCB.addItem(displayText, prompt['name'])
                 # Create shortcut action
                 shortcutAction = QAction(self)
@@ -481,7 +500,7 @@ class Exchange(QWidget):
                 shortcutAction.triggered.connect(lambda _checked=False, index=i: self.useShortcut(index))
                 self.addAction(shortcutAction)
             else:
-                self.llmCB.addItem(prompt['description'], prompt['name'])
+                self.llmCB.addItem(prompt['name'], prompt['name'])
 
 
     def useShortcut(self, index: int) -> None:

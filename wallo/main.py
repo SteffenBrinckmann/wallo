@@ -1,6 +1,7 @@
 """Main window for the Wallo application, providing a text editor with LLM assistance."""
 
 import sys
+from functools import partial
 from pathlib import Path
 from typing import Any
 import pypandoc
@@ -27,8 +28,8 @@ class Wallo(QMainWindow):
             self.configManager.updateConfig({'startCounts': self.configManager.get('startCounts') - 1})
         self.llmProcessor = LLMProcessor(self.configManager)
         self.configWidget: ConfigurationWidget | None = None
-        self.subThread: QThread | None = None
-        self.worker: Worker | None = None
+        self.activeThreads: list[QThread] = []
+        self.activeWorkers: list[Worker] = []
         self.spellcheck = True
         self.serviceCB = QComboBox()
         self.llmSPCB = QComboBox()
@@ -201,16 +202,27 @@ class Wallo(QMainWindow):
             workType (str): The type of work to be performed (e.g., 'chatAPI', 'pdfExtraction').
             work (dict): The work parameters, such as client, model, prompt, and fileName.
         """
-        self.subThread = QThread()
-        self.worker = Worker(workType, work)
-        self.worker.moveToThread(self.subThread)
-        self.subThread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.onWorkerFinished)
-        self.worker.error.connect(self.onWorkerError)
-        self.worker.finished.connect(self.subThread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.subThread.finished.connect(self.subThread.deleteLater)
-        self.subThread.start()
+        thread = QThread()
+        worker = Worker(workType, work)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.finished.connect(self.onWorkerFinished)
+        worker.error.connect(self.onWorkerError)
+        worker.finished.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        thread.finished.connect(partial(self._onThreadFinished, thread, worker))
+        thread.finished.connect(thread.deleteLater)
+        self.activeThreads.append(thread)
+        self.activeWorkers.append(worker)
+        thread.start()
+
+
+    def _onThreadFinished(self, thread: QThread, worker: Worker) -> None:
+        """Drop finished thread/worker references to allow cleanup."""
+        if thread in self.activeThreads:
+            self.activeThreads.remove(thread)
+        if worker in self.activeWorkers:
+            self.activeWorkers.remove(worker)
 
 
     def onWorkerFinished(self, content: str, senderID: str, workType: str) -> None:

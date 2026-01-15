@@ -33,10 +33,10 @@ class Worker(QObject):
         """ Run the worker based on the specified work type. """
         try:
             handler = {
-                'chatAPI': self._run_chat_api,
-                'transcribeAudio': self._run_transcribe_audio,
-                'ingestRAG': self._run_ingest_rag,
-                'tts': self._run_tts,
+                'chatAPI': self._runChatApi,
+                'transcribeAudio': self._runTranscribeAudio,
+                'ingestRAG': self._runIngestRag,
+                'tts': self._runTts,
             }.get(self.workType)
             if handler is None:
                 self.error.emit('Unknown work type', self.senderID, self.workType)
@@ -46,7 +46,7 @@ class Worker(QObject):
             self.error.emit(str(e), self.senderID, self.workType)
 
 
-    def _run_chat_api(self) -> None:
+    def _runChatApi(self) -> None:
         objects = self.objects
         # LLM
         prompt = objects['prompt']
@@ -83,7 +83,7 @@ class Worker(QObject):
         self.finished.emit(content, self.senderID, self.workType)
 
 
-    def _run_transcribe_audio(self) -> None:
+    def _runTranscribeAudio(self) -> None:
         """ Transcribe the audio into text """
         runnable = self.objects['runnable']
         blob     = Blob.from_path(self.objects['path'])
@@ -92,7 +92,7 @@ class Worker(QObject):
         self.finished.emit(content, self.senderID, self.workType)
 
 
-    def _run_ingest_rag(self) -> None:
+    def _runIngestRag(self) -> None:
         """ Ingest pdf files into the RAG database """
         runnable  = self.objects['runnable']
         filePaths = self.objects['filePaths']
@@ -100,7 +100,7 @@ class Worker(QObject):
         self.finished.emit(f'Success | Chunks indexed: {chunks}', self.senderID, self.workType)
 
 
-    def _run_tts(self) -> None:
+    def _runTts(self) -> None:
         # TODO P4 TTS via Langchain, if available; ElevenLabs other good provider
         client   = OpenAI(api_key=self.objects['apiKey'])
         text     = self.objects['content']

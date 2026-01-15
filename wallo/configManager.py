@@ -7,14 +7,12 @@ from jsonschema import validate, ValidationError
 DEFAULT_CONFIGURATION = {
     'prompts': [
         {
-            'name': 'Professional',
-            'description': 'Make the text professional',
+            'name': 'Make the text professional',
             'user-prompt': 'Can you make the following paragraph more professional and polished:',
             'attachment':  'selection'
         },
         {
-            'name': 'summarize_paper',
-            'description': 'Summarize pdf after uploading it',
+            'name': 'summarize the paper',
             'user-prompt': 'Can you summarize the following paper:',
             'attachment':  'pdf'
         }
@@ -99,7 +97,7 @@ class ConfigurationManager:
         for prompt in prompts:
             if prompt['name'] == name:
                 return prompt  # type: ignore
-        default = {'name': '', 'description': 'Default chat exchange', 'user-prompt': '', 'inquiry': False}
+        default = {'name': 'default', 'user-prompt': '', 'inquiry': False}
         return default
 
 

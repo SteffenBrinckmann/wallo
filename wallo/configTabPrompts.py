@@ -45,6 +45,9 @@ class PromptTab(QWidget):
         self.addPromptBtn = QPushButton(' Add')
         self.addPromptBtn.setIcon(qta_icon('fa5s.plus'))
         self.addPromptBtn.clicked.connect(self.addPrompt)
+        self.copyPromptBtn = QPushButton(' Copy')
+        self.copyPromptBtn.setIcon(qta_icon('fa5s.copy'))
+        self.copyPromptBtn.clicked.connect(self.copyPrompt)
         self.editPromptBtn = QPushButton(' Edit')
         self.editPromptBtn.setIcon(qta_icon('fa5s.edit'))
         self.editPromptBtn.clicked.connect(self.editPrompt)
@@ -54,6 +57,7 @@ class PromptTab(QWidget):
         self.deletePromptBtn.clicked.connect(self.deletePrompt)
         self.deletePromptBtn.setEnabled(False)
         buttonLayout.addWidget(self.addPromptBtn)
+        buttonLayout.addWidget(self.copyPromptBtn)
         buttonLayout.addWidget(self.editPromptBtn)
         buttonLayout.addWidget(self.deletePromptBtn)
         # Up/Down buttons for ordering
@@ -84,9 +88,7 @@ class PromptTab(QWidget):
 
 
         if self.cType == PromptType.PROMPT:
-            self.descriptionLabel = QLabel()
             self.inquiryLabel = QLabel()
-            previewLayout.addRow('Description:', self.descriptionLabel)
             previewLayout.addRow('Inquiry:', self.inquiryLabel)
             previewLayout.addRow('User-Prompt:', self.userPromptLabel)
         else:
@@ -104,7 +106,7 @@ class PromptTab(QWidget):
         prompts = self.configManager.get(self.prompts)
         if self.cType == PromptType.PROMPT:
             for prompt in prompts:
-                item = QListWidgetItem(prompt['description'])
+                item = QListWidgetItem(prompt['name'])
                 item.setData(Qt.ItemDataRole.UserRole, prompt)
                 self.promptList.addItem(item)
         else:
@@ -124,7 +126,6 @@ class PromptTab(QWidget):
             prompt = current.data(Qt.ItemDataRole.UserRole)
             self.nameLabel.setText(prompt['name'])
             if self.cType == PromptType.PROMPT:
-                self.descriptionLabel.setText(prompt['description'])
                 self.inquiryLabel.setText('Yes' if prompt['inquiry'] else 'No')
                 self.userPromptLabel.setText(prompt['user-prompt'])
             else:
@@ -135,7 +136,6 @@ class PromptTab(QWidget):
         else:
             self.nameLabel.clear()
             if self.cType == PromptType.PROMPT:
-                self.descriptionLabel.clear()
                 self.inquiryLabel.clear()
             self.userPromptLabel.clear()
             self.upPromptBtn.setEnabled(False)
@@ -171,6 +171,22 @@ class PromptTab(QWidget):
             self.loadPrompts()
 
 
+    def copyPrompt(self) -> None:
+        """Copy the selected prompt."""
+        current = self.promptList.currentItem()
+        if not current:
+            return
+        prompt = current.data(Qt.ItemDataRole.UserRole)
+        prompt['name'] += ' (copy)'
+        dialog = PromptEditDialog(prompt, cType=self.cType, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            newPrompt = dialog.getPrompt()
+            prompts = self.configManager.get(self.prompts)
+            prompts.append(newPrompt)
+            self.configManager.updateConfig({self.prompts: prompts})
+            self.loadPrompts()
+
+
     def deletePrompt(self) -> None:
         """Delete the selected prompt."""
         current = self.promptList.currentItem()
@@ -180,7 +196,7 @@ class PromptTab(QWidget):
         result = QMessageBox.question(
             self,
             'Confirm Delete',
-            f"Are you sure you want to delete the prompt '{prompt['description']}'?",
+            f"Are you sure you want to delete the prompt '{prompt['name']}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -242,9 +258,6 @@ class PromptEditDialog(QDialog):
         formLayout = QFormLayout()
         self.nameEdit = QLineEdit()
         formLayout.addRow('Name:', self.nameEdit)
-        if self.cType == PromptType.PROMPT:
-            self.descriptionEdit = QLineEdit()
-            formLayout.addRow('Description:', self.descriptionEdit)
         self.userPromptEdit = QTextEdit()
         if self.cType == PromptType.PROMPT:
             self.userPromptEdit.setMinimumHeight(150)
@@ -271,7 +284,6 @@ class PromptEditDialog(QDialog):
             self.nameEdit.setText(self.prompt.get('name', ''))
             if self.cType == PromptType.PROMPT:
                 self.userPromptEdit.setPlainText(self.prompt.get('user-prompt', ''))
-                self.descriptionEdit.setText(self.prompt.get('description', ''))
                 self.inquiryCombo.setCurrentText('Yes' if self.prompt.get('inquiry') else 'No')
             else:
                 self.userPromptEdit.setPlainText(self.prompt.get('system-prompt', ''))
@@ -282,7 +294,6 @@ class PromptEditDialog(QDialog):
         if self.cType == PromptType.PROMPT:
             return {
                 'name': self.nameEdit.text().strip(),
-                'description': self.descriptionEdit.text().strip(),
                 'user-prompt': self.userPromptEdit.toPlainText().strip(),
                 'inquiry': self.inquiryCombo.currentText()=='Yes'
             }
@@ -300,9 +311,6 @@ class PromptEditDialog(QDialog):
             QMessageBox.warning(self, 'Validation Error', 'Name cannot be empty')
             return
         if self.cType == PromptType.PROMPT:
-            if not prompt['description']:
-                QMessageBox.warning(self, 'Validation Error', 'Description cannot be empty')
-                return
             if not prompt['user-prompt']:
                 QMessageBox.warning(self, 'Validation Error', 'User-prompt cannot be empty')
                 return

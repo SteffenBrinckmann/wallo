@@ -70,7 +70,7 @@ class LLMProcessor:
         if not apiKey:
             raise ValueError('API key not configured for the service')
         if serviceType == 'openAI':
-            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, **parameter)
+            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, **parameter) # type: ignore[arg-type]
         if serviceType == 'Gemini':
             return ChatGoogleGenerativeAI(model=model, google_api_key=apiKey, **parameter)
         raise ValueError(f"Unknown service type '{serviceType}'")
@@ -153,4 +153,9 @@ class LLMProcessor:
             content = content.split('\n', 1)[-1].strip()
         if content.endswith('```'):
             content = content[:-3].rstrip()
+        # horizontal rule(s) included
+        if '\n---\n' in content:
+            content = content.split('\n---\n')[1].strip()
+        # all replace
+        content = content.replace('~~','~').replace('\\\\', '\\')
         return content.strip()
