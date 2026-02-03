@@ -1,4 +1,5 @@
 """Tab for managing services."""
+import copy
 import json
 from typing import Any, Optional
 from PySide6.QtCore import Qt, QRegularExpression  # pylint: disable=no-name-in-module
@@ -193,6 +194,55 @@ class ServiceTab(QWidget):
             self.loadServices()
 
 
+class ModelEntryDialog(QDialog):
+    """Dialog to add or edit a model entry."""
+
+    def __init__(self, modelName: str = '', parameters: Optional[dict[str, Any]] = None,
+                 parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle('Model Entry')
+        self.setModal(True)
+        self.resize(400, 300)
+        self._modelName = modelName
+        self._parameters = parameters or {}
+        layout = QVBoxLayout(self)
+        formLayout = QFormLayout()
+        self.nameEdit = QLineEdit(modelName)
+        formLayout.addRow('Model Name:', self.nameEdit)
+        self.parameterEdit = QTextEdit()
+        self.parameterHighlighter = JsonSyntaxHighlighter(self.parameterEdit.document())
+        paramText = json.dumps(self._parameters, indent=2) if self._parameters else '{}'
+        self.parameterEdit.setText(paramText)
+        formLayout.addRow('Parameters:', self.parameterEdit)
+        layout.addLayout(formLayout)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttonBox.accepted.connect(self.accept)
+        buttonBox.rejected.connect(self.reject)
+        layout.addWidget(buttonBox)
+
+    def accept(self) -> None:
+        """Validate name and JSON parameters before accepting."""
+        name = self.nameEdit.text().strip()
+        if not name:
+            QMessageBox.warning(self, 'Validation Error', 'Model name cannot be empty')
+            return
+        text = self.parameterEdit.toPlainText().strip()
+        params: dict[str, Any] = {}
+        if text:
+            try:
+                params = json.loads(text)
+            except json.JSONDecodeError as exc:
+                QMessageBox.warning(self, 'Validation Error', f'Invalid JSON: {exc.msg}')
+                return
+        self._modelName = name
+        self._parameters = params
+        super().accept()
+
+    def getModel(self) -> tuple[str, dict[str, Any]]:
+        """Return the entered model name and parameters."""
+        return self._modelName, self._parameters
+
+
 class ServiceEditDialog(QDialog):
     """Dialog for editing service configuration."""
 
@@ -204,9 +254,9 @@ class ServiceEditDialog(QDialog):
         self.resize(400, 200)
         self.serviceName = serviceName
         self.service = service or {}
+        self.models: dict[str, dict[str, float]] = {}
         self.setupUI()
         self.loadService()
-
 
     def setupUI(self) -> None:
         """Setup the dialog UI."""
@@ -218,33 +268,104 @@ class ServiceEditDialog(QDialog):
         formLayout.addRow('URL:', self.urlEdit)
         self.apiEdit = QLineEdit()
         formLayout.addRow('API Key:', self.apiEdit)
-        self.modelEdit = QLineEdit()
-        formLayout.addRow('Model:', self.modelEdit)
-        self.parameterEdit = QTextEdit()
-        self.parameterHighlighter = JsonSyntaxHighlighter(self.parameterEdit.document())
-        formLayout.addRow('Parameter:', self.parameterEdit)
         self.typeEdit = QComboBox()
         self.typeEdit.addItems(['openAI', 'Gemini'])
-        self.typeEdit.setCurrentText(self.service['type'])
+        self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
         formLayout.addRow('Type:', self.typeEdit)
+        modelsWidget = QWidget()
+        modelsLayout = QHBoxLayout(modelsWidget)
+        self.modelsList = QListWidget()
+        modelsLayout.addWidget(self.modelsList)
+        buttonLayout = QVBoxLayout()
+        self.addModelBtn = QPushButton('Add')
+        self.addModelBtn.clicked.connect(self.addModel)
+        buttonLayout.addWidget(self.addModelBtn)
+        self.editModelBtn = QPushButton('Edit')
+        self.editModelBtn.clicked.connect(self.editModel)
+        self.editModelBtn.setEnabled(False)
+        buttonLayout.addWidget(self.editModelBtn)
+        self.removeModelBtn = QPushButton('Remove')
+        self.removeModelBtn.clicked.connect(self.removeModel)
+        self.removeModelBtn.setEnabled(False)
+        buttonLayout.addWidget(self.removeModelBtn)
+        buttonLayout.addStretch()
+        modelsLayout.addLayout(buttonLayout)
+        formLayout.addRow('Models:', modelsWidget)
         layout.addLayout(formLayout)
-        # Button box
+        self.modelsList.currentItemChanged.connect(self.onModelSelectionChanged)
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
         layout.addWidget(buttonBox)
 
-
     def loadService(self) -> None:
         """Load service data into form fields."""
         self.nameEdit.setText(self.serviceName)
-        if self.service:
-            self.urlEdit.setText(self.service.get('url', ''))
-            self.apiEdit.setText(self.service.get('api', '') or '')
-            self.modelEdit.setText(self.service.get('model', ''))
-            self.parameterEdit.setText(json.dumps(json.loads(self.service.get('parameter', '{}')), indent=2))
-            self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
+        self.urlEdit.setText(self.service.get('url', ''))
+        self.apiEdit.setText(self.service.get('api', '') or '')
+        self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
+        models = self._extractModels(self.service)
+        self.models = {name: dict(params) for name, params in models.items()}
+        self._refreshModelList()
 
+
+    def _extractModels(self, service: dict[str, Any]) -> dict[str, dict[str, float]]:
+        """Normalize models from config data."""
+        rawModels = service.get('models')
+        normalized: dict[str, dict[str, float]] = {}
+        for name, params in rawModels.items():
+            normalized[name] = dict(params)
+        return normalized
+
+
+    def _refreshModelList(self, selectName: Optional[str] = None) -> None:
+        self.modelsList.clear()
+        for name in self.models:
+            item = QListWidgetItem(name)
+            self.modelsList.addItem(item)
+            if selectName and name == selectName:
+                self.modelsList.setCurrentItem(item)
+
+    def onModelSelectionChanged(self, current: Optional[QListWidgetItem], _: Optional[QListWidgetItem] = None) -> None:
+        enabled = current is not None
+        self.editModelBtn.setEnabled(enabled)
+        self.removeModelBtn.setEnabled(enabled)
+
+    def addModel(self) -> None:
+        """Add a new model entry."""
+        dialog = ModelEntryDialog(parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            name, parameters = dialog.getModel()
+            if name in self.models:
+                QMessageBox.warning(self, 'Validation Error', 'Model name must be unique')
+                return
+            self.models[name] = parameters
+            self._refreshModelList(selectName=name)
+
+    def editModel(self) -> None:
+        """Edit the selected model entry."""
+        current = self.modelsList.currentItem()
+        if not current:
+            return
+        name = current.text()
+        parameters = self.models.get(name, {})
+        dialog = ModelEntryDialog(name, parameters, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            newName, newParameters = dialog.getModel()
+            if newName != name and newName in self.models:
+                QMessageBox.warning(self, 'Validation Error', 'Model name must be unique')
+                return
+            del self.models[name]
+            self.models[newName] = newParameters
+            self._refreshModelList(selectName=newName)
+
+    def removeModel(self) -> None:
+        """Remove the selected model."""
+        current = self.modelsList.currentItem()
+        if not current:
+            return
+        self.models.pop(current.text(), None)
+        self._refreshModelList()
 
     def getService(self) -> tuple[str, dict[str, Any]]:
         """Get the service configuration from form fields."""
@@ -252,12 +373,10 @@ class ServiceEditDialog(QDialog):
         service = {
             'url': self.urlEdit.text().strip(),
             'api': self.apiEdit.text().strip() or None,
-            'model': self.modelEdit.text().strip(),
-            'parameter': json.dumps(json.loads(self.parameterEdit.toPlainText())),
+            'models': copy.deepcopy(self.models),
             'type': self.typeEdit.currentText()
         }
         return name, service
-
 
     def accept(self) -> None:
         """Validate and accept the dialog."""
@@ -265,7 +384,7 @@ class ServiceEditDialog(QDialog):
         if not name:
             QMessageBox.warning(self, 'Validation Error', 'Service name cannot be empty')
             return
-        if not service['model']:
-            QMessageBox.warning(self, 'Validation Error', 'Model cannot be empty')
+        if not service['models']:
+            QMessageBox.warning(self, 'Validation Error', 'At least one model must be defined')
             return
         super().accept()
