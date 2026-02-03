@@ -32,7 +32,8 @@ class Wallo(QMainWindow):
         self.activeWorkers: list[Worker] = []
         self.spellcheck = True
         self.serviceCB = QComboBox()
-        self.llmSPCB = QComboBox()
+        self.profileCB = QComboBox()
+        self.modelsCB = QComboBox()
 
         # GUI
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
@@ -68,10 +69,13 @@ class Wallo(QMainWindow):
         ttsAction.triggered.connect(lambda: self.saveToFile('tts'))
         self.toolbar.addAction(ttsAction)
         self.toolbar.addWidget(self._toolbarSpacer())
-        self.toolbar.addWidget(self.llmSPCB)
-        self.llmSPCB.activated.connect(self.changeSystemPrompt)
+        self.toolbar.addWidget(self.profileCB)
+        self.profileCB.activated.connect(lambda: self.onConfigChanged('profile'))
         self.toolbar.addSeparator()
         self.toolbar.addWidget(self.serviceCB)
+        self.serviceCB.activated.connect(lambda: self.onConfigChanged('service'))
+        self.toolbar.addWidget(self.modelsCB)
+        self.modelsCB.activated.connect(lambda: self.onConfigChanged('model'))
         self.toolbar.addWidget(self._toolbarSpacer())
         ragAction = QAction('', self, icon=qta.icon('mdi.database-plus'), toolTip='Add files to knowledge base')
         ragAction.triggered.connect(self.addRagSources)
@@ -294,29 +298,36 @@ class Wallo(QMainWindow):
         self.configWidget.activateWindow()
 
 
-    def onConfigChanged(self) -> None:
+    def onConfigChanged(self, dType:str='initialize') -> None:
         """Handle configuration changes."""
-        self.llmSPCB.clear()
-        systemPrompts = self.configManager.get('system-prompts')
-        for prompt in systemPrompts:
-            self.llmSPCB.addItem(prompt['name'])
-        self.serviceCB.clear()
-        services = self.configManager.get('services')
-        if isinstance(services, dict):
+        if dType=='initialize':
+            self.profileCB.clear()
+            self.profileCB.addItems(self.configManager.get('profiles'))
+            currentProfile = self.configManager.get('profiles')[0]
+            self.configManager.set('profile', currentProfile)
+
+            self.serviceCB.clear()
+            services = self.configManager.get('services')
             self.serviceCB.addItems(list(services.keys()))
+            currentService = list(services.keys())[0]
+            self.configManager.set('service', currentService)
 
-
-    def changeSystemPrompt(self, _: int) -> None:
-        """Change the system prompt used by the LLM.
-
-        Args:
-            _ (int): The index of the selected system prompt.
-        """
-        promptName = self.llmSPCB.currentText()
-        try:
-            self.llmProcessor.setSystemPrompt(promptName)
-        except Exception as e:
-            QMessageBox.critical(self, 'Error', f'An unexpected error occurred: {str(e)}')
+            self.modelsCB.clear()
+            self.modelsCB.addItems(list(services[currentService]['models'].keys()))
+            currentModel = list(services[currentService]['models'].keys())[0]
+            self.configManager.set('model', currentModel)
+        if dType=='profile':
+            self.configManager.set(dType, self.profileCB.currentText())
+        if dType=='service':
+            currentService = self.serviceCB.currentText()
+            self.configManager.set(dType, currentService)
+            self.modelsCB.clear()
+            services = self.configManager.get('services')
+            self.modelsCB.addItems(list(services[currentService]['models'].keys()))
+            currentModel = list(services[currentService]['models'].keys())[0]
+            self.configManager.set('model', currentModel)
+        if dType=='model':
+            self.configManager.set(dType, self.modelsCB.currentText())
 
 
 if __name__ == '__main__':

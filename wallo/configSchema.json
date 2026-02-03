@@ -3,28 +3,53 @@
   "title": "Wallo configuration schema",
   "type": "object",
   "properties": {
-    "prompts": {
+    "profiles": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "name": { "type": "string" },
-          "user-prompt": { "type": "string" },
-          "inquiry": { "type": "boolean"}
+          "name": {
+            "type": "string"
+          },
+          "system-prompt": {
+            "type": "string"
+          },
+          "buttons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prompts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "user-prompt": {
+                  "type": "string"
+                },
+                "inquiry": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "user-prompt",
+                "inquiry"
+              ],
+              "additionalProperties": false
+            }
+          }
         },
-        "required": ["name", "user-prompt", "inquiry"],
-        "additionalProperties": false
-      }
-    },
-    "system-prompts": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": { "type": "string" },
-          "system-prompt": { "type": "string" }
-        },
-        "required": ["name", "system-prompt"],
+        "required": [
+          "name",
+          "system-prompt",
+          "buttons",
+          "prompts"
+        ],
         "additionalProperties": false
       }
     },
@@ -33,19 +58,47 @@
       "additionalProperties": {
         "type": "object",
         "properties": {
-          "url": { "type": "string" },
-          "api": { "type": "string" },
-          "type": { "type": "string" },
-          "model": { "type": "string" },
-          "parameter": { "type": "string" }
+          "url": {
+            "type": "string"
+          },
+          "api": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "models": {
+            "type": "object",
+            "additionalProperties":{
+              "type": "object",
+              "properties": {
+                "temperature": {"type": "number"},
+                "top_p": {"type": "number"},
+                "presence_penalty": {"type": "number"},
+                "frequency_penalty": {"type": "number"}
+              },
+              "required": []
+            }
+          }
         },
-        "required": ["api", "model", "type","parameter"],
+        "required": [
+          "api",
+          "models",
+          "type"
+        ],
         "additionalProperties": true
       }
     },
-    "dictionary": { "type": "string" },
-    "startCounts": { "type": "integer"}
+    "dictionary": {
+      "type": "string"
+    },
+    "startCounts": {
+      "type": "integer"
+    }
   },
-  "required": ["prompts", "services"],
+  "required": [
+    "profiles",
+    "services"
+  ],
   "additionalProperties": false
 }

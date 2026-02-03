@@ -93,18 +93,16 @@ class ServiceTab(QWidget):
         self.nameLabel = QLabel()
         self.urlLabel = QLabel()
         self.apiLabel = QLabel()
-        self.modelLabel = QLabel()
-        self.parameterPreview = QTextEdit()
-        self.parameterPreview.setReadOnly(True)
-        self.parameterPreview.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self.parameterPreview.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.parameterPreviewHighlighter = JsonSyntaxHighlighter(self.parameterPreview.document())
+        self.modelsPreview = QTextEdit()
+        self.modelsPreview.setReadOnly(True)
+        self.modelsPreview.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+        self.modelsPreview.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.modelsPreviewHighlighter = JsonSyntaxHighlighter(self.modelsPreview.document())
         self.typeLabel = QLabel()
         previewLayout.addRow('Name:',    self.nameLabel)
         previewLayout.addRow('URL:',     self.urlLabel)
         previewLayout.addRow('API Key:', self.apiLabel)
-        previewLayout.addRow('Model:',   self.modelLabel)
-        previewLayout.addRow('Parameter:',   self.parameterPreview)
+        previewLayout.addRow('Models:',  self.modelsPreview)
         previewLayout.addRow('Type:',    self.typeLabel)
 
         rightLayout.addWidget(self.previewGroup)
@@ -135,15 +133,13 @@ class ServiceTab(QWidget):
             self.nameLabel.setText(serviceName)
             self.urlLabel.setText(service.get('url', ''))
             self.apiLabel.setText('***' if service.get('api') else 'None')
-            self.modelLabel.setText(service['model'])
-            self.parameterPreview.setPlainText(self._formatJsonPreview(service.get('parameter', '{}')))
+            self.modelsPreview.setPlainText(json.dumps(service.get('models', '{}'), indent=2))
             self.typeLabel.setText(service['type'])
         else:
             self.nameLabel.clear()
             self.urlLabel.clear()
             self.apiLabel.clear()
-            self.modelLabel.clear()
-            self.parameterPreview.clear()
+            self.modelsPreview.clear()
             self.typeLabel.clear()
 
 
@@ -195,16 +191,6 @@ class ServiceTab(QWidget):
             del services[serviceName]
             self.configManager.updateConfig({'services': services})
             self.loadServices()
-
-    @staticmethod
-    def _formatJsonPreview(value: str) -> str:
-        if not value:
-            return ''
-        try:
-            parsed = json.loads(value)
-            return json.dumps(parsed, indent=2)
-        except json.JSONDecodeError:
-            return value
 
 
 class ServiceEditDialog(QDialog):

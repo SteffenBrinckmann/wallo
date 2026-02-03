@@ -5,10 +5,19 @@
     "version": "0.2.0",
     "configurations": [
 
+
         {
             "name": "Start",
             "type": "debugpy",
             "module": "wallo.main",
+            "request": "launch",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Rebuttle",
+            "type": "debugpy",
+            "module": "wallo.assistantRebuttle.main",
+            "args": ["fromJournal.txt","initialSubmission.tex","1"],
             "request": "launch",
             "console": "integratedTerminal"
         }

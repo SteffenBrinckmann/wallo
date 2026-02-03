@@ -25,7 +25,7 @@ class LLMProcessor:
             configManager: Configuration manager instance.
         """
         self.configManager = configManager
-        self.systemPrompt = 'You are a helpful assistant.'
+        self.systemPrompt = self.configManager.get('system-prompt')
         self.messageHistory = InMemoryChatMessageHistory()
         self.systemPromptInjected = False
         self._injectSystemPrompt(self.systemPrompt)
@@ -55,18 +55,19 @@ class LLMProcessor:
             pass
 
 
-    def createClientFromConfig(self, serviceConfig: dict[str, str]) -> Any:
+    def createClientFromConfig(self) -> Any:
         """Create a LangChain LLM from service config.
 
         Supported types:
         - openai (OpenAI + compatible endpoints)
         - gemini (Google Gemini)
         """
-        serviceType = serviceConfig['type']
-        model       = serviceConfig['model']
-        parameter   = json.loads(serviceConfig['parameter'])
-        apiKey      = serviceConfig['api']
-        baseUrl     = serviceConfig.get('url') or None  #None if url-string==''
+        service = self.configManager.get('service')
+        serviceType = service['type']
+        model       = self.configManager.get('model')
+        parameter   = self.configManager.get('parameter')
+        apiKey      = service['api']
+        baseUrl     = service.get('url') or None  #None if url-string==''
         if not apiKey:
             raise ValueError('API key not configured for the service')
         if serviceType == 'openAI':
@@ -110,10 +111,7 @@ class LLMProcessor:
         Raises:
             ValueError: If prompt or service is not found.
         """
-        serviceConfig = self.configManager.getServiceByName(serviceName)
-        if not serviceConfig:
-            raise ValueError(f"Service '{serviceName}' not found in configuration")
-        llm = self.createClientFromConfig(serviceConfig)
+        llm = self.createClientFromConfig()
         # since LLM is defined, check if message-history defined. If not, define it
         if self.runnable is None:
             self.runnable = RunnableWithMessageHistory(llm, lambda: self.messageHistory)

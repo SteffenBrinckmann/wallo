@@ -82,16 +82,15 @@ class Exchange(QWidget):
         # Buttons
         btns = [
             # x  y  function
-            (1, 1, self.hide1),
-            (2, 1, self.audio1),
-            (3, 1, self.move2to1),
-            (1, 2, self.chatExchange),
-            (2, 2, self.toggleRag),
-            (3, 2, self.attachFile),
             (1, 3, self.splitParagraphs),
             (2, 3, self.addExchangeNext),
             (3, 3, self.clearBoth),
-
+            (1, 2, self.chatExchange),
+            (2, 2, self.toggleRag),
+            (3, 2, self.attachFile),
+            (1, 1, self.hide1),
+            (2, 1, self.audio1),
+            (3, 1, self.move2to1)
         ]
         shortcuts = {'11':'7','21':'8','31':'9','12':'4','22':'5','32':'6','13':'1','23':'2','33':'3'}
         for x, y, funct in btns:

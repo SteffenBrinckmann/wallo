@@ -12,20 +12,12 @@ from qtawesome import icon as qta_icon
 from .configManager import ConfigurationManager
 
 
-class PromptType(Enum):
-    """Type of prompt."""
-    PROMPT = 1
-    SYSTEM_PROMPT = 2
-
-
-class PromptTab(QWidget):
+class ProfileTab(QWidget):
     """Tab for managing prompts."""
 
-    def __init__(self, configManager: ConfigurationManager, cType:PromptType, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, configManager: ConfigurationManager, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.configManager = configManager
-        self.cType = cType
-        self.prompts = 'prompts' if self.cType == PromptType.PROMPT else 'system-prompts'
         self.setupUI()
         self.loadPrompts()
 
@@ -87,12 +79,9 @@ class PromptTab(QWidget):
         self.userPromptLabel.setReadOnly(True)
 
 
-        if self.cType == PromptType.PROMPT:
-            self.inquiryLabel = QLabel()
-            previewLayout.addRow('Inquiry:', self.inquiryLabel)
-            previewLayout.addRow('User-Prompt:', self.userPromptLabel)
-        else:
-            previewLayout.addRow('System-Prompt:', self.userPromptLabel)
+        self.inquiryLabel = QLabel()
+        previewLayout.addRow('Inquiry:', self.inquiryLabel)
+        previewLayout.addRow('User-Prompt:', self.userPromptLabel)
         rightLayout.addWidget(self.previewGroup)
         rightLayout.addStretch()
         # Add left and right layouts to main layout
@@ -103,17 +92,17 @@ class PromptTab(QWidget):
     def loadPrompts(self) -> None:
         """Load prompts from configuration."""
         self.promptList.clear()
-        prompts = self.configManager.get(self.prompts)
-        if self.cType == PromptType.PROMPT:
-            for prompt in prompts:
-                item = QListWidgetItem(prompt['name'])
-                item.setData(Qt.ItemDataRole.UserRole, prompt)
-                self.promptList.addItem(item)
-        else:
-            for prompt in prompts:
-                item = QListWidgetItem(prompt['name'])
-                item.setData(Qt.ItemDataRole.UserRole, prompt)
-                self.promptList.addItem(item)
+        # prompts = self.configManager.get(self.prompts)
+        # if self.cType == PromptType.PROMPT:
+        #     for prompt in prompts:
+        #         item = QListWidgetItem(prompt['name'])
+        #         item.setData(Qt.ItemDataRole.UserRole, prompt)
+        #         self.promptList.addItem(item)
+        # else:
+        #     for prompt in prompts:
+        #         item = QListWidgetItem(prompt['name'])
+        #         item.setData(Qt.ItemDataRole.UserRole, prompt)
+        #         self.promptList.addItem(item)
 
 
     def onPromptSelectionChanged(self, current: Optional[QListWidgetItem],
@@ -125,18 +114,18 @@ class PromptTab(QWidget):
         if current:
             prompt = current.data(Qt.ItemDataRole.UserRole)
             self.nameLabel.setText(prompt['name'])
-            if self.cType == PromptType.PROMPT:
-                self.inquiryLabel.setText('Yes' if prompt['inquiry'] else 'No')
-                self.userPromptLabel.setText(prompt['user-prompt'])
-            else:
-                self.userPromptLabel.setText(prompt['system-prompt'])
+            # if self.cType == PromptType.PROMPT:
+            #     self.inquiryLabel.setText('Yes' if prompt['inquiry'] else 'No')
+            #     self.userPromptLabel.setText(prompt['user-prompt'])
+            # else:
+            #     self.userPromptLabel.setText(prompt['system-prompt'])
             # enable move buttons when selection exists
             self.upPromptBtn.setEnabled(True)
             self.downPromptBtn.setEnabled(True)
         else:
             self.nameLabel.clear()
-            if self.cType == PromptType.PROMPT:
-                self.inquiryLabel.clear()
+            # if self.cType == PromptType.PROMPT:
+            #     self.inquiryLabel.clear()
             self.userPromptLabel.clear()
             self.upPromptBtn.setEnabled(False)
             self.downPromptBtn.setEnabled(False)
@@ -239,15 +228,13 @@ class PromptTab(QWidget):
 class PromptEditDialog(QDialog):
     """Dialog for editing prompt configuration."""
 
-    def __init__(self, prompt: Optional[dict[str, Any]] = None, cType:PromptType=PromptType.PROMPT,
-                 parent: Optional[QWidget] = None) -> None:
+    def __init__(self, prompt: Optional[dict[str, Any]] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setWindowTitle('Edit Prompt' if prompt else 'Add Prompt')
         self.setModal(True)
         self.resize(500, 400)
         self.setMaximumHeight(1024)
         self.prompt = prompt or {}
-        self.cType = cType
         self.setupUI()
         self.loadPrompt()
 
@@ -259,17 +246,17 @@ class PromptEditDialog(QDialog):
         self.nameEdit = QLineEdit()
         formLayout.addRow('Name:', self.nameEdit)
         self.userPromptEdit = QTextEdit()
-        if self.cType == PromptType.PROMPT:
-            self.userPromptEdit.setMinimumHeight(150)
-            self.userPromptEdit.setMaximumHeight(200)
-            formLayout.addRow('User-Prompt:', self.userPromptEdit)
-            self.inquiryCombo = QComboBox()
-            self.inquiryCombo.addItems(['No', 'Yes'])
-            formLayout.addRow('Inquiry:', self.inquiryCombo)
-        else:
-            self.userPromptEdit.setMinimumHeight(500)
-            self.userPromptEdit.setMaximumHeight(600)
-            formLayout.addRow('System-Prompt:', self.userPromptEdit)
+        # if self.cType == PromptType.PROMPT:
+        #     self.userPromptEdit.setMinimumHeight(150)
+        #     self.userPromptEdit.setMaximumHeight(200)
+        #     formLayout.addRow('User-Prompt:', self.userPromptEdit)
+        #     self.inquiryCombo = QComboBox()
+        #     self.inquiryCombo.addItems(['No', 'Yes'])
+        #     formLayout.addRow('Inquiry:', self.inquiryCombo)
+        # else:
+        #     self.userPromptEdit.setMinimumHeight(500)
+        #     self.userPromptEdit.setMaximumHeight(600)
+        #     formLayout.addRow('System-Prompt:', self.userPromptEdit)
         layout.addLayout(formLayout)
         # Button box
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -282,25 +269,25 @@ class PromptEditDialog(QDialog):
         """Load prompt data into form fields."""
         if self.prompt:
             self.nameEdit.setText(self.prompt.get('name', ''))
-            if self.cType == PromptType.PROMPT:
-                self.userPromptEdit.setPlainText(self.prompt.get('user-prompt', ''))
-                self.inquiryCombo.setCurrentText('Yes' if self.prompt.get('inquiry') else 'No')
-            else:
-                self.userPromptEdit.setPlainText(self.prompt.get('system-prompt', ''))
+            # if self.cType == PromptType.PROMPT:
+            #     self.userPromptEdit.setPlainText(self.prompt.get('user-prompt', ''))
+            #     self.inquiryCombo.setCurrentText('Yes' if self.prompt.get('inquiry') else 'No')
+            # else:
+            #     self.userPromptEdit.setPlainText(self.prompt.get('system-prompt', ''))
 
 
     def getPrompt(self) -> dict[str, Any]:
         """Get the prompt configuration from form fields."""
-        if self.cType == PromptType.PROMPT:
-            return {
-                'name': self.nameEdit.text().strip(),
-                'user-prompt': self.userPromptEdit.toPlainText().strip(),
-                'inquiry': self.inquiryCombo.currentText()=='Yes'
-            }
-        return {
-            'name': self.nameEdit.text().strip(),
-            'system-prompt': self.userPromptEdit.toPlainText().strip(),
-        }
+        # if self.cType == PromptType.PROMPT:
+        #     return {
+        #         'name': self.nameEdit.text().strip(),
+        #         'user-prompt': self.userPromptEdit.toPlainText().strip(),
+        #         'inquiry': self.inquiryCombo.currentText()=='Yes'
+        #     }
+        # return {
+        #     'name': self.nameEdit.text().strip(),
+        #     'system-prompt': self.userPromptEdit.toPlainText().strip(),
+        # }
 
 
 
@@ -310,12 +297,12 @@ class PromptEditDialog(QDialog):
         if not prompt['name']:
             QMessageBox.warning(self, 'Validation Error', 'Name cannot be empty')
             return
-        if self.cType == PromptType.PROMPT:
-            if not prompt['user-prompt']:
-                QMessageBox.warning(self, 'Validation Error', 'User-prompt cannot be empty')
-                return
-        else:
-            if not prompt['system-prompt']:
-                QMessageBox.warning(self, 'Validation Error', 'System-prompt cannot be empty')
-                return
+        # if self.cType == PromptType.PROMPT:
+        #     if not prompt['user-prompt']:
+        #         QMessageBox.warning(self, 'Validation Error', 'User-prompt cannot be empty')
+        #         return
+        # else:
+        #     if not prompt['system-prompt']:
+        #         QMessageBox.warning(self, 'Validation Error', 'System-prompt cannot be empty')
+        #         return
         super().accept()

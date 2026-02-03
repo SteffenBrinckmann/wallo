@@ -5,22 +5,23 @@ from typing import Any, Optional
 from jsonschema import validate, ValidationError
 
 DEFAULT_CONFIGURATION = {
-    'prompts': [
-        {
-            'name': 'Make the text professional',
-            'user-prompt': 'Can you make the following paragraph more professional and polished:',
-            'attachment':  'selection'
-        },
-        {
-            'name': 'summarize the paper',
-            'user-prompt': 'Can you summarize the following paper:',
-            'attachment':  'pdf'
-        }
-    ],
-    'system-prompts': [
+    'profile': [
         {
             'name': 'Default',
             'system-prompt': 'You are a helpful assistant.',
+            'buttons': ["splitParagraphs", "addExchangeNext", "clearBoth", "chatExchange", "toggleRag", "attachFile", "hide1", "audio1", "move2to1"],
+            'prompts': [
+                {
+                    'name': 'Make the text professional',
+                    'user-prompt': 'Can you make the following paragraph more professional and polished:',
+                    'inquiry': False
+                },
+                {
+                    'name': 'summarize the paper',
+                    'user-prompt': 'Can you summarize the following paper in |k words|:',
+                    'inquiry': True
+                }
+            ]
         }
     ],
     'services': {
@@ -42,6 +43,9 @@ class ConfigurationManager:
         """
         self.configFile = configFile or Path.home() / '.wallo.json'
         self._config: dict[str, Any] = {}
+        self._currentProfile = ''
+        self._currentService = ''
+        self._currentModel = ''
         self.loadConfig()
 
 
@@ -60,6 +64,8 @@ class ConfigurationManager:
         except (json.JSONDecodeError, OSError) as e:
             raise ValueError(f"Error loading configuration file: {e}") from e
         self.validateConfig()
+        profiles = [i['name'] for i in self._config['profiles']]
+        self._currentProfile = profiles[0] if profiles else ''
 
 
     def validateConfig(self) -> None:
@@ -81,24 +87,45 @@ class ConfigurationManager:
 
 
     def get(self, info:str) -> Any:
-        """Get configuration value by key."""
-        if info not in ['prompts', 'system-prompts','services','dictionary','startCounts']:
+        """Get configuration value by key"""
+        if info not in ['services','service','model','parameter','dictionary','startCounts','profiles','prompts','system-prompt']:
             raise ValueError(f"Invalid info type '{info}' requested")
-        if info in ['prompts', 'system-prompts', 'services']:
+        if info in ['services']:
             return self._config[info]
+        if info == 'service':
+            return self._config['services'][self._currentService]
+        if info == 'model':
+            return self._currentModel
+        if info == 'parameter':
+            return self._config['services'][self._currentService]['models'][self._currentModel]
+        if info in ['profiles']:
+            return [i['name'] for i in self._config[info]]
+        if info in ['prompts','system-prompt']:
+            profile = [i for i in self._config['profiles'] if i['name']==self._currentProfile][0]
+            return profile[info]
         if info in ['dictionary','startCounts']:
             return self._config.get(info, DEFAULT_CONFIGURATION[info])
         return []
 
 
+    def set(self, dType:str, item:str) -> None:
+        """Set the current profile."""
+        if dType=='profile':
+            self._currentProfile = item
+        elif dType=='service':
+            self._currentService = item
+        elif dType=='model':
+            self._currentModel = item
+        else:
+            raise ValueError(f"Invalid data type '{dType}' requested")
+
     def getPromptByName(self, name: str) -> dict[str, Any]:
         """Get a specific prompt by name."""
-        prompts = self._config['prompts']
-        for prompt in prompts:
+        profile = [i for i in self._config['profiles'] if i['name']==self._currentProfile][0]
+        for prompt in profile['prompts']:
             if prompt['name'] == name:
                 return prompt  # type: ignore
-        default = {'name': 'default', 'user-prompt': '', 'inquiry': False}
-        return default
+        return {'name': 'default', 'user-prompt': '', 'inquiry': False}
 
 
     def getServiceByName(self, name: str) -> dict[str, Any]:
