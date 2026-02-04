@@ -304,21 +304,15 @@ class ServiceEditDialog(QDialog):
         self.urlEdit.setText(self.service.get('url', ''))
         self.apiEdit.setText(self.service.get('api', '') or '')
         self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
-        models = self._extractModels(self.service)
-        self.models = {name: dict(params) for name, params in models.items()}
+        self.models = {name: dict(params) for name, params in self.service.get('models', {}).items()}
         self._refreshModelList()
 
 
-    def _extractModels(self, service: dict[str, Any]) -> dict[str, dict[str, float]]:
-        """Normalize models from config data."""
-        rawModels = service.get('models')
-        normalized: dict[str, dict[str, float]] = {}
-        for name, params in rawModels.items():
-            normalized[name] = dict(params)
-        return normalized
-
-
     def _refreshModelList(self, selectName: Optional[str] = None) -> None:
+        """Refresh the model list.
+        Args:
+            selectName (Optional[str]): The name of the model to select.
+        """
         self.modelsList.clear()
         for name in self.models:
             item = QListWidgetItem(name)
@@ -327,6 +321,10 @@ class ServiceEditDialog(QDialog):
                 self.modelsList.setCurrentItem(item)
 
     def onModelSelectionChanged(self, current: Optional[QListWidgetItem], _: Optional[QListWidgetItem] = None) -> None:
+        """Handle model selection change.
+        Args:
+            current (Optional[QListWidgetItem]): The currently selected model.
+        """
         enabled = current is not None
         self.editModelBtn.setEnabled(enabled)
         self.removeModelBtn.setEnabled(enabled)

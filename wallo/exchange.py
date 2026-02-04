@@ -44,7 +44,8 @@ class Exchange(QWidget):
         self.ragUsage   = False
         self.recording  = False
         self.pushToTalkRecorder = PushToTalkRecorder()
-
+        self.llmCB      = QComboBox()
+        self.btnControls:list[QPushButton] = []
 
         # Build GUI
         self.main  = QHBoxLayout(self)
@@ -69,12 +70,12 @@ class Exchange(QWidget):
         self.switchToReplyAction = QAction(self)
         self.switchToReplyAction.setShortcut(QKeySequence('Ctrl+Down'))
         self.switchToReplyAction.setEnabled(False)
-        self.switchToReplyAction.triggered.connect(lambda: self.switchEditor('down'))
+        self.switchToReplyAction.triggered.connect(lambda: self._switchEditor('down'))
         self.addAction(self.switchToReplyAction)
         self.switchToHistoryAction = QAction(self)
         self.switchToHistoryAction.setShortcut(QKeySequence('Ctrl+Up'))
         self.switchToHistoryAction.setEnabled(False)
-        self.switchToHistoryAction.triggered.connect(lambda: self.switchEditor('up'))
+        self.switchToHistoryAction.triggered.connect(lambda: self._switchEditor('up'))
         self.addAction(self.switchToHistoryAction)
         self.btnWidget = QWidget()
         self.btnWidget.setFixedWidth(BUTTON_WIDTH)
@@ -333,9 +334,7 @@ class Exchange(QWidget):
         if text:
             self.setBusy(True)
             # LLM
-            serviceName  = self.mainWidget.serviceCB.currentText()
-            workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, '', serviceName, text,
-                                                                    ragUsage=self.ragUsage)
+            workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, '', text, ragUsage=self.ragUsage)
             self.mainWidget.runWorker('chatAPI', workParams)
         return ('', '', '')
 
@@ -347,7 +346,6 @@ class Exchange(QWidget):
             _ (int): The index of the selected item in the combo box.
         """
         promptName   = self.llmCB.currentData()
-        serviceName  = self.mainWidget.serviceCB.currentText()
         promptConfig = self.mainWidget.configManager.getPromptByName(promptName)
         if not promptConfig:
             QMessageBox.warning(self, 'Error', f"Prompt '{promptName}' not found")
@@ -370,10 +368,8 @@ class Exchange(QWidget):
                 return
 
         self.setBusy(True)
-
-        workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, promptName, serviceName,
-                                                                historyMarkdown, self.filePath,
-                                                                userInput, self.ragUsage)
+        workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, promptName, historyMarkdown,
+                                                                self.filePath, userInput, self.ragUsage)
         self.mainWidget.runWorker('chatAPI', workParams)
 
 
@@ -485,7 +481,9 @@ class Exchange(QWidget):
             control.deleteLater()
         for action in self.actions():
             action.setEnabled(False)
-        self.btnWidget.layout().deleteLater()
+        layout = self.btnWidget.layout()
+        if layout is not None:
+            layout.deleteLater()
         self.btnWidget.setFixedWidth(BUTTON_WIDTH)
         self.btnState = 'hidden'
         if not self.text2.toMarkdown().strip():
@@ -510,13 +508,13 @@ class Exchange(QWidget):
                 shortcutAction = QAction(self)
                 shortcutAction.setShortcut(QKeySequence(shortcut))
                 shortcutAction.setEnabled(False)
-                shortcutAction.triggered.connect(lambda _checked=False, index=i: self.useShortcut(index))
+                shortcutAction.triggered.connect(lambda _checked=False, index=i: self._useShortcut(index))
                 self.addAction(shortcutAction)
             else:
                 self.llmCB.addItem(prompt['name'], prompt['name'])
 
 
-    def useShortcut(self, index: int) -> None:
+    def _useShortcut(self, index: int) -> None:
         """Use LLM via keyboard shortcut.
         Args:
             index (int): The index of the prompt to use.
@@ -526,7 +524,7 @@ class Exchange(QWidget):
             self.useLLM(index)
 
 
-    def switchEditor(self, direction: str) -> None:
+    def _switchEditor(self, direction: str) -> None:
         """Switch focus between editors
         Args:
             direction (str): 'up' or 'down'

@@ -1,7 +1,6 @@
 """LLM processing and interaction logic for the Wallo application.
 - All LLM logic is here
 """
-import json
 from typing import Any
 from langchain_community.document_loaders.parsers.audio import OpenAIWhisperParser
 from langchain_core.chat_history import InMemoryChatMessageHistory
@@ -71,7 +70,7 @@ class LLMProcessor:
         if not apiKey:
             raise ValueError('API key not configured for the service')
         if serviceType == 'openAI':
-            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, **parameter) # type: ignore[arg-type]
+            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, **parameter)
         if serviceType == 'Gemini':
             return ChatGoogleGenerativeAI(model=model, google_api_key=apiKey, **parameter)
         raise ValueError(f"Unknown service type '{serviceType}'")
@@ -93,8 +92,8 @@ class LLMProcessor:
         raise ValueError(f"System prompt '{promptName}' not found in configuration")
 
 
-    def processPrompt(self, senderID: str, promptName: str, serviceName: str, selectedText: str = '',
-                      attachFilePath: str = '', inquiryResponse: str = '', ragUsage: bool = False) -> dict[str, Any]:
+    def processPrompt(self, senderID: str, promptName: str, selectedText: str = '', attachFilePath: str = '',
+                      inquiryResponse: str = '', ragUsage: bool = False) -> dict[str, Any]:
         """Process a prompt based on its attachment type.
 
         Args:

@@ -114,7 +114,8 @@ class ConfigurationManager:
         if info == 'profiles':
             return [profile['name'] for profile in self._config.get('profiles', [])]
         if info in ['prompts', 'system-prompt','buttons']:
-            profile = [profile for profile in self._config.get('profiles', []) if profile['name'] == self._currentProfile][0]
+            profile = [profile for profile in self._config.get('profiles', [])
+                       if profile['name'] == self._currentProfile][0]
             return profile[info]
         if info in ['dictionary', 'startCounts']:
             return self._config.get(info, DEFAULT_CONFIGURATION[info])
@@ -133,7 +134,8 @@ class ConfigurationManager:
 
     def getPromptByName(self, name: str) -> dict[str, Any]:
         """Get a specific prompt by name."""
-        profile = [profile for profile in self._config.get('profiles', []) if profile['name'] == self._currentProfile][0]
+        profile = [profile for profile in self._config.get('profiles', [])
+                   if profile['name'] == self._currentProfile][0]
         for prompt in profile['prompts']:
             if prompt['name'] == name:
                 return prompt  # type: ignore
@@ -160,10 +162,10 @@ class ConfigurationManager:
                 return deepcopy(profile)
         return {}
 
-    def upsertProfile(self, profile: dict[str, Any], original_name: Optional[str] = None) -> None:
+    def upsertProfile(self, profile: dict[str, Any], originalName: Optional[str] = None) -> None:
         """Add or replace a profile entry."""
         profiles = deepcopy(self._config.get('profiles', []))
-        target = original_name or profile['name']
+        target = originalName or profile['name']
         for idx, existing in enumerate(profiles):
             if existing['name'] == target:
                 profiles[idx] = profile

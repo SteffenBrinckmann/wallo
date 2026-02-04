@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 from PySide6.QtCore import Qt, QTimer  # pylint: disable=no-name-in-module
 from PySide6.QtGui import QTextOption  # pylint: disable=no-name-in-module
-from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
+from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel,  # pylint: disable=no-name-in-module
                                QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton, QVBoxLayout,
                                QWidget, QTextEdit, QCheckBox)
 from qtawesome import icon as qta_icon
@@ -127,11 +127,16 @@ class ProfileTab(QWidget):
             self._clearDetails()
 
     def _selectProfileByName(self, name: str) -> None:
+        """Select a profile by name.
+        Args:
+            name (str): The name of the profile to select.
+        """
         items = self.profileList.findItems(name, Qt.MatchFlag.MatchExactly)
         if items:
             self.profileList.setCurrentItem(items[0])
 
     def _clearDetails(self) -> None:
+        """Clear the profile details."""
         self._currentProfile = None
         self._currentProfileName = ''
         self._suspendUpdates = True
@@ -149,13 +154,17 @@ class ProfileTab(QWidget):
         if not current:
             self._clearDetails()
             return
-        profile_name = current.data(Qt.ItemDataRole.UserRole)
-        profile = self.configManager.getProfileByName(profile_name)
+        profileName = current.data(Qt.ItemDataRole.UserRole)
+        profile = self.configManager.getProfileByName(profileName)
         if not profile:
             return
         self._loadProfileDetails(profile)
 
     def _loadProfileDetails(self, profile: dict[str, Any]) -> None:
+        """Load profile details.
+        Args:
+            profile (dict[str, Any]): The profile to load.
+        """
         self._currentProfile = profile
         self._currentProfileName = profile['name']
         self.configManager.set('profile', profile['name'])
@@ -210,31 +219,33 @@ class ProfileTab(QWidget):
         """Store profile name changes inline."""
         if self._suspendUpdates or not self._currentProfile:
             return
-        new_name = self.profileNameEdit.text().strip()
-        if not new_name:
+        newName = self.profileNameEdit.text().strip()
+        if not newName:
             QMessageBox.warning(self, 'Validation Error', 'Profile name cannot be empty')
             self.profileNameEdit.setText(self._currentProfile['name'])
             return
-        current_name = self._currentProfile['name']
-        if new_name == current_name:
+        currentName = self._currentProfile['name']
+        if newName == currentName:
             return
-        existing_names = {item['name'] for item in self.configManager.getProfilesData() if item['name'] != current_name}
-        if new_name in existing_names:
+        existingNames = {item['name'] for item in self.configManager.getProfilesData() if item['name'] != currentName}
+        if newName in existingNames:
             QMessageBox.warning(self, 'Validation Error', 'Profile name already exists')
-            self.profileNameEdit.setText(current_name)
+            self.profileNameEdit.setText(currentName)
             return
-        self._currentProfile['name'] = new_name
-        self.configManager.upsertProfile(self._currentProfile, original_name=current_name)
-        self._currentProfileName = new_name
+        self._currentProfile['name'] = newName
+        self.configManager.upsertProfile(self._currentProfile, original_name=currentName)
+        self._currentProfileName = newName
         self.loadProfiles()
-        self._selectProfileByName(new_name)
+        self._selectProfileByName(newName)
 
     def _scheduleSystemPromptSave(self) -> None:
+        """Schedule system prompt saving."""
         if self._suspendUpdates or not self._currentProfile:
             return
         self._systemPromptTimer.start(self.SAVE_DELAY_MS)
 
     def _saveSystemPrompt(self) -> None:
+        """Save system prompt changes."""
         if not self._currentProfile:
             return
         value = self.systemPromptEdit.toPlainText().strip()
@@ -262,11 +273,13 @@ class ProfileTab(QWidget):
         self._persistCurrentProfile()
 
     def _persistCurrentProfile(self) -> None:
+        """Persist the current profile."""
         if not self._currentProfile:
             return
         self.configManager.upsertProfile(self._currentProfile)
 
     def _refreshPromptList(self) -> None:
+        """Refresh the prompt list."""
         self.promptList.blockSignals(True)
         self.promptList.clear()
         if not self._currentProfile:
@@ -281,15 +294,21 @@ class ProfileTab(QWidget):
         self._updatePromptButtonsState()
 
     def _updatePromptButtonsState(self) -> None:
-        has_selection = self.promptList.currentItem() is not None
-        self.copyPromptBtn.setEnabled(has_selection)
-        self.editPromptBtn.setEnabled(has_selection)
-        self.deletePromptBtn.setEnabled(has_selection)
+        """Update prompt buttons state."""
+        hasSelection = self.promptList.currentItem() is not None
+        self.copyPromptBtn.setEnabled(hasSelection)
+        self.editPromptBtn.setEnabled(hasSelection)
+        self.deletePromptBtn.setEnabled(hasSelection)
         idx = self.promptList.currentRow()
-        self.upPromptBtn.setEnabled(has_selection and idx > 0)
-        self.downPromptBtn.setEnabled(has_selection and idx < self.promptList.count() - 1)
+        self.upPromptBtn.setEnabled(hasSelection and idx > 0)
+        self.downPromptBtn.setEnabled(hasSelection and idx < self.promptList.count() - 1)
 
     def onPromptSelectionChanged(self, current: Optional[QListWidgetItem], _: Optional[QListWidgetItem]) -> None:
+        """Handle prompt selection changes.
+        Args:
+            current (Optional[QListWidgetItem]): The currently selected prompt.
+            _: Unused.
+       """
         self._updatePromptButtonsState()
         if current:
             prompt = current.data(Qt.ItemDataRole.UserRole)
@@ -299,6 +318,7 @@ class ProfileTab(QWidget):
             self.promptPreview.clear()
 
     def addPrompt(self) -> None:
+        """Add a new prompt."""
         if not self._currentProfile:
             return
         dialog = PromptEditDialog(parent=self)
@@ -311,15 +331,16 @@ class ProfileTab(QWidget):
         self.promptList.setCurrentRow(self.promptList.count() - 1)
 
     def copyPrompt(self) -> None:
+        """Copy the selected prompt."""
         if not self._currentProfile:
             return
         current = self.promptList.currentRow()
         if current < 0:
             return
         prompt = self._currentProfile['prompts'][current]
-        new_prompt = {**prompt}
-        new_prompt['name'] = f"{prompt['name']} (copy)"
-        dialog = PromptEditDialog(new_prompt, parent=self)
+        newPrompt = {**prompt}
+        newPrompt['name'] = f"{prompt['name']} (copy)"
+        dialog = PromptEditDialog(newPrompt, parent=self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self._currentProfile['prompts'].append(dialog.getPrompt())
@@ -328,6 +349,7 @@ class ProfileTab(QWidget):
         self.promptList.setCurrentRow(self.promptList.count() - 1)
 
     def editPrompt(self) -> None:
+        """Edit the selected prompt."""
         if not self._currentProfile:
             return
         current = self.promptList.currentRow()
@@ -343,6 +365,7 @@ class ProfileTab(QWidget):
         self.promptList.setCurrentRow(current)
 
     def deletePrompt(self) -> None:
+        """Delete the selected prompt."""
         if not self._currentProfile:
             return
         current = self.promptList.currentRow()
@@ -361,11 +384,12 @@ class ProfileTab(QWidget):
         self._currentProfile['prompts'].pop(current)
         self._persistCurrentProfile()
         self._refreshPromptList()
-        next_row = min(current, self.promptList.count() - 1)
-        if next_row >= 0:
-            self.promptList.setCurrentRow(next_row)
+        nextRow = min(current, self.promptList.count() - 1)
+        if nextRow >= 0:
+            self.promptList.setCurrentRow(nextRow)
 
     def movePromptUp(self) -> None:
+        """Move the selected prompt up."""
         if not self._currentProfile:
             return
         idx = self.promptList.currentRow()
@@ -378,6 +402,7 @@ class ProfileTab(QWidget):
         self.promptList.setCurrentRow(idx - 1)
 
     def movePromptDown(self) -> None:
+        """Move the selected prompt down."""
         if not self._currentProfile:
             return
         idx = self.promptList.currentRow()
@@ -404,6 +429,7 @@ class PromptEditDialog(QDialog):
         self.loadPrompt()
 
     def setupUI(self) -> None:
+        """Setup the dialog UI."""
         layout = QVBoxLayout(self)
         formLayout = QFormLayout()
         self.nameEdit = QLineEdit()
@@ -420,12 +446,14 @@ class PromptEditDialog(QDialog):
         layout.addWidget(buttonBox)
 
     def loadPrompt(self) -> None:
+        """Load prompt configuration."""
         if self.prompt:
             self.nameEdit.setText(self.prompt.get('name', ''))
             self.userPromptEdit.setPlainText(self.prompt.get('user-prompt', ''))
             self.inquiryCheck.setChecked(self.prompt.get('inquiry', False))
 
     def getPrompt(self) -> dict[str, Any]:
+        """Get the prompt configuration."""
         return {
             'name': self.nameEdit.text().strip(),
             'user-prompt': self.userPromptEdit.toPlainText().strip(),
@@ -433,6 +461,7 @@ class PromptEditDialog(QDialog):
         }
 
     def accept(self) -> None:
+        """Validate and accept the prompt."""
         prompt = self.getPrompt()
         if not prompt['name']:
             QMessageBox.warning(self, 'Validation Error', 'Name cannot be empty')
