@@ -3,7 +3,7 @@ from typing import Any, Optional
 from PySide6.QtCore import Signal  # pylint: disable=no-name-in-module
 from PySide6.QtGui import QKeyEvent  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTabWidget, QTextEdit, QVBoxLayout, QWidget # pylint: disable=no-name-in-module
-from .configManager import ConfigurationManager
+from .configManager import ConfigurationManager, ALLOWED_BUTTONS
 from .configTabProfile import ProfileTab
 from .configTabServices import ServiceTab
 from .configTabString import StringTab
@@ -63,6 +63,6 @@ class Help(QWidget):
         super().__init__(parent)
         self.mainLayout = QVBoxLayout(self)
         text = QTextEdit()
-        text.setMarkdown(HELP_TEXT)
+        text.setMarkdown(HELP_TEXT+'\n\nThe allowed buttons are:\n- '+'\n- '.join(ALLOWED_BUTTONS))
         text.setReadOnly(True)
         self.mainLayout.addWidget(text)

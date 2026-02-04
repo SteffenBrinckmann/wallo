@@ -309,7 +309,7 @@ class Wallo(QMainWindow):
     def onConfigChanged(self, dType:str='initialize') -> None:
         """Handle configuration changes."""
         if dType=='reread':
-            self.configManager.readConfig()
+            self.configManager.loadConfig()
             dType = 'initialize'
         if dType=='initialize':
             self.profileCB.clear()
