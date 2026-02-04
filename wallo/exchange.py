@@ -79,23 +79,23 @@ class Exchange(QWidget):
         btnLayout.setVerticalSpacing(0)
         btnLayout.setHorizontalSpacing(0)
         self.main.addWidget(self.btnWidget)
-        # Buttons
-        btns = [
-            # x  y  function
-            (1, 3, self.splitParagraphs),
-            (2, 3, self.addExchangeNext),
-            (3, 3, self.clearBoth),
-            (1, 2, self.chatExchange),
-            (2, 2, self.toggleRag),
-            (3, 2, self.attachFile),
-            (1, 1, self.hide1),
-            (2, 1, self.audio1),
-            (3, 1, self.move2to1)
-        ]
-        shortcuts = {'11':'7','21':'8','31':'9','12':'4','22':'5','32':'6','13':'1','23':'2','33':'3'}
-        for x, y, funct in btns:
+        # Buttons: x  y  function
+        btns = {
+            1:(1, 3),
+            2:(2, 3),
+            3:(3, 3),
+            4:(1, 2),
+            5:(2, 2),
+            6:(3, 2),
+            7:(1, 1),
+            8:(2, 1),
+            9:(3, 1),
+        }
+        buttonNames = self.mainWidget.configManager.get('buttons')
+        for idx, (x, y) in btns.items():
+            funct = getattr(self, buttonNames[idx-1])
             name, icon, tooltip = funct(None, True)
-            shortcut = 'Alt+' + shortcuts[f'{x}{y}']
+            shortcut = f'Alt+{idx}'
             button = QPushButton()
             button.setToolTip(f'{tooltip} ({shortcut})')
             button.setShortcut(QKeySequence(shortcut))
@@ -227,6 +227,23 @@ class Exchange(QWidget):
         if state:
             return name, icon, tooltip
         self.text1.setMarkdown(self.text2.toMarkdown())
+        self.text2.setMarkdown('')
+        self.text2.hide()
+        self.text1.setStyleSheet(self.defaultStyle)
+        return ('', '', '')
+
+
+    def add2to1(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: append content of 2nd text-box to 1st
+        Args:
+            state (bool): return state
+        """
+        name       = 'add2to1Btn'
+        icon       = 'ri.menu-add-fill'
+        tooltip    = 'Append answer to history'
+        if state:
+            return name, icon, tooltip
+        self.text1.setMarkdown(self.text2.toMarkdown()+'\n---\n'+self.text2.toMarkdown())
         self.text2.setMarkdown('')
         self.text2.hide()
         self.text1.setStyleSheet(self.defaultStyle)

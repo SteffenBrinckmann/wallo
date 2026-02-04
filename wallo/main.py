@@ -46,7 +46,7 @@ class Wallo(QMainWindow):
         self.setCentralWidget(scrollArea)
 
         # Setup exchanges
-        self.exchanges: list[Exchange] = [Exchange(self) for _ in range(2)]
+        self.exchanges: list[Exchange] = [Exchange(self) for _ in range(1)]
         self.layoutExchanges()
         self.exchanges[0].showButtons()
         if self.beginner:

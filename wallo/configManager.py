@@ -49,8 +49,8 @@ DEFAULT_CONFIGURATION = {
     'startCounts': 4
 }
 
-ALLOWED_BUTTONS = tuple(DEFAULT_CONFIGURATION['profiles'][0]['buttons'])
-
+ALLOWED_BUTTONS = ('hide1', 'clear1', 'clearBoth', 'audio1', 'move2to1', 'add2to1', 'showStatus', 'toggleRag',
+                   'addExchangeNext', 'splitParagraphs', 'attachFile', 'chatExchange')
 
 class ConfigurationManager:
     """Handles configuration loading, validation, and management."""
@@ -100,7 +100,8 @@ class ConfigurationManager:
 
     def get(self, info: str) -> Any:
         """Get configuration value by key"""
-        if info not in ['services', 'service', 'model', 'parameter', 'dictionary', 'startCounts', 'profiles', 'prompts', 'system-prompt']:
+        if info not in ['services', 'service', 'model', 'parameter', 'dictionary', 'startCounts', 'profiles',
+                        'prompts', 'system-prompt','buttons']:
             raise ValueError(f"Invalid info type '{info}' requested")
         if info == 'services':
             return self._config['services']
@@ -112,7 +113,7 @@ class ConfigurationManager:
             return self._config['services'][self._currentService]['models'][self._currentModel]
         if info == 'profiles':
             return [profile['name'] for profile in self._config.get('profiles', [])]
-        if info in ['prompts', 'system-prompt']:
+        if info in ['prompts', 'system-prompt','buttons']:
             profile = [profile for profile in self._config.get('profiles', []) if profile['name'] == self._currentProfile][0]
             return profile[info]
         if info in ['dictionary', 'startCounts']:

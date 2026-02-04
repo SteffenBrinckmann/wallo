@@ -8,8 +8,7 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFormLayout, QGroupBox
                                QWidget, QTextEdit, QCheckBox)
 from qtawesome import icon as qta_icon
 
-from .configManager import ConfigurationManager
-ALLOWED_BUTTONS = ["splitParagraphs", "addExchangeNext", "clearBoth", "chatExchange", "toggleRag", "attachFile", "hide1", "audio1", "move2to1"]
+from .configManager import ConfigurationManager, ALLOWED_BUTTONS
 
 class ProfileTab(QWidget):
     """Tab for managing profiles and their prompts."""
