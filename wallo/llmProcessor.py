@@ -94,14 +94,14 @@ class LLMProcessor:
 
 
     def processPrompt(self, senderID: str, promptName: str, serviceName: str, selectedText: str = '',
-                      pdfFilePath: str = '', inquiryResponse: str = '', ragUsage: bool = False) -> dict[str, Any]:
+                      attachFilePath: str = '', inquiryResponse: str = '', ragUsage: bool = False) -> dict[str, Any]:
         """Process a prompt based on its attachment type.
 
         Args:
             promptName: Name of the prompt to use.
             serviceName: Name of the service to use.
             selectedText: Selected text from the editor.
-            pdfFilePath: Path to the PDF file.
+            attachFilePath: Path to the PDF file.
             inquiryResponse: User's response to the inquiry.
             ragUsage: Whether to use RAG for retrieval.
 
@@ -130,7 +130,7 @@ class LLMProcessor:
             'prompt'        : prompt,
             'senderID'      : senderID,
             'selectedText'  : selectedText,
-            'pdfFilePath'   : pdfFilePath,
+            'attachFilePath': attachFilePath,
             'ragRunnable'   : self.ragIndexer if ragUsage else None,
             'agentTools'    : self.agents.getAgentTools()
         }

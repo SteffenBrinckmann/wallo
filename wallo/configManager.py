@@ -50,7 +50,7 @@ DEFAULT_CONFIGURATION = {
 }
 
 ALLOWED_BUTTONS = ('hide1', 'clear1', 'clearBoth', 'audio1', 'move2to1', 'add2to1', 'showStatus', 'toggleRag',
-                   'addExchangeNext', 'splitParagraphs', 'attachFile', 'chatExchange')
+                   'addExchangeNext', 'deleteExchange', 'splitParagraphs', 'attachFile', 'chatExchange')
 
 class ConfigurationManager:
     """Handles configuration loading, validation, and management."""

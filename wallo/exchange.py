@@ -18,6 +18,8 @@ from .misc import ACCENT_COLOR, PushToTalkRecorder
 if TYPE_CHECKING:
     from .main import Wallo
 
+BUTTON_LAYOUT = {1:(1, 3), 2:(2, 3), 3:(3, 3), 4:(1, 2), 5:(2, 2), 6:(3, 2), 7:(1, 1), 8:(2, 1),9:(3, 1)}
+BUTTON_WIDTH = 140
 
 class Exchange(QWidget):
     """A tiny prototype exchange widget that echoes messages.
@@ -75,46 +77,8 @@ class Exchange(QWidget):
         self.switchToHistoryAction.triggered.connect(lambda: self.switchEditor('up'))
         self.addAction(self.switchToHistoryAction)
         self.btnWidget = QWidget()
-        btnLayout  = QGridLayout(self.btnWidget)
-        btnLayout.setVerticalSpacing(0)
-        btnLayout.setHorizontalSpacing(0)
+        self.btnWidget.setFixedWidth(BUTTON_WIDTH)
         self.main.addWidget(self.btnWidget)
-        # Buttons: x  y  function
-        btns = {
-            1:(1, 3),
-            2:(2, 3),
-            3:(3, 3),
-            4:(1, 2),
-            5:(2, 2),
-            6:(3, 2),
-            7:(1, 1),
-            8:(2, 1),
-            9:(3, 1),
-        }
-        buttonNames = self.mainWidget.configManager.get('buttons')
-        for idx, (x, y) in btns.items():
-            funct = getattr(self, buttonNames[idx-1])
-            name, icon, tooltip = funct(None, True)
-            shortcut = f'Alt+{idx}'
-            button = QPushButton()
-            button.setToolTip(f'{tooltip} ({shortcut})')
-            button.setShortcut(QKeySequence(shortcut))
-            button.setIcon(qta.icon(icon))
-            button.clicked.connect(funct)
-            setattr(self, name, button)
-            btnLayout.addWidget(button, y, x)
-        self.llmCB = QComboBox()
-        self.llmCB.setMaximumWidth(120)
-        self._populateLlmComboBox()
-        self.llmCB.activated.connect(self.useLLM)
-        btnLayout.addWidget(self.llmCB, 9, 1, 1, 3)
-        # Reserve the button-column space when collapsed: compute width and hide buttons
-        self.btnBoxWidth = self.btnWidget.sizeHint().width()
-        self.btnControls = self.btnWidget.findChildren(QPushButton) + self.btnWidget.findChildren(QComboBox)
-        for control in self.btnControls:
-            control.hide()
-        # Keep the widget visible but fixed-width so TextEdits don't expand
-        self.btnWidget.setFixedWidth(self.btnBoxWidth)
 
         # Busy overlay (spinner + text)
         self.busyOverlay = QWidget(self)
@@ -243,7 +207,7 @@ class Exchange(QWidget):
         tooltip    = 'Append answer to history'
         if state:
             return name, icon, tooltip
-        self.text1.setMarkdown(self.text2.toMarkdown()+'\n---\n'+self.text2.toMarkdown())
+        self.text1.setMarkdown(self.text1.toMarkdown()+'\n---\n'+self.text2.toMarkdown())
         self.text2.setMarkdown('')
         self.text2.hide()
         self.text1.setStyleSheet(self.defaultStyle)
@@ -306,6 +270,20 @@ class Exchange(QWidget):
         return ('', '', '')
 
 
+    def deleteExchange(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
+        """Self-contained function: delete this exchange from the list
+        Args:
+            state (bool): return state
+        """
+        name    = 'deleteExchangeBtn'  # different than function name
+        icon    = 'fa5s.minus'
+        tooltip = 'Delete this exchange'
+        if state:
+            return name, icon, tooltip
+        self.mainWidget.deleteExchange(self.uuid)
+        return ('', '', '')
+
+
     def splitParagraphs(self, _: QEvent | None, state: bool = False) -> tuple[str, str, str]:
         """Self-contained function: split paragraphs into separate exchanges
         Args:
@@ -333,8 +311,8 @@ class Exchange(QWidget):
         tooltip = 'Attach a file to supply context'
         if state:
             return name, icon, tooltip
-        filePath, _selectedFilter = QFileDialog.getOpenFileName(self, 'Select a pdf-file to add as context',
-                                                                str(Path.home()), 'pdf-files (*.pdf)')
+        filePath, _selectedFilter = QFileDialog.getOpenFileName(self, 'Select a file to add as context',
+                                                                str(Path.home()), 'All files (*.*)')
         if filePath:
             self.filePath = filePath
             self._setButtonAppearance(name, icon, color=ACCENT_COLOR)
@@ -471,11 +449,29 @@ class Exchange(QWidget):
         - Activate actions
         - do not overload with focus tasks
         """
-        for control in self.btnControls:
-            control.show()
-        for action in self.actions():
-            action.setEnabled(True)
-        self.btnWidget.setFixedWidth(self.btnBoxWidth)
+        btnLayout  = QGridLayout(self.btnWidget)
+        btnLayout.setVerticalSpacing(0)
+        btnLayout.setHorizontalSpacing(0)
+        buttonNames = self.mainWidget.configManager.get('buttons')
+        for idx, (x, y) in BUTTON_LAYOUT.items():
+            funct = getattr(self, buttonNames[idx-1])
+            name, icon, tooltip = funct(None, True)
+            shortcut = f'Alt+{idx}'
+            button = QPushButton()
+            button.setToolTip(f'{tooltip} ({shortcut})')
+            button.setShortcut(QKeySequence(shortcut))
+            button.setIcon(qta.icon(icon))
+            button.clicked.connect(funct)
+            setattr(self, name, button)
+            btnLayout.addWidget(button, y, x)
+        self.llmCB = QComboBox()
+        self.llmCB.setMaximumWidth(120)
+        self._populateLlmComboBox()
+        self.llmCB.activated.connect(self.useLLM)
+        btnLayout.addWidget(self.llmCB, 9, 1, 1, 3)
+        # Reserve the button-column space when collapsed: compute width and hide buttons
+        self.btnControls = self.btnWidget.findChildren(QPushButton) + self.btnWidget.findChildren(QComboBox)
+        self.btnWidget.setFixedWidth(BUTTON_WIDTH)
         self.btnState = 'show'
         self._populateLlmComboBox()
 
@@ -486,10 +482,11 @@ class Exchange(QWidget):
         - Deactivate actions
         """
         for control in self.btnControls:
-            control.hide()
+            control.deleteLater()
         for action in self.actions():
             action.setEnabled(False)
-        self.btnWidget.setFixedWidth(self.btnBoxWidth)
+        self.btnWidget.layout().deleteLater()
+        self.btnWidget.setFixedWidth(BUTTON_WIDTH)
         self.btnState = 'hidden'
         if not self.text2.toMarkdown().strip():
             self.text2.hide()

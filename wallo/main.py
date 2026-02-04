@@ -46,7 +46,7 @@ class Wallo(QMainWindow):
         self.setCentralWidget(scrollArea)
 
         # Setup exchanges
-        self.exchanges: list[Exchange] = [Exchange(self) for _ in range(1)]
+        self.exchanges: list[Exchange] = [Exchange(self) for _ in range(2)]
         self.layoutExchanges()
         self.exchanges[0].showButtons()
         if self.beginner:
@@ -105,25 +105,6 @@ class Wallo(QMainWindow):
         return spacer
 
 
-    def _activeExchangeIndex(self) -> int | None:
-        for idx, exchange in enumerate(self.exchanges):
-            if exchange.btnState == 'show':
-                return idx
-        return None
-
-
-    def _moveActiveExchange(self, step: int) -> None:
-        activeIdx = self._activeExchangeIndex()
-        if activeIdx is None:
-            return
-        newIdx = activeIdx + step
-        if not 0 <= newIdx < len(self.exchanges):
-            return
-        self.exchanges[activeIdx].hideButtons()
-        self.exchanges[newIdx].showButtons()
-        self.exchanges[newIdx].focusForTyping()
-
-
     def layoutExchanges(self) -> None:
         """Put the exchanges into the main layout."""
         while self.mainLayout.count():
@@ -159,6 +140,22 @@ class Wallo(QMainWindow):
                 return
         super().keyPressEvent(event)
 
+    def _moveActiveExchange(self, step: int) -> None:
+        activeIdx = None
+        for idx, exchange in enumerate(self.exchanges):
+            if exchange.btnState == 'show':
+                activeIdx = idx
+        if activeIdx is None:
+            return
+        newIdx = activeIdx + step
+        if not 0 <= newIdx < len(self.exchanges):
+            return
+        self.exchanges[activeIdx].hideButtons()
+        self.exchanges[newIdx].showButtons()
+        self.exchanges[newIdx].focusForTyping()
+
+
+
 
     def addExchanges(self, uuid: str, texts: list[str]) -> None:
         """Add exchanges.
@@ -171,6 +168,17 @@ class Wallo(QMainWindow):
         insertPos = idx + 1
         self.exchanges[insertPos:insertPos] = [Exchange(self, text) for text in texts]
         self.layoutExchanges()
+
+
+    def deleteExchange(self, uuid: str) -> None:
+        """Add exchanges.
+
+        Args:
+          uuid (str): The UUID of the exchange.
+        """
+        idx = [exchange.uuid for exchange in self.exchanges].index(uuid)
+        self.exchanges[idx].deleteLater()
+        del self.exchanges[idx]
 
 
     def saveToFile(self, dType: str) -> None:
@@ -292,7 +300,7 @@ class Wallo(QMainWindow):
         """Show the configuration widget."""
         if self.configWidget is None:
             self.configWidget = ConfigurationWidget(self.configManager)
-            self.configWidget.configChanged.connect(self.onConfigChanged)
+            self.configWidget.configChanged.connect(lambda: self.onConfigChanged('reread'))
         self.configWidget.show()
         self.configWidget.raise_()
         self.configWidget.activateWindow()
@@ -300,6 +308,9 @@ class Wallo(QMainWindow):
 
     def onConfigChanged(self, dType:str='initialize') -> None:
         """Handle configuration changes."""
+        if dType=='reread':
+            self.configManager.readConfig()
+            dType = 'initialize'
         if dType=='initialize':
             self.profileCB.clear()
             self.profileCB.addItems(self.configManager.get('profiles'))

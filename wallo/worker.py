@@ -62,13 +62,16 @@ class Worker(QObject):
                 if DEBUG_MODE:
                     print('RAG context:', '\n\n'.join(retrieved))
                 ragContext = f"\n\nContext:\n---\n{ '\n\n'.join(retrieved) }\n---\n"
-        # PDF extraction
-        pdfFilePath = objects['pdfFilePath']
-        pdfContext = ''
-        if pdfFilePath:
-            pdfContext = self.documentProcessor.extractTextFromPdf(pdfFilePath) + '\n\n'
+        # file extraction
+        attachFilePath = objects['attachFilePath']
+        fileContext = ''
+        if attachFilePath.endswith('.pdf'):
+            fileContext = self.documentProcessor.extractTextFromPdf(attachFilePath) + '\n\n'
+        if attachFilePath.split('.')[-1] in ['tex','txt']:
+            with open(attachFilePath, 'r', encoding='utf-8') as fh:
+                fileContext = fh.read() + '\n\n'
         # Combine all
-        prompt = f"{prompt}{ragContext}{pdfContext}{selectedText}"
+        prompt = f"{prompt}{ragContext}{fileContext}{selectedText}"
         history = objects['messageHistory']
         # Agent usage
         agentTools = objects['agentTools']
