@@ -80,6 +80,9 @@ class Exchange(QWidget):
         self.btnWidget = QWidget()
         self.btnWidget.setFixedWidth(BUTTON_WIDTH)
         self.main.addWidget(self.btnWidget)
+        self.btnLayout  = QGridLayout(self.btnWidget)
+        self.btnLayout.setVerticalSpacing(0)
+        self.btnLayout.setHorizontalSpacing(0)
 
         # Busy overlay (spinner + text)
         self.busyOverlay = QWidget(self)
@@ -334,7 +337,7 @@ class Exchange(QWidget):
         if text:
             self.setBusy(True)
             # LLM
-            workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, '', text, ragUsage=self.ragUsage)
+            workParams = self.mainWidget.llmProcessor.processPrompt('', self.uuid, text, ragUsage=self.ragUsage)
             self.mainWidget.runWorker('chatAPI', workParams)
         return ('', '', '')
 
@@ -368,7 +371,7 @@ class Exchange(QWidget):
                 return
 
         self.setBusy(True)
-        workParams = self.mainWidget.llmProcessor.processPrompt(self.uuid, promptName, historyMarkdown,
+        workParams = self.mainWidget.llmProcessor.processPrompt(promptName, self.uuid, historyMarkdown,
                                                                 self.filePath, userInput, self.ragUsage)
         self.mainWidget.runWorker('chatAPI', workParams)
 
@@ -445,9 +448,10 @@ class Exchange(QWidget):
         - Activate actions
         - do not overload with focus tasks
         """
-        btnLayout  = QGridLayout(self.btnWidget)
-        btnLayout.setVerticalSpacing(0)
-        btnLayout.setHorizontalSpacing(0)
+        if self.btnState == 'show':
+            return
+        for i in reversed(range(self.btnLayout.count())):
+            self.btnLayout.itemAt(i).widget().setParent(None)
         buttonNames = self.mainWidget.configManager.get('buttons')
         for idx, (x, y) in BUTTON_LAYOUT.items():
             funct = getattr(self, buttonNames[idx-1])
@@ -459,12 +463,11 @@ class Exchange(QWidget):
             button.setIcon(qta.icon(icon))
             button.clicked.connect(funct)
             setattr(self, name, button)
-            btnLayout.addWidget(button, y, x)
+            self.btnLayout.addWidget(button, y, x)
         self.llmCB = QComboBox()
         self.llmCB.setMaximumWidth(120)
-        self._populateLlmComboBox()
         self.llmCB.activated.connect(self.useLLM)
-        btnLayout.addWidget(self.llmCB, 9, 1, 1, 3)
+        self.btnLayout.addWidget(self.llmCB, 9, 1, 1, 3)
         # Reserve the button-column space when collapsed: compute width and hide buttons
         self.btnControls = self.btnWidget.findChildren(QPushButton) + self.btnWidget.findChildren(QComboBox)
         self.btnWidget.setFixedWidth(BUTTON_WIDTH)
@@ -477,13 +480,13 @@ class Exchange(QWidget):
         - Hide only the buttons but keep the btnWidget visible to reserve space.
         - Deactivate actions
         """
+        if self.btnState == 'hidden':
+            return
         for control in self.btnControls:
             control.deleteLater()
+        self.btnControls.clear()
         for action in self.actions():
             action.setEnabled(False)
-        layout = self.btnWidget.layout()
-        if layout is not None:
-            layout.deleteLater()
         self.btnWidget.setFixedWidth(BUTTON_WIDTH)
         self.btnState = 'hidden'
         if not self.text2.toMarkdown().strip():

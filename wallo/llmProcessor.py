@@ -92,7 +92,8 @@ class LLMProcessor:
         raise ValueError(f"System prompt '{promptName}' not found in configuration")
 
 
-    def processPrompt(self, senderID: str, promptName: str, selectedText: str = '', attachFilePath: str = '',
+    def processPrompt(self, promptName: str, senderID: str='123456789012345678901234567890ab',
+                      selectedText: str = '', attachFilePath: str = '',
                       inquiryResponse: str = '', ragUsage: bool = False) -> dict[str, Any]:
         """Process a prompt based on its attachment type.
 

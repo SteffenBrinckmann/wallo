@@ -55,7 +55,7 @@ ALLOWED_BUTTONS = ('hide1', 'clear1', 'clearBoth', 'audio1', 'move2to1', 'add2to
 class ConfigurationManager:
     """Handles configuration loading, validation, and management."""
 
-    def __init__(self, configFile: Optional[Path] = None) -> None:
+    def __init__(self, service:str='', model:str='', profile:str='', configFile: Optional[Path] = None) -> None:
         """Initialize the configuration manager.
 
         Args:
@@ -63,10 +63,28 @@ class ConfigurationManager:
         """
         self.configFile = configFile or Path.home() / '.wallo.json'
         self._config: dict[str, Any] = {}
-        self._currentProfile = ''
-        self._currentService = ''
-        self._currentModel = ''
+        self._currentProfile = profile
+        self._currentService = service
+        self._currentModel = model
         self.loadConfig()
+
+
+    def __repr__(self) -> str:
+        """Return a string representation of the configuration"""
+        res = ''
+        services = self.get('services')
+        res += f'Available services: '+' | '.join(services.keys())+'\n'
+        if self._currentService:
+            res += f'  Current service: {self._currentService}\n'
+            res += f'Available models: '+' | '.join(list(services[self._currentService]['models'].keys()))+'\n'
+            if self._currentModel:
+                res += f'  Current model: {self._currentModel}\n'
+        res += f'Available profiles: '+' | '.join(self.get('profiles'))+'\n'
+        if self._currentProfile:
+            res += f'  Current profile: {self._currentProfile}\n'
+        res += f'Available prompts:\n  '+'\n  '.join([i['name'] for i in self.get('prompts')])+'\n'
+        return res
+
 
     def loadConfig(self) -> None:
         """Load configuration from file, creating default if it doesn't exist."""
@@ -83,7 +101,8 @@ class ConfigurationManager:
             raise ValueError(f"Error loading configuration file: {e}") from e
         self.validateConfig()
         profiles = [profile['name'] for profile in self._config.get('profiles', [])]
-        self._currentProfile = profiles[0] if profiles else ''
+        if not self._currentProfile or self._currentProfile not in profiles:
+            self._currentProfile = profiles[0] if profiles else ''
 
     def validateConfig(self) -> None:
         """Validate configuration file format and required fields."""

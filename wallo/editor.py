@@ -193,7 +193,7 @@ class TextEdit(QTextEdit):
         # allow the widget to expand vertically while editing and show scrollbar as needed
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setMaximumHeight(16777215)
-        self.setMinimumHeight(0)
+        self.setMinimumHeight(150)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         super().focusInEvent(event)
 
