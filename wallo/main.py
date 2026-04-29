@@ -6,10 +6,12 @@ from pathlib import Path
 from typing import Any
 import pypandoc
 import qtawesome as qta
-from PySide6.QtCore import QThread, Qt  # pylint: disable=no-name-in-module
-from PySide6.QtGui import QAction, QKeySequence, QKeyEvent  # pylint: disable=no-name-in-module
+from PySide6.QtCore import QThread, Qt, Signal  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QAction, QKeySequence, QKeyEvent, QCloseEvent  # pylint: disable=no-name-in-module
 from PySide6.QtWidgets import (QApplication,  QComboBox, QFileDialog, QMainWindow, QMessageBox, QScrollArea, # pylint: disable=no-name-in-module
                                QToolBar, QVBoxLayout, QWidget)
+
+from .acpWorker import ACPWorker
 from .configMain import ConfigurationWidget
 from .configManager import ConfigurationManager
 from .exchange import Exchange
@@ -17,9 +19,14 @@ from .llmProcessor import LLMProcessor
 from .misc import invertIcon, HELP_TEXT
 from .worker import Worker
 
+CHAT_TRANSPORT = 'acp'
+
 
 class Wallo(QMainWindow):
     """Main window for the Wallo application, providing a text editor with LLM assistance."""
+    acpFinished = Signal(str, str, str)
+    acpError = Signal(str, str, str)
+
     def __init__(self) -> None:
         super().__init__()
         self.configManager = ConfigurationManager()
@@ -34,6 +41,9 @@ class Wallo(QMainWindow):
         self.serviceCB = QComboBox()
         self.profileCB = QComboBox()
         self.modelsCB = QComboBox()
+        self.acpWorker = ACPWorker()
+        self.acpFinished.connect(self.onWorkerFinished)
+        self.acpError.connect(self.onWorkerError)
 
         # GUI
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
@@ -214,6 +224,14 @@ class Wallo(QMainWindow):
             workType (str): The type of work to be performed (e.g., 'chatAPI', 'pdfExtraction').
             work (dict): The work parameters, such as client, model, prompt, and fileName.
         """
+        if workType == 'chatAPI' and CHAT_TRANSPORT == 'acp':
+            self.runWorkerAcp(work)
+            return
+        self.runWorkerLangchain(workType, work)
+
+
+    def runWorkerLangchain(self, workType: str, work: dict[str, Any]) -> None:
+        """Run existing worker path for LangChain/OpenAI operations."""
         thread = QThread()
         worker = Worker(workType, work)
         worker.moveToThread(thread)
@@ -227,6 +245,21 @@ class Wallo(QMainWindow):
         self.activeThreads.append(thread)
         self.activeWorkers.append(worker)
         thread.start()
+
+
+    def runWorkerAcp(self, work: dict[str, Any]) -> None:
+        """Run ACP prompt path with a shared session and serialized prompts."""
+        senderID = work['senderID']
+        self.acpWorker.runChat(work,
+            lambda content: self.acpFinished.emit(content, senderID, 'chatAPI'),
+            lambda errorMsg: self.acpError.emit(errorMsg, senderID, 'chatAPI')
+        )
+
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Close app and clean up ACP runtime resources."""
+        self.acpWorker.stop()
+        super().closeEvent(event)
 
 
     def _onThreadFinished(self, thread: QThread, worker: Worker) -> None:
@@ -250,14 +283,16 @@ class Wallo(QMainWindow):
             exchange.setReply(processContent, senderID, workType)
 
 
-    def onWorkerError(self, errorMsg: str, senderID: str) -> None:
+    def onWorkerError(self, errorMsg: str, senderID: str, workType: str = '') -> None:
         """Handle errors from the LLM worker.
 
         Args:
             errorMsg (str): The error message from the worker.
             senderID (str): The sender ID of the exchange
+            workType (str): The type of work performed (e.g., 'chatAPI', 'pdfExtraction')
         """
-        QMessageBox.critical(self, 'Worker Error', f'{errorMsg} by senderID {senderID}')
+        info = f'{errorMsg} by senderID {senderID}'
+        QMessageBox.critical(self, 'Worker Error', f'{info} ({workType})' if workType else info)
 
 
     def toggleSpellcheck(self) -> None:
