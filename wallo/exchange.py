@@ -46,6 +46,7 @@ class Exchange(QWidget):
         self.pushToTalkRecorder = PushToTalkRecorder()
         self.llmCB      = QComboBox()
         self.btnControls:list[QWidget] = []
+        self.llmShortcutActions:list[QAction] = []
 
         # Build GUI
         self.main  = QHBoxLayout(self)
@@ -139,7 +140,7 @@ class Exchange(QWidget):
         tooltip    = 'Delete history'
         if state:
             return name, icon, tooltip
-        self.text1.setMarkdown('')
+        self.text1.setPlainText('')
         return ('', '', '')
 
 
@@ -153,8 +154,8 @@ class Exchange(QWidget):
         tooltip    = 'Delete both'
         if state:
             return name, icon, tooltip
-        self.text1.setMarkdown('')
-        self.text2.setMarkdown('')
+        self.text1.setPlainText('')
+        self.text2.setPlainText('')
         self.text2.hide()
         return ('', '', '')
 
@@ -194,8 +195,8 @@ class Exchange(QWidget):
         tooltip    = 'Move answer to history'
         if state:
             return name, icon, tooltip
-        self.text1.setMarkdown(self.text2.toMarkdown())
-        self.text2.setMarkdown('')
+        self.text1.setPlainText(self.text2.toMarkdown())
+        self.text2.setPlainText('')
         self.text2.hide()
         self.text1.setStyleSheet(self.defaultStyle)
         return ('', '', '')
@@ -211,8 +212,8 @@ class Exchange(QWidget):
         tooltip    = 'Append answer to history'
         if state:
             return name, icon, tooltip
-        self.text1.setMarkdown(self.text1.toMarkdown()+'\n---\n'+self.text2.toMarkdown())
-        self.text2.setMarkdown('')
+        self.text1.setPlainText(self.text1.toPlainText()+'\n---\n'+self.text2.toPlainText())
+        self.text2.setPlainText('')
         self.text2.hide()
         self.text1.setStyleSheet(self.defaultStyle)
         return ('', '', '')
@@ -387,7 +388,7 @@ class Exchange(QWidget):
             self.setBusy(False)
             if worktype == 'chatAPI':
                 self.text2.show()
-                self.text2.setMarkdown(content)
+                self.text2.setPlainText(content)
                 self.text1.setStyleSheet(f'color: {ACCENT_COLOR}; font-size: 10pt;')
             else:
                 self.text1.append(content)
@@ -505,6 +506,10 @@ class Exchange(QWidget):
     def _populateLlmComboBox(self) -> None:
         """Populate the LLM combo box with available prompts."""
         self.llmCB.clear()
+        for action in self.llmShortcutActions:
+            self.removeAction(action)
+            action.deleteLater()
+        self.llmShortcutActions.clear()
         # add LLM selections
         prompts = self.mainWidget.configManager.get('prompts')
         for i, prompt in enumerate(prompts):
@@ -516,9 +521,11 @@ class Exchange(QWidget):
                 # Create shortcut action
                 shortcutAction = QAction(self)
                 shortcutAction.setShortcut(QKeySequence(shortcut))
+                shortcutAction.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
                 shortcutAction.setEnabled(False)
                 shortcutAction.triggered.connect(lambda _checked=False, index=i: self._useShortcut(index))
                 self.addAction(shortcutAction)
+                self.llmShortcutActions.append(shortcutAction)
             else:
                 self.llmCB.addItem(prompt['name'], prompt['name'])
 
