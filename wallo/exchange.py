@@ -45,7 +45,7 @@ class Exchange(QWidget):
         self.recording  = False
         self.pushToTalkRecorder = PushToTalkRecorder()
         self.llmCB      = QComboBox()
-        self.btnControls:list[QPushButton] = []
+        self.btnControls:list[QWidget] = []
 
         # Build GUI
         self.main  = QHBoxLayout(self)
@@ -451,7 +451,11 @@ class Exchange(QWidget):
         if self.btnState == 'show':
             return
         for i in reversed(range(self.btnLayout.count())):
-            self.btnLayout.itemAt(i).widget().setParent(None)
+            item = self.btnLayout.itemAt(i)
+            if item is not None:
+                widget = item.widget()
+                if widget is not None:
+                    widget.setParent(None)
         buttonNames = self.mainWidget.configManager.get('buttons')
         for idx, (x, y) in BUTTON_LAYOUT.items():
             funct = getattr(self, buttonNames[idx-1])
@@ -473,6 +477,8 @@ class Exchange(QWidget):
         self.btnWidget.setFixedWidth(BUTTON_WIDTH)
         self.btnState = 'show'
         self._populateLlmComboBox()
+        for action in self.actions():
+            action.setEnabled(True)
 
 
     def hideButtons(self) -> None:
