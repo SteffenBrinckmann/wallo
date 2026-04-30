@@ -513,9 +513,8 @@ class Exchange(QWidget):
         # add LLM selections
         prompts = self.mainWidget.configManager.get('prompts')
         for i, prompt in enumerate(prompts):
-            if i < 10:  # Limit to Ctrl+1 through Ctrl+9 and Ctrl+0
-                shortcutNumber = (i + 1) % 10  # 1-9, then 0 for the 10th item
-                shortcut = f"Ctrl+{shortcutNumber}"
+            if i < 9:  # Limit to Ctrl+1 through Ctrl+9
+                shortcut = f"Ctrl+{i + 1}"
                 displayText = f"{prompt['name']} ({shortcut})"
                 self.llmCB.addItem(displayText, prompt['name'])
                 # Create shortcut action
