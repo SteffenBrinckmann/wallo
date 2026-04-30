@@ -8,8 +8,10 @@ from pathlib import Path
 from typing import Any, Callable, cast
 from acp import spawn_agent_process, text_block
 
-ACP_EXECUTABLE = 'opencode'
-ACP_ARG = 'acp'
+DEFAULT_ACP_OPTIONS = {
+    'executable': 'opencode',
+    'arg': 'acp'
+}
 
 class ACPClient:
     """ACP client callback implementation for streaming updates and permissions."""
@@ -40,11 +42,14 @@ class ACPWorker:
         self.acpThread: threading.Thread | None = None
         self.acpInitLock = threading.Lock()
         self.acpPromptLock: asyncio.Lock | None = None
+        self.runtimeOptions = dict(DEFAULT_ACP_OPTIONS)
 
 
     def runChat(self, work: dict[str, Any], successCb: Callable[[str], None], errorCb: Callable[[str], None]) -> None:
         """Run ACP prompt path with a shared session and serialized prompts."""
         prompt = self.preparePrompt(work)
+        if self.acpConn is None or not self.acpSessionId:
+            self.runtimeOptions = self.getRuntimeOptions(work)
         def runner() -> None:
             try:
                 self.ensureRuntime()
@@ -74,6 +79,13 @@ class ACPWorker:
             future.result()
 
 
+    def getRuntimeOptions(self, work: dict[str, Any]) -> dict[str, Any]:
+        """Merge ACP service options with defaults."""
+        options = dict(DEFAULT_ACP_OPTIONS)
+        options.update(work.get('acpOptions', {}))
+        return options
+
+
     def acpLoopRunner(self) -> None:
         """Run dedicated asyncio loop for ACP communication."""
         if self.acpLoop is None:
@@ -87,7 +99,9 @@ class ACPWorker:
         if self.acpConn is not None and self.acpSessionId:
             return
         self.acpClient = ACPClient()
-        self.acpSpawnCtx = cast(Any, spawn_agent_process)(self.acpClient, ACP_EXECUTABLE, ACP_ARG, '--cwd', self.acpTmpDir)
+        executable = self.runtimeOptions['executable']
+        arg = self.runtimeOptions['arg']
+        self.acpSpawnCtx = cast(Any, spawn_agent_process)(self.acpClient, executable, arg, '--cwd', self.acpTmpDir)
         self.acpConn, self.acpProc = await self.acpSpawnCtx.__aenter__()
         await self.acpConn.initialize(protocol_version=1)
         session = await self.acpConn.new_session(cwd=self.acpTmpDir, mcp_servers=[])
@@ -146,6 +160,7 @@ class ACPWorker:
 
     def stop(self) -> None:
         """Stop ACP resources and remove temp workspace."""
+        self.acpSessionId = ''
         if self.acpLoop is not None and self.acpSpawnCtx is not None:
             try:
                 future = asyncio.run_coroutine_threadsafe(self.acpSpawnCtx.__aexit__(None, None, None), self.acpLoop)
@@ -156,5 +171,12 @@ class ACPWorker:
             self.acpLoop.call_soon_threadsafe(self.acpLoop.stop)
         if self.acpThread is not None:
             self.acpThread.join(timeout=2)
+        self.acpConn = None
+        self.acpProc = None
+        self.acpSpawnCtx = None
+        self.acpClient = None
+        self.acpPromptLock = None
+        self.acpLoop = None
+        self.acpThread = None
         if self.acpTmpDir and os.path.isdir(self.acpTmpDir):
             shutil.rmtree(self.acpTmpDir, ignore_errors=True)

@@ -43,6 +43,13 @@ DEFAULT_CONFIGURATION = {
             'models': {
                 'gpt-4o': {}
             }
+        },
+        'ACP': {
+            'type': 'ACP',
+            'options': {
+                'executable': 'opencode',
+                'arg': 'acp'
+            }
         }
     },
     'dictionary': 'en_US',
@@ -76,7 +83,8 @@ class ConfigurationManager:
         res += f'Available services: '+' | '.join(services.keys())+'\n'
         if self._currentService:
             res += f'  Current service: {self._currentService}\n'
-            res += f'Available models: '+' | '.join(list(services[self._currentService]['models'].keys()))+'\n'
+            models = services[self._currentService].get('models', {})
+            res += f'Available models: '+' | '.join(list(models.keys()))+'\n'
             if self._currentModel:
                 res += f'  Current model: {self._currentModel}\n'
         res += f'Available profiles: '+' | '.join(self.get('profiles'))+'\n'
@@ -129,7 +137,8 @@ class ConfigurationManager:
         if info == 'model':
             return self._currentModel
         if info == 'parameter':
-            return self._config['services'][self._currentService]['models'][self._currentModel]
+            models = self._config['services'][self._currentService].get('models', {})
+            return models[self._currentModel] if self._currentModel in models else {}
         if info == 'profiles':
             return [profile['name'] for profile in self._config.get('profiles', [])]
         if info in ['prompts', 'system-prompt','buttons']:

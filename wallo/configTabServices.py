@@ -100,11 +100,15 @@ class ServiceTab(QWidget):
         self.modelsPreview.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.modelsPreviewHighlighter = JsonSyntaxHighlighter(self.modelsPreview.document())
         self.typeLabel = QLabel()
+        self.executableLabel = QLabel()
+        self.argumentLabel = QLabel()
         previewLayout.addRow('Name:',    self.nameLabel)
         previewLayout.addRow('URL:',     self.urlLabel)
         previewLayout.addRow('API Key:', self.apiLabel)
         previewLayout.addRow('Models:',  self.modelsPreview)
         previewLayout.addRow('Type:',    self.typeLabel)
+        previewLayout.addRow('Executable:', self.executableLabel)
+        previewLayout.addRow('Argument:', self.argumentLabel)
 
         rightLayout.addWidget(self.previewGroup)
         rightLayout.addStretch()
@@ -134,14 +138,19 @@ class ServiceTab(QWidget):
             self.nameLabel.setText(serviceName)
             self.urlLabel.setText(service.get('url', ''))
             self.apiLabel.setText('***' if service.get('api') else 'None')
-            self.modelsPreview.setPlainText(json.dumps(service.get('models', '{}'), indent=2))
+            self.modelsPreview.setPlainText(json.dumps(service.get('models', {}), indent=2))
             self.typeLabel.setText(service['type'])
+            options = service.get('options', {})
+            self.executableLabel.setText(str(options.get('executable', '')))
+            self.argumentLabel.setText(str(options.get('arg', '')))
         else:
             self.nameLabel.clear()
             self.urlLabel.clear()
             self.apiLabel.clear()
             self.modelsPreview.clear()
             self.typeLabel.clear()
+            self.executableLabel.clear()
+            self.argumentLabel.clear()
 
 
 
@@ -269,9 +278,13 @@ class ServiceEditDialog(QDialog):
         self.apiEdit = QLineEdit()
         formLayout.addRow('API Key:', self.apiEdit)
         self.typeEdit = QComboBox()
-        self.typeEdit.addItems(['openAI', 'Gemini'])
+        self.typeEdit.addItems(['openAI', 'Gemini', 'ACP'])
         self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
         formLayout.addRow('Type:', self.typeEdit)
+        self.executableEdit = QLineEdit()
+        formLayout.addRow('Executable:', self.executableEdit)
+        self.argumentEdit = QLineEdit()
+        formLayout.addRow('Argument:', self.argumentEdit)
         modelsWidget = QWidget()
         modelsLayout = QHBoxLayout(modelsWidget)
         self.modelsList = QListWidget()
@@ -293,6 +306,7 @@ class ServiceEditDialog(QDialog):
         formLayout.addRow('Models:', modelsWidget)
         layout.addLayout(formLayout)
         self.modelsList.currentItemChanged.connect(self.onModelSelectionChanged)
+        self.typeEdit.currentTextChanged.connect(self.onTypeChanged)
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
@@ -304,8 +318,25 @@ class ServiceEditDialog(QDialog):
         self.urlEdit.setText(self.service.get('url', ''))
         self.apiEdit.setText(self.service.get('api', '') or '')
         self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
+        options = self.service.get('options', {})
+        self.executableEdit.setText(options.get('executable', 'opencode'))
+        self.argumentEdit.setText(options.get('arg', 'acp'))
         self.models = {name: dict(params) for name, params in self.service.get('models', {}).items()}
         self._refreshModelList()
+        self.onTypeChanged(self.typeEdit.currentText())
+
+
+    def onTypeChanged(self, serviceType: str) -> None:
+        """Toggle fields for ACP vs model-based services."""
+        isAcp = serviceType == 'ACP'
+        self.urlEdit.setHidden(isAcp)
+        self.apiEdit.setHidden(isAcp)
+        self.modelsList.setHidden(isAcp)
+        self.addModelBtn.setHidden(isAcp)
+        self.editModelBtn.setHidden(isAcp or self.modelsList.currentItem() is None)
+        self.removeModelBtn.setHidden(isAcp or self.modelsList.currentItem() is None)
+        self.executableEdit.setHidden(not isAcp)
+        self.argumentEdit.setHidden(not isAcp)
 
 
     def _refreshModelList(self, selectName: Optional[str] = None) -> None:
@@ -372,7 +403,11 @@ class ServiceEditDialog(QDialog):
             'url': self.urlEdit.text().strip(),
             'api': self.apiEdit.text().strip() or None,
             'models': copy.deepcopy(self.models),
-            'type': self.typeEdit.currentText()
+            'type': self.typeEdit.currentText(),
+            'options': {
+                'executable': self.executableEdit.text().strip(),
+                'arg': self.argumentEdit.text().strip()
+            }
         }
         return name, service
 
@@ -382,7 +417,17 @@ class ServiceEditDialog(QDialog):
         if not name:
             QMessageBox.warning(self, 'Validation Error', 'Service name cannot be empty')
             return
-        if not service['models']:
+        if service['type'] == 'ACP':
+            if not service['options']['executable']:
+                QMessageBox.warning(self, 'Validation Error', 'ACP executable cannot be empty')
+                return
+            if not service['options']['arg']:
+                QMessageBox.warning(self, 'Validation Error', 'ACP argument cannot be empty')
+                return
+            service['url'] = ''
+            service['api'] = ''
+            service['models'] = {}
+        elif not service['models']:
             QMessageBox.warning(self, 'Validation Error', 'At least one model must be defined')
             return
         super().accept()

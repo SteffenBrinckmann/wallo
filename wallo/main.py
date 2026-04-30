@@ -19,9 +19,6 @@ from .llmProcessor import LLMProcessor
 from .misc import invertIcon, HELP_TEXT
 from .worker import Worker
 
-CHAT_TRANSPORT = 'acp'
-
-
 class Wallo(QMainWindow):
     """Main window for the Wallo application, providing a text editor with LLM assistance."""
     acpFinished = Signal(str, str, str)
@@ -224,7 +221,8 @@ class Wallo(QMainWindow):
             workType (str): The type of work to be performed (e.g., 'chatAPI', 'pdfExtraction').
             work (dict): The work parameters, such as client, model, prompt, and fileName.
         """
-        if workType == 'chatAPI' and CHAT_TRANSPORT == 'acp':
+        service = self.configManager.get('service')
+        if workType == 'chatAPI' and service['type'] == 'ACP':
             self.runWorkerAcp(work)
             return
         self.runWorkerLangchain(workType, work)
@@ -359,9 +357,15 @@ class Wallo(QMainWindow):
             self.configManager.set('service', currentService)
 
             self.modelsCB.clear()
-            self.modelsCB.addItems(list(services[currentService]['models'].keys()))
-            currentModel = list(services[currentService]['models'].keys())[0]
-            self.configManager.set('model', currentModel)
+            serviceType = services[currentService]['type']
+            if serviceType == 'ACP':
+                self.modelsCB.setEnabled(False)
+                self.configManager.set('model', '')
+            else:
+                self.modelsCB.setEnabled(True)
+                self.modelsCB.addItems(list(services[currentService]['models'].keys()))
+                currentModel = list(services[currentService]['models'].keys())[0]
+                self.configManager.set('model', currentModel)
         if dType=='profile':
             self.configManager.set(dType, self.profileCB.currentText())
         if dType=='service':
@@ -369,9 +373,15 @@ class Wallo(QMainWindow):
             self.configManager.set(dType, currentService)
             self.modelsCB.clear()
             services = self.configManager.get('services')
-            self.modelsCB.addItems(list(services[currentService]['models'].keys()))
-            currentModel = list(services[currentService]['models'].keys())[0]
-            self.configManager.set('model', currentModel)
+            serviceType = services[currentService]['type']
+            if serviceType == 'ACP':
+                self.modelsCB.setEnabled(False)
+                self.configManager.set('model', '')
+            else:
+                self.modelsCB.setEnabled(True)
+                self.modelsCB.addItems(list(services[currentService]['models'].keys()))
+                currentModel = list(services[currentService]['models'].keys())[0]
+                self.configManager.set('model', currentModel)
         if dType=='model':
             self.configManager.set(dType, self.modelsCB.currentText())
 

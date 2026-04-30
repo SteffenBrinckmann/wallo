@@ -62,7 +62,7 @@
             "type": "string"
           },
           "api": {
-            "type": "string"
+            "type": ["string", "null"]
           },
           "type": {
             "type": "string"
@@ -79,11 +79,12 @@
               },
               "required": []
             }
+          },
+          "options": {
+            "type": "object"
           }
         },
         "required": [
-          "api",
-          "models",
           "type"
         ],
         "additionalProperties": true

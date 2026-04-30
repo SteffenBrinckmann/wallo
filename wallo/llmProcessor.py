@@ -111,10 +111,13 @@ class LLMProcessor:
         Raises:
             ValueError: If prompt or service is not found.
         """
-        llm = self.createClientFromConfig()
-        # since LLM is defined, check if message-history defined. If not, define it
-        if self.runnable is None:
-            self.runnable = RunnableWithMessageHistory(llm, lambda: self.messageHistory)
+        service = self.configManager.get('service')
+        llm: Any = None
+        if service['type'] != 'ACP':
+            llm = self.createClientFromConfig()
+            # since LLM is defined, check if message-history defined. If not, define it
+            if self.runnable is None:
+                self.runnable = RunnableWithMessageHistory(llm, lambda: self.messageHistory)
         # Prepare prompt configuration
         promptConfig: dict[str, Any] = self.configManager.getPromptByName(promptName)
         prompt = f"{promptConfig['user-prompt']}\\n" if promptConfig['user-prompt'] else ''
@@ -132,7 +135,8 @@ class LLMProcessor:
             'selectedText'  : selectedText,
             'attachFilePath': attachFilePath,
             'ragRunnable'   : self.ragIndexer if ragUsage else None,
-            'agentTools'    : self.agents.getAgentTools()
+            'agentTools'    : self.agents.getAgentTools(),
+            'acpOptions'    : service.get('options', {}) if service['type'] == 'ACP' else {}
         }
 
 
