@@ -58,7 +58,7 @@ class Exchange(QWidget):
         self.defaultStyle = self.text1.styleSheet()
         self.text1.focused.connect(self.focusThisExchange)
         if text:
-            self.text1.setMarkdown(text)
+            self.text1.setPlainText(text)
         textLayout.addWidget(self.text1)
         self.text2 = TextEdit(self.mainWidget.configManager)
         self.text2.hide()
@@ -298,8 +298,8 @@ class Exchange(QWidget):
         tooltip = 'Split paragraphs of history into separate exchanges'
         if state:
             return name, icon, tooltip
-        texts = [i.strip() for i in self.text1.toMarkdown().split('\n\n') if i.strip()]
-        self.text1.setMarkdown(texts[0])
+        texts = [i.strip() for i in self.text1.toPlainText().split('\n\n') if i.strip()]
+        self.text1.setPlainText(texts[0])
         self.mainWidget.addExchanges(self.uuid, texts[1:])
         return ('', '', '')
 

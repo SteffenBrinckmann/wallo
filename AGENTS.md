@@ -57,19 +57,24 @@ Package wallo/
 - **main.py**: Main application window (`Wallo` class) that handles UI, toolbar creation, and creates the list of exchanges
 - **exchange.py**: each exchange is a UI element that has two editors and buttons for the tools
 - **editor.py**: Custom `TextEdit` class extending QTextEdit with word wrap configuration
-- **worker.py**: Background worker (`Worker` class) for LLM API calls and PDF processing to keep UI responsive
+- **worker.py**: Background worker (`Worker` class) for LangChain/OpenAI path, STT/TTS, and RAG ingestion
+- **acpWorker.py**: ACP communication helper (`ACPWorker` class) with shared ACP session, shared temp workspace, and serialized prompt execution
 - **llmProcessor.py**: houses all logic regarding the LLM usage
 - **agents.py**: all agents are defined here as well as their functions
 
 ### Key Architecture Patterns
 
-1. **Threading Model**: Uses QThread for background LLM processing with signals/slots for communication
-   1. A new QThread is created for each sequential call to backend. More advanced systems could be implemented in the future.
+1. **Threading Model**:
+   1. LangChain/OpenAI path uses QThread (`Worker`) with signals/slots for communication.
+   2. ACP path runs through `ACPWorker` on a dedicated asyncio loop thread and serializes prompts via lock to preserve shared-session context.
 2. **Configuration System**: JSON-based configuration stored in `~/.wallo.json` with runtime defaults
 3. **Prompt System**: Configurable prompts with an inquiry mode (boolean to signal if it is on or off) (see wallo/configTabPrompts.py)
-4. **Service Architecture**: Multiple LLM service support through unified langchain API
+4. **Service Architecture**:
+   1. Chat backend can be switched by static flag `CHAT_TRANSPORT` in `wallo/main.py` (`'acp'` or fallback worker/LangChain path).
+   2. Multiple LLM service support through unified langchain API are available on the LangChain path.
    1.  RAG, STT can only use OpenAI as the code only uses langchain-OpenAI, currently. The user cannot change this. (see wallo/llmProcessor.py)
    2.  TTS is hardwired to use OpenAI TTS. The user cannot change this. (see wallo/worker.py)
+   3. ACP path uses one shared ACP session-id for all prompts in an app run and one shared temp directory for staged extraction files.
 
 
 ### Configuration Management
@@ -82,6 +87,7 @@ The application uses a JSON configuration file (`~/.wallo.json`) that includes (
 
 - **PySide6**: Qt-based GUI framework
 - **langchain**: All API calls are wrapped in langchain to get consistent API arguments
+- **agent-client-protocol (`acp`)**: Used for ACP chat transport and tool-calling path
 
 ### Code Standards
 

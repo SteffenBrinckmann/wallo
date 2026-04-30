@@ -136,7 +136,31 @@ class LLMProcessor:
         }
 
 
-    def processLLMResponse(self, content: str) -> str:
+    def _contentToText(self, content: Any) -> str:
+        if content is None:
+            return ''
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            # handle OpenAI/LangChain content blocks
+            out = []
+            for item in content:
+                if isinstance(item, str):
+                    out.append(item)
+                elif isinstance(item, dict):
+                    if item.get('type') == 'text' and 'text' in item:
+                        out.append(str(item['text']))
+                    else:
+                        out.append(str(item))
+                else:
+                    # object with .text
+                    txt = getattr(item, 'text', None)
+                    out.append(str(txt) if txt is not None else str(item))
+            return '\n'.join([x for x in out if x])
+        return str(content)
+
+
+    def processLLMResponse(self, content: Any) -> str:
         """Process and clean LLM response content.
         - Remove code block markers if present
 
@@ -146,7 +170,7 @@ class LLMProcessor:
         Returns:
             Cleaned and processed content.
         """
-        content = content.strip()
+        content = self._contentToText(content).strip()
         if content.startswith('```'):
             content = content.split('\n', 1)[-1].strip()
         if content.endswith('```'):
