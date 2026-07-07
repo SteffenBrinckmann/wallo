@@ -1,51 +1,53 @@
+"""Helpers for LaTeX rebuttal text processing."""
 from time import sleep
-from pathlib import Path
 from .llmProcessor import LLMProcessor
 
 
-def extractBlocks(text):
-    response_results = []
-    change_text_results = []
+def extractBlocks(text: str) -> tuple[list[str], list[str]]:
+    """Extract response and changeText blocks from LaTeX text."""
+    responseResults: list[str] = []
+    changeTextResults: list[str] = []
     i = 0
     n = len(text)
     while i < n:
         # Check for \response{
         if text.startswith(r"\response{", i):
             start = i + len(r"\response{")
-            content, new_index = extractNested(text, start)
-            response_results.append(content)
-            i = new_index
+            content, newIndex = extractNested(text, start)
+            responseResults.append(content)
+            i = newIndex
             continue
         # Check for \changeText{
         if text.startswith(r"\changeText{", i):
             start = i + len(r"\changeText{")
-            content, new_index = extractNested(text, start)
-            change_text_results.append(content)
-            i = new_index
+            content, newIndex = extractNested(text, start)
+            changeTextResults.append(content)
+            i = newIndex
             continue
         i += 1
-    return response_results, change_text_results
+    return responseResults, changeTextResults
 
 
-def extractNested(text, start_index):
+def extractNested(text: str, startIndex: int) -> tuple[str, int]:
     """Extract text until matching closing brace, handling nested braces."""
     stack = 1  # We already consumed the first '{'
-    i = start_index
+    i = startIndex
     while i < len(text):
         if text[i] == '{':
             stack += 1
         elif text[i] == '}':
             stack -= 1
             if stack == 0:
-                return text[start_index:i], i + 1
+                return text[startIndex:i], i + 1
         i += 1
     raise ValueError("Unmatched brace")
 
 
-def processAndInvoke(llmProcessor:LLMProcessor, promptName:str, text:str, waitTime:int=0, attachFile=None) -> str:
+def processAndInvoke(llmProcessor: LLMProcessor, promptName: str, text: str, waitTime: int=0,
+                     attachFile: str='') -> str:
     """ process LLM and invoke it and return content """
     sleep(waitTime)
-    if attachFile is not None:
+    if attachFile:
         with open(attachFile, 'r', encoding='utf-8') as fIn:
             context = '\n\nThe previous manuscript version was:\n'+fIn.read()+'\n\n'
     else:
@@ -57,10 +59,10 @@ def processAndInvoke(llmProcessor:LLMProcessor, promptName:str, text:str, waitTi
               r'values use $0.1264\rm \mu m$ to include the unit.')
     result = params['runnable'].invoke(prompt, {'configurable': {'session_id': 'global'}})
     content = result.content if hasattr(result, 'content') else str(result)
-    return content
+    return str(content)
 
 
-initLatex = r"""\documentclass[11pt]{article}
+INIT_LATEX = r"""\documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage{xcolor,soul}
 \usepackage{enumitem}
@@ -94,7 +96,7 @@ We thank the reviewers and the editor for considering the manuscript and their v
 \vspace{0.5cm}
 """
 
-endLatex = r"""
+END_LATEX = r"""
 \end{enumerate}
 
 \vspace{0.5cm}

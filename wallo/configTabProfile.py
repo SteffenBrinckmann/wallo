@@ -233,7 +233,7 @@ class ProfileTab(QWidget):
             self.profileNameEdit.setText(currentName)
             return
         self._currentProfile['name'] = newName
-        self.configManager.upsertProfile(self._currentProfile, original_name=currentName)
+        self.configManager.upsertProfile(self._currentProfile, originalName=currentName)
         self._currentProfileName = newName
         self.loadProfiles()
         self._selectProfileByName(newName)

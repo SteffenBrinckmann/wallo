@@ -8,30 +8,41 @@ from pathlib import Path
 from typing import Any, Callable, cast
 from uuid import uuid4
 
+PROTOCOL_VERSION: int
+spawnAgentProcess: Any
+textBlock: Any
 try:
-    from acp import PROTOCOL_VERSION, spawn_agent_process, text_block
+    from acp import PROTOCOL_VERSION as _PROTOCOL_VERSION
+    from acp import spawn_agent_process as _spawn_agent_process
+    from acp import text_block as _text_block
+    PROTOCOL_VERSION = _PROTOCOL_VERSION
+    spawnAgentProcess = _spawn_agent_process
+    textBlock = _text_block
 except ImportError:
     PROTOCOL_VERSION = 1
-    spawn_agent_process = None
-    text_block = None
+    spawnAgentProcess = None
+    textBlock = None
 
 DEFAULT_ACP_OPTIONS = {
     'executable': 'opencode',
     'arg': 'acp'
 }
 
-class ACPClient:
+class ACPClient:  # pylint: disable=invalid-name
     """ACP client callback implementation for streaming updates and permissions."""
     def __init__(self) -> None:
         self.onUpdate: Callable[[str, Any], None] | None = None
 
 
-    async def session_update(self, session_id, update, **kwargs: Any):
+    async def session_update(self, session_id: str, update: Any, **_kwargs: Any) -> None:
+        """Handle ACP session updates."""
         if self.onUpdate is not None:
             self.onUpdate(session_id, update)
 
 
-    async def request_permission(self, options, session_id, tool_call, **kwargs: Any):
+    async def request_permission(self, options: list[Any], _session_id: str, _tool_call: Any,
+                                 **_kwargs: Any) -> dict[str, dict[str, str]]:
+        """Select the first offered ACP permission option."""
         return {'outcome': {'outcome': 'selected', 'optionId': options[0].option_id}}
 
 
@@ -40,9 +51,9 @@ class ACPWorker:
 
     def __init__(self) -> None:
         self.acpClient: ACPClient | None = None
-        self.acpConn = None
-        self.acpProc = None
-        self.acpSpawnCtx = None
+        self.acpConn: Any = None
+        self.acpProc: Any = None
+        self.acpSpawnCtx: Any = None
         self.acpSessionId = ''
         self.acpTmpDir = tempfile.mkdtemp(prefix='wallo-acp-')
         self.acpLoop: asyncio.AbstractEventLoop | None = None
@@ -104,13 +115,14 @@ class ACPWorker:
         """Create one ACP connection and one session."""
         if self.acpConn is not None and self.acpSessionId:
             return
-        if spawn_agent_process is None or text_block is None:
+        if spawnAgentProcess is None or textBlock is None:
             raise RuntimeError('ACP requires the Agent Client Protocol SDK: python -m pip install agent-client-protocol')
         self.acpClient = ACPClient()
         executable = self.runtimeOptions['executable']
         arg = self.runtimeOptions['arg']
-        self.acpSpawnCtx = cast(Any, spawn_agent_process)(self.acpClient, executable, arg, '--cwd', self.acpTmpDir)
-        self.acpConn, self.acpProc = await self.acpSpawnCtx.__aenter__()
+        self.acpSpawnCtx = cast(Any, spawnAgentProcess)(self.acpClient, executable, arg, '--cwd', self.acpTmpDir)
+        # Keep the async context open for the whole app session.
+        self.acpConn, self.acpProc = await self.acpSpawnCtx.__aenter__() # pylint: disable=unnecessary-dunder-call
         await self.acpConn.initialize(protocol_version=PROTOCOL_VERSION)
         session = await self.acpConn.new_session(cwd=self.acpTmpDir, mcp_servers=[])
         self.acpSessionId = session.session_id
@@ -125,8 +137,8 @@ class ACPWorker:
             self.acpPromptLock = asyncio.Lock()
         parts: list[str] = []
 
-        def on_update(session_id: str, update: Any) -> None:
-            if session_id != self.acpSessionId:
+        def onUpdate(sessionId: str, update: Any) -> None:
+            if sessionId != self.acpSessionId:
                 return
             if getattr(update, 'session_update', '') != 'agent_message_chunk':
                 return
@@ -136,8 +148,8 @@ class ACPWorker:
                 parts.append(text)
 
         async with self.acpPromptLock:
-            self.acpClient.onUpdate = on_update
-            await self.acpConn.prompt(session_id=self.acpSessionId, prompt=[text_block(prompt)], message_id=str(uuid4()))
+            self.acpClient.onUpdate = onUpdate
+            await self.acpConn.prompt(session_id=self.acpSessionId, prompt=[textBlock(prompt)], message_id=str(uuid4()))
             self.acpClient.onUpdate = None
         return ''.join(parts).strip()
 

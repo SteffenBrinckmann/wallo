@@ -23,6 +23,8 @@ The writing of this program code and documentation are supported by LLMs (Antrop
 
 
 ## Installation and usage
+
+WALLO supports Python 3.10 and newer.
 ### Using pypi
 ```bash
   python -m venv .venv
@@ -52,6 +54,9 @@ Usage:
 Prompts, services and the other configuration settings are saved in .wallo.json file in your home folder.
 
 ## Development
+### Open issues
+All issues are tracked only in this README file. Do not use an external repository issue tracker.
+
 ### Things I might/might not add
 - reduce does not fully work, debug
 

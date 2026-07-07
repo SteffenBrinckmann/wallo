@@ -68,7 +68,7 @@ Package wallo/
    1. LangChain/OpenAI path uses QThread (`Worker`) with signals/slots for communication.
    2. ACP path runs through `ACPWorker` on a dedicated asyncio loop thread and serializes prompts via lock to preserve shared-session context.
 2. **Configuration System**: JSON-based configuration stored in `~/.wallo.json` with runtime defaults
-3. **Prompt System**: Configurable prompts with an inquiry mode (boolean to signal if it is on or off) (see wallo/configTabPrompts.py)
+3. **Prompt System**: Configurable prompts with an inquiry mode (boolean to signal if it is on or off) (see wallo/configTabProfile.py)
 4. **Service Architecture**:
    1. Chat backend can be switched by static flag `CHAT_TRANSPORT` in `wallo/main.py` (`'acp'` or fallback worker/LangChain path).
    2. Multiple LLM service support through unified langchain API are available on the LangChain path.
@@ -79,9 +79,13 @@ Package wallo/
 
 ### Configuration Management
 
-The application uses a JSON configuration file (`~/.wallo.json`) that includes (see wallo/conigSchema.json):
+The application uses a JSON configuration file (`~/.wallo.json`) that includes (see wallo/configSchema.json):
 - **prompts**: Array of prompt configurations with name, description, user-prompt, and attachment type
 - **services**: Dictionary of LLM service configurations with API endpoints and models
+
+### Issue Tracking
+
+All open issues are tracked only in `README.md`. Do not add repository issue tracker links.
 
 ### Dependencies
 
@@ -106,7 +110,7 @@ The application uses a JSON configuration file (`~/.wallo.json`) that includes (
 
 - **General** Code should be as small as possible as short code, as short code is easy to understand and less prone to bugs. Hence, a broad exception is advantageous as it  catches all exceptions. Also, chopping code into submodules, can lead to more code and hence is not necessarily a great approach.
 - **Security** storing plaintext API keys in `~/.wallo.json`, allows changing the values manually. Since the code is open-source, all other solutions are only window-dressing: a hacker can read the obfuscation approach and counter it.
-- **Unit tests** and **CI (Github)** We don’t add unit tests; CI is only for lint/type/codespell.
+- **Unit tests** and **CI (Github)** We don’t add unit tests; CI is only for lint/type/codespell. This is intentional because WALLO is prototype GUI software, and this project treats GUI behavior as not needing automated tests.
 - Do not implement **standardized error output**; keep error handling minimal.
 - Do not refactor code into a separate function that function is called only a single time.
 - Do not remove comments when changing code. Preserve it.

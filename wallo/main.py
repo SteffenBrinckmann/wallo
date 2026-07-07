@@ -115,7 +115,10 @@ class Wallo(QMainWindow):
     def layoutExchanges(self) -> None:
         """Put the exchanges into the main layout."""
         while self.mainLayout.count():
-            widget = self.mainLayout.takeAt(0).widget()
+            item = self.mainLayout.takeAt(0)
+            if item is None:
+                continue
+            widget = item.widget()
             if widget is not None:
                 widget.setParent(None)
         for exchange in self.exchanges:
@@ -326,8 +329,7 @@ class Wallo(QMainWindow):
         """Open a file or folder dialog to add sources to the RAG knowledge base."""
         filePaths, _ = QFileDialog.getOpenFileNames(self, 'Select files to add to knowledge base', '', 'All Files (*)')
         if not filePaths:
-            directory = QFileDialog.getExistingDirectory(self, 'Select folder to add to knowledge base')
-            if directory:
+            if directory := QFileDialog.getExistingDirectory(self, 'Select folder to add to knowledge base'):
                 filePaths = [directory]
         if not filePaths:
             return
@@ -349,7 +351,7 @@ class Wallo(QMainWindow):
         if dType=='reread':
             self.configManager.loadConfig()
             dType = 'initialize'
-        if dType=='initialize':
+        if dType == 'initialize':
             self.profileCB.clear()
             self.profileCB.addItems(self.configManager.get('profiles'))
             currentProfile = self.configManager.get('profiles')[0]

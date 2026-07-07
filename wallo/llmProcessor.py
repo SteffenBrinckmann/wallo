@@ -141,6 +141,7 @@ class LLMProcessor:
 
 
     def _contentToText(self, content: Any) -> str:
+        """Convert LangChain/OpenAI content variants to plain text."""
         if content is None:
             return ''
         if isinstance(content, str):
@@ -174,14 +175,26 @@ class LLMProcessor:
         Returns:
             Cleaned and processed content.
         """
-        content = self._contentToText(content).strip()
-        if content.startswith('```'):
-            content = content.split('\n', 1)[-1].strip()
-        if content.endswith('```'):
-            content = content[:-3].rstrip()
+        text = self._contentToText(content).strip()
+        if text.startswith('```'):
+            text = text.split('\n', 1)[-1].strip()
+        if text.endswith('```'):
+            text = text[:-3].rstrip()
         # horizontal rule(s) included
-        if '\n---\n' in content:
-            content = content.split('\n---\n')[1].strip()
+        if '\n---\n' in text:
+            text = text.split('\n---\n')[1].strip()
         # all replace
-        content = content.replace('~~','~').replace('\\\\', '\\')
-        return content.strip()
+        text = text.replace('~~','~').replace('\\\\', '\\')
+        return text.strip()
+
+
+    def structureContent(self, content: str) -> str:
+        """Ask the configured LLM to structure exported content."""
+        work = self.processPrompt('', selectedText=content)
+        runnable = work['runnable']
+        if runnable is None:
+            return content
+        prompt = ('Structure the following content by adding headings and creating bullet points when appropriate.\n\n'
+                  f'{content}')
+        result = runnable.invoke(prompt, {'configurable': {'session_id': 'global'}})
+        return self.processLLMResponse(result.content if hasattr(result, 'content') else str(result))

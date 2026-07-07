@@ -80,17 +80,17 @@ class ConfigurationManager:
         """Return a string representation of the configuration"""
         res = ''
         services = self.get('services')
-        res += f'Available services: '+' | '.join(services.keys())+'\n'
+        res += 'Available services: '+' | '.join(services.keys())+'\n'
         if self._currentService:
             res += f'  Current service: {self._currentService}\n'
             models = services[self._currentService].get('models', {})
-            res += f'Available models: '+' | '.join(list(models.keys()))+'\n'
+            res += 'Available models: '+' | '.join(list(models.keys()))+'\n'
             if self._currentModel:
                 res += f'  Current model: {self._currentModel}\n'
-        res += f'Available profiles: '+' | '.join(self.get('profiles'))+'\n'
+        res += 'Available profiles: '+' | '.join(self.get('profiles'))+'\n'
         if self._currentProfile:
             res += f'  Current profile: {self._currentProfile}\n'
-        res += f'Available prompts:\n  '+'\n  '.join([i['name'] for i in self.get('prompts')])+'\n'
+        res += 'Available prompts:\n  '+'\n  '.join([i['name'] for i in self.get('prompts')])+'\n'
         return res
 
 
@@ -141,11 +141,11 @@ class ConfigurationManager:
             return models[self._currentModel] if self._currentModel in models else {}
         if info == 'profiles':
             return [profile['name'] for profile in self._config.get('profiles', [])]
-        if info in ['prompts', 'system-prompt','buttons']:
+        if info in {'prompts', 'system-prompt', 'buttons'}:
             profile = [profile for profile in self._config.get('profiles', [])
                        if profile['name'] == self._currentProfile][0]
             return profile[info]
-        if info in ['dictionary', 'startCounts']:
+        if info in {'dictionary', 'startCounts'}:
             return self._config.get(info, DEFAULT_CONFIGURATION[info])
         return []
 

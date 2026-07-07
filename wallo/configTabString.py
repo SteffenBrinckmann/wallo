@@ -44,8 +44,13 @@ class StringTab(QWidget):
                 parts = code.split('_')
                 lang = pycountry.languages.get(alpha_2=parts[0])
                 country = pycountry.countries.get(alpha_2=parts[1]) if len(parts) > 1 else None
-                self.cbLanguages.addItem(f"{lang.name} ({country.name})" if country else lang.name if lang else code,
-                                         userData=code)
+                if lang and country:
+                    languageName = f'{lang.name} ({country.name})'
+                elif lang:
+                    languageName = lang.name
+                else:
+                    languageName = code
+                self.cbLanguages.addItem(languageName, userData=code)
             formLayout.addRow('Dictionary:', self.cbLanguages)
 
         formLayout.addRow('', QLabel(''))
