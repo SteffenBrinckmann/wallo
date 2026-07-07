@@ -57,8 +57,7 @@ class Worker(QObject):
         selectedText = objects['selectedText']
         ragContext = ''
         if ragRunnable is not None:
-            retrieved = ragRunnable.retrieve(selectedText or prompt)
-            if retrieved:
+            if retrieved := ragRunnable.retrieve(selectedText or prompt):
                 if DEBUG_MODE:
                     print('RAG context:', '\n\n'.join(retrieved))
                 ragContext = f"\n\nContext:\n---\n{ '\n\n'.join(retrieved) }\n---\n"
@@ -111,6 +110,7 @@ class Worker(QObject):
         response = client.audio.speech.create(model='gpt-4o-mini-tts', voice='alloy', input=text)
         with open(filePath, 'wb') as f:
             f.write(response.read())
+        self.finished.emit('', self.senderID, self.workType)
 
 
     def runAgents(self, history: Any, prompt: str) -> str:

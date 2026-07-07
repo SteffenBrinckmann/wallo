@@ -333,7 +333,8 @@ class Wallo(QMainWindow):
                 filePaths = [directory]
         if not filePaths:
             return
-        self.runWorker('ingestRAG', {'runnable': self.llmProcessor.ragIndexer, 'filePaths': filePaths})
+        self.runWorker('ingestRAG', {'runnable': self.llmProcessor.ragIndexer, 'filePaths': filePaths,
+                                     'senderID': 'ingestRAG'})
 
 
     def showConfiguration(self) -> None:

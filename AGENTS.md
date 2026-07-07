@@ -116,6 +116,7 @@ All open issues are tracked only in `README.md`. Do not add repository issue tra
 - Do not remove comments when changing code. Preserve it.
 - **Use Langchain as much as possible**. It simplifies the code to support multiple services.
 - **Config migration**: This code is in development mode. Do not worry about changing the config precedence.
+- **README.md** may intentionally include long bash output dumps for project notes and debugging context.
 
 ### Job description
 

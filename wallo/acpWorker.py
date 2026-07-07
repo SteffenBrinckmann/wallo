@@ -116,7 +116,7 @@ class ACPWorker:
         if self.acpConn is not None and self.acpSessionId:
             return
         if spawnAgentProcess is None or textBlock is None:
-            raise RuntimeError('ACP requires the Agent Client Protocol SDK: python -m pip install agent-client-protocol')
+            raise RuntimeError('Agent Client Protocol SDK required: pip install agent-client-protocol')
         self.acpClient = ACPClient()
         executable = self.runtimeOptions['executable']
         arg = self.runtimeOptions['arg']
