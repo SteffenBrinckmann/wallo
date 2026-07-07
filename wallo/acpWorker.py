@@ -6,7 +6,14 @@ import tempfile
 import threading
 from pathlib import Path
 from typing import Any, Callable, cast
-from acp import spawn_agent_process, text_block
+from uuid import uuid4
+
+try:
+    from acp import PROTOCOL_VERSION, spawn_agent_process, text_block
+except ImportError:
+    PROTOCOL_VERSION = 1
+    spawn_agent_process = None
+    text_block = None
 
 DEFAULT_ACP_OPTIONS = {
     'executable': 'opencode',
@@ -66,17 +73,16 @@ class ACPWorker:
 
     def ensureRuntime(self) -> None:
         """Start ACP event loop, process and session once per app run."""
-        if self.acpLoop is None:
-            with self.acpInitLock:
-                if self.acpLoop is None:
-                    self.acpLoop = asyncio.new_event_loop()
-                    self.acpThread = threading.Thread(target=self.acpLoopRunner, daemon=True)
-                    self.acpThread.start()
-        if self.acpConn is None or not self.acpSessionId:
+        with self.acpInitLock:
             if self.acpLoop is None:
-                raise RuntimeError('ACP loop not initialized')
-            future = asyncio.run_coroutine_threadsafe(self.startSession(), self.acpLoop)
-            future.result()
+                self.acpLoop = asyncio.new_event_loop()
+                self.acpThread = threading.Thread(target=self.acpLoopRunner, daemon=True)
+                self.acpThread.start()
+            if self.acpConn is None or not self.acpSessionId:
+                if self.acpLoop is None:
+                    raise RuntimeError('ACP loop not initialized')
+                future = asyncio.run_coroutine_threadsafe(self.startSession(), self.acpLoop)
+                future.result()
 
 
     def getRuntimeOptions(self, work: dict[str, Any]) -> dict[str, Any]:
@@ -98,12 +104,14 @@ class ACPWorker:
         """Create one ACP connection and one session."""
         if self.acpConn is not None and self.acpSessionId:
             return
+        if spawn_agent_process is None or text_block is None:
+            raise RuntimeError('ACP requires the Agent Client Protocol SDK: python -m pip install agent-client-protocol')
         self.acpClient = ACPClient()
         executable = self.runtimeOptions['executable']
         arg = self.runtimeOptions['arg']
         self.acpSpawnCtx = cast(Any, spawn_agent_process)(self.acpClient, executable, arg, '--cwd', self.acpTmpDir)
         self.acpConn, self.acpProc = await self.acpSpawnCtx.__aenter__()
-        await self.acpConn.initialize(protocol_version=1)
+        await self.acpConn.initialize(protocol_version=PROTOCOL_VERSION)
         session = await self.acpConn.new_session(cwd=self.acpTmpDir, mcp_servers=[])
         self.acpSessionId = session.session_id
         self.acpPromptLock = asyncio.Lock()
@@ -129,7 +137,7 @@ class ACPWorker:
 
         async with self.acpPromptLock:
             self.acpClient.onUpdate = on_update
-            await self.acpConn.prompt(session_id=self.acpSessionId, prompt=[text_block(prompt)])
+            await self.acpConn.prompt(session_id=self.acpSessionId, prompt=[text_block(prompt)], message_id=str(uuid4()))
             self.acpClient.onUpdate = None
         return ''.join(parts).strip()
 
@@ -141,12 +149,10 @@ class ACPWorker:
         ragRunnable = work['ragRunnable']
         ragContext = ''
         if ragRunnable is not None:
-            retrieved = ragRunnable.retrieve(selectedText or prompt)
-            if retrieved:
+            if retrieved := ragRunnable.retrieve(selectedText or prompt):
                 ragContext = f"\n\nContext:\n---\n{ '\n\n'.join(retrieved) }\n---\n"
-        attachFilePath = work['attachFilePath']
         fileContext = ''
-        if attachFilePath:
+        if attachFilePath := work['attachFilePath']:
             safeName = Path(attachFilePath).name
             target = Path(self.acpTmpDir) / safeName
             if target.resolve() != Path(attachFilePath).resolve():

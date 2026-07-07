@@ -5,6 +5,7 @@ langchain-openai
 langchain-google-genai
 langchain-community
 langchain-chroma
+agent-client-protocol
 
 sounddevice
 soundfile

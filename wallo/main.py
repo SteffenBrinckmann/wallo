@@ -199,6 +199,11 @@ class Wallo(QMainWindow):
         if not filename:
             return
         content = ''.join(str(exchange) for exchange in self.exchanges)
+        reply = QMessageBox.question(self, 'Structure content?',
+                'Should I structure the content by adding headings and creating bullet points when appropriate?',
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            content = self.llmProcessor.structureContent(content)
         if dType == 'text':
             if filename.lower().endswith('.docx'):
                 pypandoc.convert_text(content, 'docx', format='md', outputfile=filename, extra_args=['--standalone'])
