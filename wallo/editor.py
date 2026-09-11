@@ -1,9 +1,10 @@
 """ Used for all multiline text editors.
 - Custom QTextEdit with word wrap mode set to wrap at word boundary or anywhere. """
+from html import escape
 import re
 from PySide6.QtCore import Qt, Signal, QMimeData  # pylint: disable=no-name-in-module
-from PySide6.QtGui import (QTextOption, QKeyEvent, QAction, QKeySequence, QTextCursor, QTextDocumentFragment,  # pylint: disable=no-name-in-module
-                           QContextMenuEvent, QFocusEvent, QResizeEvent)
+from PySide6.QtGui import (QTextOption, QKeyEvent, QAction, QKeySequence, QTextCursor, QTextCharFormat, QColor,  # pylint: disable=no-name-in-module
+                           QTextDocumentFragment, QContextMenuEvent, QFocusEvent, QResizeEvent, QMouseEvent)
 from PySide6.QtWidgets import QApplication, QTextEdit, QMenu, QSizePolicy  # pylint: disable=no-name-in-module
 from .editorSpellCheck import ENCHANT_AVAILABLE, SpellCheck
 from .configManager import ConfigurationManager
@@ -93,11 +94,38 @@ class TextEdit(QTextEdit):
             super().keyPressEvent(event)
 
 
+    def mouseReleaseEvent(self, event:QMouseEvent) -> None:
+        """Highlight selected text when Ctrl is held while releasing the mouse."""
+        super().mouseReleaseEvent(event)
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier and self.textCursor().hasSelection():
+            textFormat = QTextCharFormat()
+            textFormat.setBackground(QColor('#777700'))
+            cursor = self.textCursor()
+            cursor.mergeCharFormat(textFormat)
+            cursor.clearSelection()
+            self.setTextCursor(cursor)
+
+
     def reduce(self) -> None:
         """ Reduce the current block to the highlighted text. """
-        html = self.delete()
-        spans = TextEdit.spansWithBackground(html)
-        htmlNew = '<ul>' + '\n'.join([f'<li>{i}</li>' for i in spans]) + '</ul><br>'
+        block = self.textCursor().block()
+        spans: list[str] = []
+        span = ''
+        fragment = block.begin()
+        while not fragment.atEnd():
+            textFragment = fragment.fragment()
+            if textFragment.charFormat().background().color() == QColor('#777700'):
+                span += textFragment.text()
+            elif span:
+                spans.append(span.strip())
+                span = ''
+            fragment += 1
+        if span:
+            spans.append(span.strip())
+        if not spans:
+            return
+        self.delete()
+        htmlNew = '<ul>' + '\n'.join([f'<li>{escape(i)}</li>' for i in spans]) + '</ul><br>'
         self.insertHtml(htmlNew)
 
 
