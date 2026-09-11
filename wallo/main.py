@@ -1,6 +1,7 @@
 """Main window for the Wallo application, providing a text editor with LLM assistance."""
 
 import sys
+import json
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,7 @@ class Wallo(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.configManager = ConfigurationManager()
+        self.recoveryPath = Path.home() / '.wallo-recovery.json'
         self.beginner = self.configManager.get('startCounts') > 0
         if self.beginner:
             self.configManager.updateConfig({'startCounts': self.configManager.get('startCounts') - 1})
@@ -63,10 +65,22 @@ class Wallo(QMainWindow):
         self.setCentralWidget(scrollArea)
 
         # Setup exchanges
-        self.exchanges: list[Exchange] = [Exchange(self) for _ in range(2)]
+        recoveredExchanges = self._loadRecovery()
+        self.exchanges: list[Exchange] = []
+        if recoveredExchanges:
+            for recoveredExchange in recoveredExchanges:
+                exchange = Exchange(self, recoveredExchange['text1'])
+                if recoveredExchange['text2']:
+                    exchange.text2.setPlainText(recoveredExchange['text2'])
+                    exchange.text2.show()
+                self.exchanges.append(exchange)
+        else:
+            self.exchanges = [Exchange(self) for _ in range(2)]
+        for exchange in self.exchanges:
+            self._connectRecovery(exchange)
         self.layoutExchanges()
         self.exchanges[0].showButtons()
-        if self.beginner:
+        if self.beginner and not recoveredExchanges:
             self.exchanges[0].text1.setMarkdown(HELP_TEXT)
 
         self.toolbar = QToolBar('Main')
@@ -120,6 +134,42 @@ class Wallo(QMainWindow):
         spacer = QWidget()
         spacer.setFixedWidth(width)
         return spacer
+
+
+    def _loadRecovery(self) -> list[dict[str, str]]:
+        """Load the text-only exchanges saved after an interrupted session."""
+        try:
+            with open(self.recoveryPath, 'r', encoding='utf-8') as recoveryFile:
+                recoveredExchanges = json.load(recoveryFile)
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            return []
+        if not isinstance(recoveredExchanges, list):
+            return []
+        for recoveredExchange in recoveredExchanges:
+            if not isinstance(recoveredExchange, dict) or 'text1' not in recoveredExchange or \
+                    'text2' not in recoveredExchange or not isinstance(recoveredExchange['text1'], str) or \
+                    not isinstance(recoveredExchange['text2'], str):
+                return []
+        return recoveredExchanges
+
+
+    def _connectRecovery(self, exchange: Exchange) -> None:
+        """Save a recovery draft whenever exchange text changes."""
+        exchange.text1.textChanged.connect(self.saveRecovery)
+        exchange.text2.textChanged.connect(self.saveRecovery)
+
+
+    def saveRecovery(self) -> None:
+        """Atomically save the text in every exchange for crash recovery."""
+        recoveredExchanges = [{'text1': exchange.text1.toPlainText(), 'text2': exchange.text2.toPlainText()}
+                              for exchange in self.exchanges]
+        tempPath = self.recoveryPath.with_name(self.recoveryPath.name + '.tmp')
+        try:
+            with open(tempPath, 'w', encoding='utf-8') as recoveryFile:
+                json.dump(recoveredExchanges, recoveryFile)
+            tempPath.replace(self.recoveryPath)
+        except OSError:
+            pass
 
 
     def layoutExchanges(self) -> None:
@@ -186,8 +236,12 @@ class Wallo(QMainWindow):
         """
         idx = [exchange.uuid for exchange in self.exchanges].index(uuid)
         insertPos = idx + 1
-        self.exchanges[insertPos:insertPos] = [Exchange(self, text) for text in texts]
+        newExchanges = [Exchange(self, text) for text in texts]
+        for exchange in newExchanges:
+            self._connectRecovery(exchange)
+        self.exchanges[insertPos:insertPos] = newExchanges
         self.layoutExchanges()
+        self.saveRecovery()
 
 
     def deleteExchange(self, uuid: str) -> None:
@@ -199,6 +253,7 @@ class Wallo(QMainWindow):
         idx = [exchange.uuid for exchange in self.exchanges].index(uuid)
         self.exchanges[idx].deleteLater()
         del self.exchanges[idx]
+        self.saveRecovery()
 
 
     def saveToFile(self, dType: str) -> None:
@@ -289,6 +344,13 @@ class Wallo(QMainWindow):
         self.acpWorker.stop()
         self.codexWorker.stop()
         super().closeEvent(event)
+        if event.isAccepted():
+            try:
+                self.recoveryPath.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError:
+                pass
 
 
     def _loadCodexModels(self) -> None:

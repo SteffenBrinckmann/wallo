@@ -195,7 +195,7 @@ class Exchange(QWidget):
         tooltip    = 'Move answer to history'
         if state:
             return name, icon, tooltip
-        self.text1.setPlainText(self.text2.toMarkdown())
+        self.text1.setPlainText(self.text2.toPlainText())
         self.text2.setPlainText('')
         self.text2.hide()
         self.text1.setStyleSheet(self.defaultStyle)
@@ -334,7 +334,7 @@ class Exchange(QWidget):
         tooltip = 'Send to LLM in chat-mode'
         if state:
             return name, icon, tooltip
-        text = self.text1.toMarkdown().strip()
+        text = self.text1.toPlainText().strip()
         if text:
             self.setBusy(True)
             # LLM
@@ -356,7 +356,6 @@ class Exchange(QWidget):
             return
 
         historyPlain = self.text1.toPlainText().strip()
-        historyMarkdown = self.text1.toMarkdown()
         if not (self.filePath or historyPlain):
             QMessageBox.information(self, 'Warning', 'No text in upper text-box.')
             return
@@ -372,7 +371,7 @@ class Exchange(QWidget):
                 return
 
         self.setBusy(True)
-        workParams = self.mainWidget.llmProcessor.processPrompt(promptName, self.uuid, historyMarkdown,
+        workParams = self.mainWidget.llmProcessor.processPrompt(promptName, self.uuid, historyPlain,
                                                                 self.filePath, userInput, self.ragUsage)
         self.mainWidget.runWorker('chatAPI', workParams)
 
@@ -496,7 +495,7 @@ class Exchange(QWidget):
             action.setEnabled(False)
         self.btnWidget.setFixedWidth(BUTTON_WIDTH)
         self.btnState = 'hidden'
-        if not self.text2.toMarkdown().strip():
+        if not self.text2.toPlainText().strip():
             self.text2.hide()
         self.text1.adjustHeightToContents(1 if self.text2.isHidden() else 2)
         self.text2.adjustHeightToContents(1 if self.text1.isHidden() else 2)

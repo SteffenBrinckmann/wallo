@@ -5,7 +5,7 @@ import re
 from PySide6.QtCore import Qt, Signal, QMimeData  # pylint: disable=no-name-in-module
 from PySide6.QtGui import (QTextOption, QKeyEvent, QAction, QKeySequence, QTextCursor, QTextCharFormat, QColor,  # pylint: disable=no-name-in-module
                            QTextDocumentFragment, QContextMenuEvent, QFocusEvent, QResizeEvent, QMouseEvent)
-from PySide6.QtWidgets import QApplication, QTextEdit, QMenu, QSizePolicy  # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import QApplication, QTextEdit, QMenu  # pylint: disable=no-name-in-module
 from .editorSpellCheck import ENCHANT_AVAILABLE, SpellCheck
 from .configManager import ConfigurationManager
 
@@ -50,8 +50,7 @@ class TextEdit(QTextEdit):
             cursor.select(QTextCursor.SelectionType.WordUnderCursor)
             word = cursor.selectedText()
             if word and not self.highlighter.spellDict.check(word):
-                suggestions = self.highlighter.spellDict.suggest(word)[:10]
-                if suggestions:
+                if suggestions:= self.highlighter.spellDict.suggest(word)[:10]:
                     menu.insertSeparator(menu.actions()[0])
                     for suggestion in suggestions:
                         action = menu.addAction(suggestion)
@@ -68,12 +67,15 @@ class TextEdit(QTextEdit):
 
 
     def insertFromMimeData(self, source:QMimeData) -> None:
-        """Override paste behavior to remove hard line breaks from pasted text.
+        """Paste text as plain text, preferring WALLO's private clipboard data.
         Args:
             source (QMimeData): The mime data being pasted.
         """
         if source.hasText():
-            self.insertPlainText(source.text())
+            if source.hasFormat('application/x-wallo-plain-text'):
+                self.insertPlainText(source.data('application/x-wallo-plain-text').toStdString())
+            else:
+                self.insertPlainText(source.text())
         else:
             super().insertFromMimeData(source)
 
@@ -86,10 +88,12 @@ class TextEdit(QTextEdit):
         if event.key() == Qt.Key.Key_C and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             cursor = self.textCursor()
             if cursor.hasSelection():
-                # plainText = cursor.selectedText()
                 fragment = QTextDocumentFragment(cursor)
                 md = fragment.toMarkdown()
-                QApplication.clipboard().setText(md)
+                mimeData = QMimeData()
+                mimeData.setText(md)
+                mimeData.setData('application/x-wallo-plain-text', fragment.toPlainText().encode('utf-8'))
+                QApplication.clipboard().setMimeData(mimeData)
         else:
             super().keyPressEvent(event)
 
@@ -213,16 +217,11 @@ class TextEdit(QTextEdit):
             self.highlighter.rehighlight()
 
     def focusInEvent(self, event:QFocusEvent) -> None:
-        """When editor gains focus: allow scrolling and editing size expansion.
+        """Keep the content-fitted editor height when it gains focus.
         Args:
             event (QFocusEvent): The focus event
         """
         self.focused.emit()
-        # allow the widget to expand vertically while editing and show scrollbar as needed
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.setMaximumHeight(16777215)
-        self.setMinimumHeight(150)
-        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         super().focusInEvent(event)
 
 
