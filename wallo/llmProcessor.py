@@ -76,20 +76,16 @@ class LLMProcessor:
         raise ValueError(f"Unknown service type '{serviceType}'")
 
 
-    def setSystemPrompt(self, promptName: str) -> None:
+    def setSystemPrompt(self, prompt: str) -> None:
         """Set (and re-inject) the system prompt to be used by the LLM.
 
         When the system prompt changes, it is appended as a new SystemMessage
         so the conversation continues chronologically.
         """
-        for prompt in self.configManager.get('system-prompts'):
-            if prompt['name'] == promptName:
-                self.systemPrompt = prompt['system-prompt']
-                if self.agents.useAgents:
-                    self.systemPrompt += '\n\n' + self.agents.getAgentCoordinatorPrompt()
-                self._injectSystemPrompt(self.systemPrompt)
-                return
-        raise ValueError(f"System prompt '{promptName}' not found in configuration")
+        self.systemPrompt = prompt
+        if hasattr(self, 'agents') and self.agents.useAgents:
+            self.systemPrompt += '\n\n' + self.agents.getAgentCoordinatorPrompt()
+        self._injectSystemPrompt(self.systemPrompt)
 
 
     def processPrompt(self, promptName: str, senderID: str='123456789012345678901234567890ab',

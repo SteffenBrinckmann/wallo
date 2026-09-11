@@ -42,8 +42,9 @@ class ACPClient:  # pylint: disable=invalid-name
 
     async def request_permission(self, options: list[Any], _session_id: str, _tool_call: Any,
                                  **_kwargs: Any) -> dict[str, dict[str, str]]:
-        """Select the first offered ACP permission option."""
-        return {'outcome': {'outcome': 'selected', 'optionId': options[0].option_id}}
+        """Deny tool permissions, forever. Do not implement into wallo"""
+        del options
+        return {'outcome': {'outcome': 'cancelled'}}
 
 
 class ACPWorker:

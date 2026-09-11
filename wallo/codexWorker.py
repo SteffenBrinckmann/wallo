@@ -1,5 +1,6 @@
 """Codex App Server worker helper using its JSONL stdio protocol."""
 import json
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -65,9 +66,9 @@ class CodexWorker:
             if self.proc is not None and self.proc.poll() is None:
                 return
             executable = self.runtimeOptions['executable']
-            args = [executable, *self.runtimeOptions['arg'].split()]
+            args = [executable, *shlex.split(self.runtimeOptions['arg'])]
             self.proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,  # pylint: disable=consider-using-with
-                                         stderr=subprocess.PIPE, text=True, bufsize=1)
+                                         stderr=subprocess.DEVNULL, text=True, bufsize=1)
             self.request('initialize', {'clientInfo': {'name': 'wallo', 'title': 'WALLO', 'version': '0.2.0'}})
             self.send({'method': 'initialized', 'params': {}})
             thread = self.request('thread/start', {'cwd': self.tmpDir, 'sandbox': 'read-only'})['thread']
@@ -101,11 +102,9 @@ class CodexWorker:
         """Read one JSON-RPC message from the server."""
         if self.proc is None or self.proc.stdout is None:
             raise RuntimeError('Codex App Server is not running')
-        line = self.proc.stdout.readline()
-        if not line:
-            error = self.proc.stderr.read() if self.proc.stderr is not None else ''
-            raise RuntimeError(error.strip() or 'Codex App Server stopped unexpectedly')
-        return cast(dict[str, Any], json.loads(line))
+        if line:= self.proc.stdout.readline():
+            return cast(dict[str, Any], json.loads(line))
+        raise RuntimeError('Codex App Server stopped unexpectedly')
 
 
     def replyToServerRequest(self, message: dict[str, Any]) -> None:

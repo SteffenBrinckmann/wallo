@@ -6,7 +6,7 @@ from PySide6.QtCore import QObject, Signal  # pylint: disable=no-name-in-module
 from openai import OpenAI
 from .pdfDocumentProcessor import PdfDocumentProcessor
 
-DEBUG_MODE = True  # Set to True to enable debug mode that skips actual LLM calls
+DEBUG_MODE = False  # Set to True to enable debug mode that skips actual LLM calls
 
 class Worker(QObject):
     """ Worker class to handle background tasks such as LLM processing or PDF extraction.

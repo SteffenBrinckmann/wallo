@@ -58,7 +58,7 @@ Prompts, services and the other configuration settings are saved in .wallo.json 
 All issues are tracked only in this README file. Do not use an external repository issue tracker.
 
 ### Things I might/might not add
-- reduce does not fully work, debug
+- Clean up code structure: each service (API, ACP, Codex, Claude), gets own folder with all functionality in that folder.
 
 ### Things I do not want to add
 - pyInstaller to easily install on windows (only makes sense if finished program. Not the goal of this **Evolutionary Software**)
