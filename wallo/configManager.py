@@ -50,6 +50,13 @@ DEFAULT_CONFIGURATION = {
                 'executable': 'opencode',
                 'arg': 'acp'
             }
+        },
+        'Codex': {
+            'type': 'Codex',
+            'options': {
+                'executable': 'codex',
+                'arg': 'app-server'
+            }
         }
     },
     'dictionary': 'en_US',

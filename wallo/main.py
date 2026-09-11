@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (QApplication,  QComboBox, QFileDialog, QMainWindo
                                QToolBar, QVBoxLayout, QWidget)
 
 from .acpWorker import ACPWorker
+from .codexWorker import CodexWorker
 from .configMain import ConfigurationWidget
 from .configManager import ConfigurationManager
 from .exchange import Exchange
@@ -23,6 +24,10 @@ class Wallo(QMainWindow):
     """Main window for the Wallo application, providing a text editor with LLM assistance."""
     acpFinished = Signal(str, str, str)
     acpError = Signal(str, str, str)
+    codexFinished = Signal(str, str, str)
+    codexError = Signal(str, str, str)
+    codexModels = Signal(list)
+    codexModelError = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -39,8 +44,13 @@ class Wallo(QMainWindow):
         self.profileCB = QComboBox()
         self.modelsCB = QComboBox()
         self.acpWorker = ACPWorker()
+        self.codexWorker = CodexWorker()
         self.acpFinished.connect(self.onWorkerFinished)
         self.acpError.connect(self.onWorkerError)
+        self.codexFinished.connect(self.onWorkerFinished)
+        self.codexError.connect(self.onWorkerError)
+        self.codexModels.connect(self._onCodexModels)
+        self.codexModelError.connect(self._onCodexModelError)
 
         # GUI
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
@@ -233,6 +243,9 @@ class Wallo(QMainWindow):
         if workType == 'chatAPI' and service['type'] == 'ACP':
             self.runWorkerAcp(work)
             return
+        if workType == 'chatAPI' and service['type'] == 'Codex':
+            self.runWorkerCodex(work)
+            return
         self.runWorkerLangchain(workType, work)
 
 
@@ -262,10 +275,43 @@ class Wallo(QMainWindow):
         )
 
 
+    def runWorkerCodex(self, work: dict[str, Any]) -> None:
+        """Run the Codex App Server path with its shared conversation thread."""
+        senderID = work['senderID']
+        self.codexWorker.runChat(work,
+            lambda content: self.codexFinished.emit(content, senderID, 'chatAPI'),
+            lambda errorMsg: self.codexError.emit(errorMsg, senderID, 'chatAPI')
+        )
+
+
     def closeEvent(self, event: QCloseEvent) -> None:
-        """Close app and clean up ACP runtime resources."""
+        """Close app and clean up agent runtime resources."""
         self.acpWorker.stop()
+        self.codexWorker.stop()
         super().closeEvent(event)
+
+
+    def _loadCodexModels(self) -> None:
+        """Load models available from the signed-in Codex App Server."""
+        self.modelsCB.clear()
+        self.modelsCB.setEnabled(False)
+        self.codexWorker.getModels(self.codexModels.emit, self.codexModelError.emit)
+
+
+    def _onCodexModels(self, models: list[str]) -> None:
+        """Populate the model selector with models reported by Codex."""
+        if self.configManager.get('service')['type'] != 'Codex':
+            return
+        self.modelsCB.clear()
+        self.modelsCB.addItems(models)
+        self.modelsCB.setEnabled(bool(models))
+        if models:
+            self.configManager.set('model', models[0])
+
+
+    def _onCodexModelError(self, errorMsg: str) -> None:
+        """Show an error if Codex cannot report its available models."""
+        QMessageBox.critical(self, 'Codex Error', errorMsg)
 
 
     def _onThreadFinished(self, thread: QThread, worker: Worker) -> None:
@@ -369,6 +415,8 @@ class Wallo(QMainWindow):
             if serviceType == 'ACP':
                 self.modelsCB.setEnabled(False)
                 self.configManager.set('model', '')
+            elif serviceType == 'Codex':
+                self._loadCodexModels()
             else:
                 self.modelsCB.setEnabled(True)
                 self.modelsCB.addItems(list(services[currentService]['models'].keys()))
@@ -385,6 +433,8 @@ class Wallo(QMainWindow):
             if serviceType == 'ACP':
                 self.modelsCB.setEnabled(False)
                 self.configManager.set('model', '')
+            elif serviceType == 'Codex':
+                self._loadCodexModels()
             else:
                 self.modelsCB.setEnabled(True)
                 self.modelsCB.addItems(list(services[currentService]['models'].keys()))

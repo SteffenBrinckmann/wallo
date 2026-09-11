@@ -113,7 +113,7 @@ class LLMProcessor:
         """
         service = self.configManager.get('service')
         llm: Any = None
-        if service['type'] != 'ACP':
+        if service['type'] not in {'ACP', 'Codex'}:
             llm = self.createClientFromConfig()
             # since LLM is defined, check if message-history defined. If not, define it
             if self.runnable is None:
@@ -136,7 +136,9 @@ class LLMProcessor:
             'attachFilePath': attachFilePath,
             'ragRunnable'   : self.ragIndexer if ragUsage else None,
             'agentTools'    : self.agents.getAgentTools(),
-            'acpOptions'    : service.get('options', {}) if service['type'] == 'ACP' else {}
+            'acpOptions'    : service.get('options', {}) if service['type'] == 'ACP' else {},
+            'codexOptions'  : service.get('options', {}) if service['type'] == 'Codex' else {},
+            'codexModel'    : self.configManager.get('model') if service['type'] == 'Codex' else ''
         }
 
 

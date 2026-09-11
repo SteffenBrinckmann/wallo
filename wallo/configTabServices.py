@@ -278,7 +278,7 @@ class ServiceEditDialog(QDialog):
         self.apiEdit = QLineEdit()
         formLayout.addRow('API Key:', self.apiEdit)
         self.typeEdit = QComboBox()
-        self.typeEdit.addItems(['openAI', 'Gemini', 'ACP'])
+        self.typeEdit.addItems(['openAI', 'Gemini', 'ACP', 'Codex'])
         self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
         formLayout.addRow('Type:', self.typeEdit)
         self.executableEdit = QLineEdit()
@@ -319,24 +319,32 @@ class ServiceEditDialog(QDialog):
         self.apiEdit.setText(self.service.get('api', '') or '')
         self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
         options = self.service.get('options', {})
-        self.executableEdit.setText(options.get('executable', 'opencode'))
-        self.argumentEdit.setText(options.get('arg', 'acp'))
+        defaultExecutable = 'codex' if self.service.get('type') == 'Codex' else 'opencode'
+        defaultArgument = 'app-server' if self.service.get('type') == 'Codex' else 'acp'
+        self.executableEdit.setText(options.get('executable', defaultExecutable))
+        self.argumentEdit.setText(options.get('arg', defaultArgument))
         self.models = {name: dict(params) for name, params in self.service.get('models', {}).items()}
         self._refreshModelList()
         self.onTypeChanged(self.typeEdit.currentText())
 
 
     def onTypeChanged(self, serviceType: str) -> None:
-        """Toggle fields for ACP vs model-based services."""
-        isAcp = serviceType == 'ACP'
-        self.urlEdit.setHidden(isAcp)
-        self.apiEdit.setHidden(isAcp)
-        self.modelsList.setHidden(isAcp)
-        self.addModelBtn.setHidden(isAcp)
-        self.editModelBtn.setHidden(isAcp or self.modelsList.currentItem() is None)
-        self.removeModelBtn.setHidden(isAcp or self.modelsList.currentItem() is None)
-        self.executableEdit.setHidden(not isAcp)
-        self.argumentEdit.setHidden(not isAcp)
+        """Toggle fields for agent or model-based services."""
+        if serviceType == 'Codex' and self.executableEdit.text() == 'opencode':
+            self.executableEdit.setText('codex')
+            self.argumentEdit.setText('app-server')
+        if serviceType == 'ACP' and self.executableEdit.text() == 'codex':
+            self.executableEdit.setText('opencode')
+            self.argumentEdit.setText('acp')
+        isAgent = serviceType in {'ACP', 'Codex'}
+        self.urlEdit.setHidden(isAgent)
+        self.apiEdit.setHidden(isAgent)
+        self.modelsList.setHidden(isAgent)
+        self.addModelBtn.setHidden(isAgent)
+        self.editModelBtn.setHidden(isAgent or self.modelsList.currentItem() is None)
+        self.removeModelBtn.setHidden(isAgent or self.modelsList.currentItem() is None)
+        self.executableEdit.setHidden(not isAgent)
+        self.argumentEdit.setHidden(not isAgent)
 
 
     def _refreshModelList(self, selectName: Optional[str] = None) -> None:
@@ -417,12 +425,12 @@ class ServiceEditDialog(QDialog):
         if not name:
             QMessageBox.warning(self, 'Validation Error', 'Service name cannot be empty')
             return
-        if service['type'] == 'ACP':
+        if service['type'] in {'ACP', 'Codex'}:
             if not service['options']['executable']:
-                QMessageBox.warning(self, 'Validation Error', 'ACP executable cannot be empty')
+                QMessageBox.warning(self, 'Validation Error', 'Agent executable cannot be empty')
                 return
             if not service['options']['arg']:
-                QMessageBox.warning(self, 'Validation Error', 'ACP argument cannot be empty')
+                QMessageBox.warning(self, 'Validation Error', 'Agent argument cannot be empty')
                 return
             service['url'] = ''
             service['api'] = ''
