@@ -1,7 +1,6 @@
 """Main window for the Wallo application, providing a text editor with LLM assistance."""
 
 import sys
-import json
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -19,7 +18,9 @@ from .llmProcessor import LLMProcessor
 from .misc import invertIcon, HELP_TEXT
 from .worker import Worker
 from .services.service import Service, createService
+from .walloFiles import DocumentData, ExchangeData, SelectionData, WalloFiles
 
+# pylint: disable=too-many-statements
 class Wallo(QMainWindow):
     """Main window for the Wallo application, providing a text editor with LLM assistance."""
     serviceFinished = Signal(str, str, str)
@@ -30,7 +31,7 @@ class Wallo(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.configManager = ConfigurationManager()
-        self.recoveryPath = Path.home() / '.wallo-recovery.json'
+        self.walloFiles = WalloFiles(Path.home() / '.wallo-recovery.json')
         self.beginner = self.configManager.get('startCounts') > 0
         if self.beginner:
             self.configManager.updateConfig({'startCounts': self.configManager.get('startCounts') - 1})
@@ -43,6 +44,7 @@ class Wallo(QMainWindow):
         self.profileCB = QComboBox()
         self.modelsCB = QComboBox()
         self.activeService: Service | None = None
+        self.pendingModel = ''
         self.serviceFinished.connect(self.onWorkerFinished)
         self.serviceError.connect(self.onWorkerError)
         self.serviceModels.connect(self._onServiceModels)
@@ -59,7 +61,8 @@ class Wallo(QMainWindow):
         self.setCentralWidget(scrollArea)
 
         # Setup exchanges
-        recoveredExchanges = self._loadRecovery()
+        recoveredDocument = self.walloFiles.loadRecovery()
+        recoveredExchanges = recoveredDocument['exchanges'] if recoveredDocument is not None else []
         # WALLO documents are ordered exchanges, also called conversation turns.
         self.exchanges: list[Exchange] = []
         if recoveredExchanges:
@@ -88,9 +91,15 @@ class Wallo(QMainWindow):
         self.spellcheckAction.triggered.connect(self.toggleSpellcheck)
         self.toolbar.addAction(self.spellcheckAction)
         self.toolbar.addWidget(self._toolbarSpacer())
-        saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='Save as docx or markdown')
-        saveAction.triggered.connect(lambda: self.saveToFile('text'))
+        openAction = QAction('', self, icon=qta.icon('fa5.folder-open'), toolTip='Open WALLO document')
+        openAction.triggered.connect(lambda: self.walloFiles.openDocument(self, self._loadDocument))
+        self.toolbar.addAction(openAction)
+        saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='Save WALLO document')
+        saveAction.triggered.connect(lambda: self.walloFiles.saveDocument(self, self._documentData()))
         self.toolbar.addAction(saveAction)
+        exportAction = QAction('', self, icon=qta.icon('fa5.file-export'), toolTip='Export as docx or markdown')
+        exportAction.triggered.connect(lambda: self.saveToFile('text'))
+        self.toolbar.addAction(exportAction)
         ttsAction = QAction('', self, icon=qta.icon('fa5.file-audio'), toolTip='Save to mp3 file')
         ttsAction.triggered.connect(lambda: self.saveToFile('tts'))
         self.toolbar.addAction(ttsAction)
@@ -123,6 +132,8 @@ class Wallo(QMainWindow):
         configAction.triggered.connect(self.showConfiguration)
         self.toolbar.addAction(configAction)
         self.onConfigChanged()
+        if recoveredDocument is not None:
+            self._restoreSelection(recoveredDocument['selection'])
 
 
     def _toolbarSpacer(self, width: int = 20) -> QWidget:
@@ -131,40 +142,29 @@ class Wallo(QMainWindow):
         return spacer
 
 
-    def _loadRecovery(self) -> list[dict[str, str]]:
-        """Load the text-only exchanges saved after an interrupted session."""
-        try:
-            with open(self.recoveryPath, 'r', encoding='utf-8') as recoveryFile:
-                recoveredExchanges = json.load(recoveryFile)
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-            return []
-        if not isinstance(recoveredExchanges, list):
-            return []
-        for recoveredExchange in recoveredExchanges:
-            if not isinstance(recoveredExchange, dict) or 'text1' not in recoveredExchange or \
-                    'text2' not in recoveredExchange or not isinstance(recoveredExchange['text1'], str) or \
-                    not isinstance(recoveredExchange['text2'], str):
-                return []
-        return recoveredExchanges
-
-
     def _connectRecovery(self, exchange: Exchange) -> None:
         """Save a recovery draft whenever exchange text changes."""
-        exchange.text1.textChanged.connect(self.saveRecovery)
-        exchange.text2.textChanged.connect(self.saveRecovery)
+        exchange.text1.textChanged.connect(self._saveRecovery)
+        exchange.text2.textChanged.connect(self._saveRecovery)
 
 
-    def saveRecovery(self) -> None:
-        """Atomically save the text in every exchange for crash recovery."""
-        recoveredExchanges = [{'text1': exchange.text1.toPlainText(), 'text2': exchange.text2.toPlainText()}
-                              for exchange in self.exchanges]
-        tempPath = self.recoveryPath.with_name(self.recoveryPath.name + '.tmp')
-        try:
-            with open(tempPath, 'w', encoding='utf-8') as recoveryFile:
-                json.dump(recoveredExchanges, recoveryFile)
-            tempPath.replace(self.recoveryPath)
-        except OSError:
-            pass
+    def _documentData(self) -> DocumentData:
+        """Build persisted data from current exchanges and selections.
+
+        Returns:
+            Current versioned WALLO document.
+        """
+        exchanges: list[ExchangeData] = [{'text1': exchange.text1.toPlainText(),
+                                          'text2': exchange.text2.toPlainText()} for exchange in self.exchanges]
+        currentSelection = self.configManager.getSelection()
+        selection: SelectionData = {'profile': currentSelection['profile'], 'service': currentSelection['service'],
+                                    'model': currentSelection['model']}
+        return self.walloFiles.documentData(exchanges, selection)
+
+
+    def _saveRecovery(self) -> None:
+        """Save the current versioned document as crash recovery."""
+        self.walloFiles.saveRecovery(self._documentData())
 
 
     def layoutExchanges(self) -> None:
@@ -236,7 +236,7 @@ class Wallo(QMainWindow):
             self._connectRecovery(exchange)
         self.exchanges[insertPos:insertPos] = newExchanges
         self.layoutExchanges()
-        self.saveRecovery()
+        self._saveRecovery()
 
 
     def deleteExchange(self, uuid: str) -> None:
@@ -248,7 +248,64 @@ class Wallo(QMainWindow):
         idx = [exchange.uuid for exchange in self.exchanges].index(uuid)
         self.exchanges[idx].deleteLater()
         del self.exchanges[idx]
-        self.saveRecovery()
+        self._saveRecovery()
+
+
+    def _loadDocument(self, document: DocumentData) -> None:
+        """Apply a validated WALLO document to the main window.
+
+        Args:
+            document: Loaded versioned document to display.
+        """
+        self._replaceExchanges(document['exchanges'])
+        self._restoreSelection(document['selection'])
+        self._saveRecovery()
+
+
+    def _replaceExchanges(self, exchangesData: list[ExchangeData]) -> None:
+        """Rebuild exchange widgets from persisted document data.
+
+        Args:
+            exchangesData: Ordered persisted exchanges to display.
+        """
+        for exchange in self.exchanges:
+            exchange.deleteLater()
+        self.exchanges = []
+        for exchangeData in exchangesData:
+            exchange = Exchange(self, exchangeData['text1'])
+            if exchangeData['text2']:
+                exchange.text2.setPlainText(exchangeData['text2'])
+                exchange.text2.show()
+            self.exchanges.append(exchange)
+        if not self.exchanges:
+            self.exchanges = [Exchange(self) for _ in range(2)]
+        for exchange in self.exchanges:
+            self._connectRecovery(exchange)
+        self.layoutExchanges()
+        self.exchanges[0].showButtons()
+
+
+    def _restoreSelection(self, selection: SelectionData) -> None:
+        """Restore available document toolbar selections.
+
+        Args:
+            selection: Saved profile, service, and model names.
+        """
+        unavailable: list[str] = []
+        if selection['profile'] in self.configManager.get('profiles'):
+            self.profileCB.setCurrentText(selection['profile'])
+            self.configManager.set('profile', selection['profile'])
+        else:
+            unavailable.append(f"profile '{selection['profile']}'")
+        if selection['service'] in self.configManager.get('services'):
+            self.serviceCB.setCurrentText(selection['service'])
+            self.configManager.set('service', selection['service'])
+        else:
+            unavailable.append(f"service '{selection['service']}'")
+        self.pendingModel = selection['model']
+        self._activateService()
+        if unavailable:
+            QMessageBox.warning(self, 'Document Selection', 'Unavailable: ' + ', '.join(unavailable))
 
 
     def saveToFile(self, dType: str) -> None:
@@ -329,12 +386,7 @@ class Wallo(QMainWindow):
             self.activeService.stop()
         super().closeEvent(event)
         if event.isAccepted():
-            try:
-                self.recoveryPath.unlink()
-            except FileNotFoundError:
-                pass
-            except OSError:
-                pass
+            self.walloFiles.removeRecovery()
 
 
     def _loadServiceModels(self) -> None:
@@ -355,7 +407,15 @@ class Wallo(QMainWindow):
         self.modelsCB.addItems(models)
         self.modelsCB.setEnabled(bool(models))
         if models:
-            self.configManager.set('model', models[0])
+            model = self.pendingModel if self.pendingModel in models else models[0]
+            if self.pendingModel and self.pendingModel not in models:
+                QMessageBox.warning(self, 'Document Selection', f"Unavailable model '{self.pendingModel}'")
+            self.modelsCB.setCurrentText(model)
+            self.configManager.set('model', model)
+        else:
+            self.configManager.set('model', '')
+        self.pendingModel = ''
+        self._saveRecovery()
 
 
     def _onServiceModelError(self, errorMsg: str) -> None:
@@ -481,12 +541,15 @@ class Wallo(QMainWindow):
             self._activateService()
         if dType=='profile':
             self.configManager.set(dType, self.profileCB.currentText())
+            self._saveRecovery()
         if dType=='service':
             currentService = self.serviceCB.currentText()
             self.configManager.set(dType, currentService)
             self._activateService()
+            self._saveRecovery()
         if dType=='model':
             self.configManager.set(dType, self.modelsCB.currentText())
+            self._saveRecovery()
 
 
 if __name__ == '__main__':

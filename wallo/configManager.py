@@ -184,6 +184,15 @@ class ConfigurationManager:
         else:
             raise ValueError(f"Invalid data type '{dType}' requested")
 
+
+    def getSelection(self) -> dict[str, str]:
+        """Return the current profile, service, and model selection.
+
+        Returns:
+            Names currently selected in WALLO's toolbar.
+        """
+        return {'profile': self._currentProfile, 'service': self._currentService, 'model': self._currentModel}
+
     def getPromptByName(self, name: str) -> dict[str, Any]:
         """Get a specific prompt by name."""
         profile = [profile for profile in self._config.get('profiles', [])
