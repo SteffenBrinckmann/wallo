@@ -105,6 +105,9 @@ All open issues are tracked only in `README.md`. Do not add repository issue tra
 - **Quotes:** use single quotes, when possible.
 - **Reduce get-usage** for dictionaries unless a default value is given. Prefer to use index-notation [] for readability.
 - **Refactoring** Prefer small patches; avoid refactors unless requested.
+- **Method ordering:** Within a class, order methods as: `__init__` and public factories; UI setup, build, layout, paint, and render; public load/open/restore; public validation; other public operations (including accessors, commands, and processing); public save/export/persistence; public stop/shutdown/exit/close; properties; framework events, overrides, slots, and callbacks; Python data-model methods such as `__repr__`; private implementation methods. Keep related methods in call order within a group.
+  - Framework classification wins: Qt event overrides, slots, and callbacks stay together even if their name suggests another group. Private methods stay in the private section. Public and private class/static methods follow their purpose rather than forming their own group. Methods implementing an application protocol follow their semantic group; only Python dunder methods are data-model methods.
+  - Place module-level helper functions after classes. In modules with only functions, place public entry points before private helpers. “File helpers” means module-level helpers, not methods that perform file I/O.
 
 ### Designed Code Limitations
 

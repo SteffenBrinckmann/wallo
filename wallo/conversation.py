@@ -51,16 +51,6 @@ class Conversation(QScrollArea):
         self._runWorker(workType, work)
 
 
-    def _connectExchange(self, exchange: Exchange) -> None:
-        """Connect an exchange to recovery persistence.
-
-        Args:
-            exchange: Exchange whose text changes must be persisted.
-        """
-        exchange.text1.textChanged.connect(self.changed.emit)
-        exchange.text2.textChanged.connect(self.changed.emit)
-
-
     def exchangeData(self) -> list[ExchangeData]:
         """Return persisted text for every exchange/turn.
 
@@ -99,37 +89,6 @@ class Conversation(QScrollArea):
                 exchange.showButtons()
             else:
                 exchange.hideButtons()
-
-
-    def keyPressEvent(self, event: QKeyEvent) -> None:
-        """Move between exchanges for Ctrl+PageUp and Ctrl+PageDown.
-
-        Args:
-            event: Key event received by the conversation.
-        """
-        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            if event.key() == Qt.Key.Key_PageDown:
-                self._moveActiveExchange(1)
-                return
-            if event.key() == Qt.Key.Key_PageUp:
-                self._moveActiveExchange(-1)
-                return
-        super().keyPressEvent(event)
-
-
-    def _moveActiveExchange(self, step: int) -> None:
-        """Move keyboard focus by a relative exchange offset.
-
-        Args:
-            step: Signed number of exchanges to move.
-        """
-        activeIdx = next((idx for idx, exchange in enumerate(self.exchanges)
-                          if exchange.btnState == 'show'), None)
-        if activeIdx is None or not 0 <= activeIdx + step < len(self.exchanges):
-            return
-        self.exchanges[activeIdx].hideButtons()
-        self.exchanges[activeIdx + step].showButtons()
-        self.exchanges[activeIdx + step].focusForTyping()
 
 
     def addExchanges(self, uuid: str, texts: list[str]) -> None:
@@ -204,3 +163,44 @@ class Conversation(QScrollArea):
         for exchange in self.exchanges:
             exchange.text1.setSpellCheckEnabled(enabled)
             exchange.text2.setSpellCheckEnabled(enabled)
+
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Move between exchanges for Ctrl+PageUp and Ctrl+PageDown.
+
+        Args:
+            event: Key event received by the conversation.
+        """
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            if event.key() == Qt.Key.Key_PageDown:
+                self._moveActiveExchange(1)
+                return
+            if event.key() == Qt.Key.Key_PageUp:
+                self._moveActiveExchange(-1)
+                return
+        super().keyPressEvent(event)
+
+
+    def _connectExchange(self, exchange: Exchange) -> None:
+        """Connect an exchange to recovery persistence.
+
+        Args:
+            exchange: Exchange whose text changes must be persisted.
+        """
+        exchange.text1.textChanged.connect(self.changed.emit)
+        exchange.text2.textChanged.connect(self.changed.emit)
+
+
+    def _moveActiveExchange(self, step: int) -> None:
+        """Move keyboard focus by a relative exchange offset.
+
+        Args:
+            step: Signed number of exchanges to move.
+        """
+        activeIdx = next((idx for idx, exchange in enumerate(self.exchanges)
+                          if exchange.btnState == 'show'), None)
+        if activeIdx is None or not 0 <= activeIdx + step < len(self.exchanges):
+            return
+        self.exchanges[activeIdx].hideButtons()
+        self.exchanges[activeIdx + step].showButtons()
+        self.exchanges[activeIdx + step].focusForTyping()

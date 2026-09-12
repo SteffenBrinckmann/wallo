@@ -408,27 +408,6 @@ class Exchange(QWidget):
             self.busyOverlay.hide()
 
 
-    def _setButtonAppearance(self, buttonName: str, icon: str, color: str | None = None,
-                             tooltip: str | None = None) -> None:
-        """Set a button's icon and (optional) tooltip."""
-        button = getattr(self, buttonName)
-        button.setIcon(qta.icon(icon) if color is None else qta.icon(icon, color=color))
-        if tooltip is not None:
-            button.setToolTip(tooltip)
-
-
-    ### GENERAL FUNCTIONS
-    def __repr__(self) -> str:
-        """Generate a string representation of the object"""
-        historyText = '' if self.text1.isHidden() else self.text1.toMarkdown().strip()
-        replyText = '' if self.text2.isHidden() else self.text2.toMarkdown().strip()
-
-        text = f'\n```text\n{historyText}\n```' if historyText else ''
-        if replyText:
-            text += '\n' + replyText
-        return text
-
-
     ### FOR DISPLAY OF BUTTON BOX ON RIGHT SIDE
     def focusThisExchange(self) -> None:
         """ User clicks into this exchange..."""
@@ -503,6 +482,18 @@ class Exchange(QWidget):
         self.text2.adjustHeightToContents(1 if self.text1.isHidden() else 2)
 
 
+    ### GENERAL FUNCTIONS
+    def __repr__(self) -> str:
+        """Generate a string representation of the object"""
+        historyText = '' if self.text1.isHidden() else self.text1.toMarkdown().strip()
+        replyText = '' if self.text2.isHidden() else self.text2.toMarkdown().strip()
+
+        text = f'\n```text\n{historyText}\n```' if historyText else ''
+        if replyText:
+            text += '\n' + replyText
+        return text
+
+
 
     def _populateLlmComboBox(self) -> None:
         """Populate the LLM combo box with available prompts."""
@@ -574,6 +565,15 @@ class Exchange(QWidget):
         transform = self._spinnerBase.transformed(QTransform().rotate(self._spinAngle),
                                                   Qt.TransformationMode.SmoothTransformation)
         self.spinnerLabel.setPixmap(transform)
+
+
+    def _setButtonAppearance(self, buttonName: str, icon: str, color: str | None = None,
+                             tooltip: str | None = None) -> None:
+        """Set a button's icon and (optional) tooltip."""
+        button = getattr(self, buttonName)
+        button.setIcon(qta.icon(icon) if color is None else qta.icon(icon, color=color))
+        if tooltip is not None:
+            button.setToolTip(tooltip)
 
 
 # FOR TESTING: does not pass mypy

@@ -41,19 +41,6 @@ class WalloFiles:
         self.recoveryPath = recoveryPath
 
 
-    def documentData(self, exchanges: list[ExchangeData], selection: SelectionData) -> DocumentData:
-        """Build one versioned document payload.
-
-        Args:
-            exchanges: Persisted exchange text in document order.
-            selection: Current profile, service, and model names.
-        Returns:
-            Valid document payload for manual save or recovery.
-        """
-        return {'application': APPLICATION, 'formatVersion': FORMAT_VERSION,
-                'selection': selection, 'exchanges': exchanges}
-
-
     def loadRecovery(self) -> DocumentData | None:
         """Load valid recovery data without showing user-facing errors.
 
@@ -101,6 +88,19 @@ class WalloFiles:
             loadCb(self._read(Path(fileName)))
         except ValueError as error:
             QMessageBox.critical(parent, 'Open Document Error', str(error))
+
+
+    def documentData(self, exchanges: list[ExchangeData], selection: SelectionData) -> DocumentData:
+        """Build one versioned document payload.
+
+        Args:
+            exchanges: Persisted exchange text in document order.
+            selection: Current profile, service, and model names.
+        Returns:
+            Valid document payload for manual save or recovery.
+        """
+        return {'application': APPLICATION, 'formatVersion': FORMAT_VERSION,
+                'selection': selection, 'exchanges': exchanges}
 
 
     def saveDocument(self, parent: QWidget, document: DocumentData) -> None:

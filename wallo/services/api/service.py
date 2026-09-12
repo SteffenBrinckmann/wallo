@@ -179,6 +179,14 @@ class ApiService:
         successCb(list(self.configManager.get('service').get('models', {}).keys()))
 
 
+    def stop(self) -> None:
+        """Request all active API chat threads to finish"""
+        for thread in self.threads:
+            thread.quit()
+        self.threads = []
+        self.workers = []
+
+
     def _onThreadFinished(self, thread: QThread, worker: ApiWorker) -> None:
         """Release references after an API worker thread exits.
 
@@ -190,11 +198,3 @@ class ApiService:
             self.threads.remove(thread)
         if worker in self.workers:
             self.workers.remove(worker)
-
-
-    def stop(self) -> None:
-        """Request all active API chat threads to finish"""
-        for thread in self.threads:
-            thread.quit()
-        self.threads = []
-        self.workers = []

@@ -83,25 +83,6 @@ class ConfigurationManager:
         self._currentModel = model
         self.loadConfig()
 
-
-    def __repr__(self) -> str:
-        """Return a string representation of the configuration"""
-        res = ''
-        services = self.get('services')
-        res += 'Available services: '+' | '.join(services.keys())+'\n'
-        if self._currentService:
-            res += f'  Current service: {self._currentService}\n'
-            models = services[self._currentService].get('models', {})
-            res += 'Available models: '+' | '.join(list(models.keys()))+'\n'
-            if self._currentModel:
-                res += f'  Current model: {self._currentModel}\n'
-        res += 'Available profiles: '+' | '.join(self.get('profiles'))+'\n'
-        if self._currentProfile:
-            res += f'  Current profile: {self._currentProfile}\n'
-        res += 'Available prompts:\n  '+'\n  '.join([i['name'] for i in self.get('prompts')])+'\n'
-        return res
-
-
     def loadConfig(self) -> None:
         """Load configuration from file, creating default if it doesn't exist."""
         if not self.configFile.is_file():
@@ -120,21 +101,6 @@ class ConfigurationManager:
         profiles = [profile['name'] for profile in self._config.get('profiles', [])]
         if not self._currentProfile or self._currentProfile not in profiles:
             self._currentProfile = profiles[0] if profiles else ''
-
-
-    def _migrateServices(self) -> None:
-        """Normalize legacy service type names in loaded configuration."""
-        for service in self._config.get('services', {}).values():
-            if service['type'] == 'openAI':
-                service['type'] = 'api'
-                service['provider'] = 'openai'
-            elif service['type'] == 'Gemini':
-                service['type'] = 'api'
-                service['provider'] = 'gemini'
-            elif service['type'] == 'ACP':
-                service['type'] = 'acp'
-            elif service['type'] == 'Codex':
-                service['type'] = 'codex'
 
     def validateConfig(self) -> None:
         """Validate configuration file format and required fields."""
@@ -263,3 +229,36 @@ class ConfigurationManager:
         self._config.update(updates)
         self.validateConfig()
         self.saveConfig()
+
+
+    def __repr__(self) -> str:
+        """Return a string representation of the configuration"""
+        res = ''
+        services = self.get('services')
+        res += 'Available services: '+' | '.join(services.keys())+'\n'
+        if self._currentService:
+            res += f'  Current service: {self._currentService}\n'
+            models = services[self._currentService].get('models', {})
+            res += 'Available models: '+' | '.join(list(models.keys()))+'\n'
+            if self._currentModel:
+                res += f'  Current model: {self._currentModel}\n'
+        res += 'Available profiles: '+' | '.join(self.get('profiles'))+'\n'
+        if self._currentProfile:
+            res += f'  Current profile: {self._currentProfile}\n'
+        res += 'Available prompts:\n  '+'\n  '.join([i['name'] for i in self.get('prompts')])+'\n'
+        return res
+
+
+    def _migrateServices(self) -> None:
+        """Normalize legacy service type names in loaded configuration."""
+        for service in self._config.get('services', {}).values():
+            if service['type'] == 'openAI':
+                service['type'] = 'api'
+                service['provider'] = 'openai'
+            elif service['type'] == 'Gemini':
+                service['type'] = 'api'
+                service['provider'] = 'gemini'
+            elif service['type'] == 'ACP':
+                service['type'] = 'acp'
+            elif service['type'] == 'Codex':
+                service['type'] = 'codex'

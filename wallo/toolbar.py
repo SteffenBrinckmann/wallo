@@ -50,7 +50,7 @@ class Toolbar(QToolBar):
         saveAction.triggered.connect(
             lambda: self.mainWindow.walloFiles.saveDocument(self.mainWindow, self.mainWindow.documentData()))
         self.addAction(saveAction)
-        exportAction = QAction('', self, icon=qta.icon('fa5.file-export'), toolTip='Export as docx or markdown')
+        exportAction = QAction('', self, icon=qta.icon('fa5s.file-export'), toolTip='Export as docx or markdown')
         exportAction.triggered.connect(lambda: self.mainWindow.saveToFile('text'))
         self.addAction(exportAction)
         ttsAction = QAction('', self, icon=qta.icon('fa5.file-audio'), toolTip='Save to mp3 file')

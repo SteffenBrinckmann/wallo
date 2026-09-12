@@ -127,6 +127,29 @@ class AcpService:
                 asyncio.run_coroutine_threadsafe(self.startSession(), self.loop).result()
 
 
+    def stop(self) -> None:
+        """Close the ACP session, loop, and temporary workspace"""
+        self.sessionId = ''
+        if self.loop is not None and self.spawnContext is not None:
+            try:
+                future = asyncio.run_coroutine_threadsafe(self.spawnContext.__aexit__(None, None, None), self.loop)
+                future.result(timeout=5)
+            except Exception:
+                pass
+        if self.loop is not None:
+            self.loop.call_soon_threadsafe(self.loop.stop)
+        if self.loopThread is not None:
+            self.loopThread.join(timeout=2)
+        self.connection = None
+        self.spawnContext = None
+        self.client = None
+        self.promptLock = None
+        self.loop = None
+        self.loopThread = None
+        if self.tmpDir and os.path.isdir(self.tmpDir):
+            shutil.rmtree(self.tmpDir, ignore_errors=True)
+
+
     def _runLoop(self) -> None:
         """Run the dedicated ACP asyncio loop.
         """
@@ -214,26 +237,3 @@ class AcpService:
         if ragRunnable is not None and (retrieved := ragRunnable.retrieve(query)):
             return f"\n\nContext:\n---\n{ '\n\n'.join(retrieved) }\n---\n"
         return ''
-
-
-    def stop(self) -> None:
-        """Close the ACP session, loop, and temporary workspace"""
-        self.sessionId = ''
-        if self.loop is not None and self.spawnContext is not None:
-            try:
-                future = asyncio.run_coroutine_threadsafe(self.spawnContext.__aexit__(None, None, None), self.loop)
-                future.result(timeout=5)
-            except Exception:
-                pass
-        if self.loop is not None:
-            self.loop.call_soon_threadsafe(self.loop.stop)
-        if self.loopThread is not None:
-            self.loopThread.join(timeout=2)
-        self.connection = None
-        self.spawnContext = None
-        self.client = None
-        self.promptLock = None
-        self.loop = None
-        self.loopThread = None
-        if self.tmpDir and os.path.isdir(self.tmpDir):
-            shutil.rmtree(self.tmpDir, ignore_errors=True)
