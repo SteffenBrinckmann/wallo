@@ -6,9 +6,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from PySide6.QtCore import QObject, QThread, Signal  # pylint: disable=no-name-in-module
 from ...configManager import ConfigurationManager
-from ...pdfDocumentProcessor import PdfDocumentProcessor
-
-DEBUG_MODE = False
+from ...pdfDocumentProcessor import extractTextFromPdf
 
 
 class ApiWorker(QObject):
@@ -24,7 +22,6 @@ class ApiWorker(QObject):
         """
         super().__init__()
         self.work = work
-        self.documentProcessor = PdfDocumentProcessor()
 
 
     def run(self) -> None:
@@ -59,7 +56,7 @@ class ApiWorker(QObject):
         fileContext = ''
         attachFilePath = self.work['attachFilePath']
         if attachFilePath.endswith('.pdf'):
-            fileContext = self.documentProcessor.extractTextFromPdf(attachFilePath) + '\n\n'
+            fileContext = extractTextFromPdf(attachFilePath) + '\n\n'
         if attachFilePath.split('.')[-1] in ['tex', 'txt']:
             with open(attachFilePath, 'r', encoding='utf-8') as fileHandle:
                 fileContext = fileHandle.read() + '\n\n'

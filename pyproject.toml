@@ -35,8 +35,11 @@ dev = [
     "mypy"
 ]
 
-[tool.setuptools]
-packages = ["wallo"]
+[tool.setuptools.packages.find]
+include = ["wallo*"]
+
+[tool.setuptools.package-data]
+"wallo.services.claude" = ["README.md"]
 
 [build-system]
 requires = ["setuptools>=61.0"]

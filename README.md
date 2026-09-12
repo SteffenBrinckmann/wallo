@@ -38,7 +38,7 @@ WALLO supports Python 3.10 and newer.
   cd wallo/
   python -m venv .venv
   . .venv/bin/activate
-  pip install -r requirements.txt
+  pip install .
 ```
 
 ### Usage

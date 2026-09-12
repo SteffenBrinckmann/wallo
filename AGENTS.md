@@ -32,7 +32,7 @@ WALLO is a desktop writing assistant application built with PySide6 that integra
 ### Installation and Setup
 ```bash
 python -m venv .venv
-pip install -r requirements.txt
+pip install .[dev]
 ```
 
 ### Running the Application

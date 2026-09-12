@@ -25,7 +25,6 @@ class LLMProcessor:
         self.configManager = configManager
         self.systemPrompt = self.configManager.get('system-prompt')
         self.messageHistory = InMemoryChatMessageHistory()
-        self.systemPromptInjected = False
         self._injectSystemPrompt(self.systemPrompt)
         self.runnable: RunnableWithMessageHistory | None = None
         # TODO P4 system of services for RAG, TTS and STT: all from one provider?
@@ -45,10 +44,8 @@ class LLMProcessor:
 
     def _injectSystemPrompt(self, prompt: str) -> None:
         """Inject a system prompt into the message history."""
-        self.systemPromptInjected = False
         try:
             self.messageHistory.add_message(SystemMessage(content=prompt))
-            self.systemPromptInjected = True
         except Exception:
             pass
 
