@@ -1,4 +1,4 @@
-"""Codex App Server worker helper using its JSONL stdio protocol."""
+"""Codex App Server service using its JSONL stdio protocol."""
 import json
 import shlex
 import shutil
@@ -8,75 +8,82 @@ import threading
 from pathlib import Path
 from typing import Any, Callable, cast
 
-DEFAULT_CODEX_OPTIONS = {
-    'executable': 'codex',
-    'arg': 'app-server'
-}
+DEFAULT_OPTIONS = {'executable': 'codex', 'arg': 'app-server'}
 
 
-class CodexWorker:
-    """Runs prompts through one shared Codex App Server thread."""
+class CodexService:
+    """Run prompts through one shared Codex App Server thread."""
 
     def __init__(self) -> None:
+        """Initialize an inactive Codex App Server service."""
         self.proc: subprocess.Popen[str] | None = None
         self.threadId = ''
         self.tmpDir = tempfile.mkdtemp(prefix='wallo-codex-')
         self.requestId = 0
         self.runtimeLock = threading.Lock()
         self.promptLock = threading.Lock()
-        self.runtimeOptions = dict(DEFAULT_CODEX_OPTIONS)
+        self.options = dict(DEFAULT_OPTIONS)
 
 
-    def runChat(self, work: dict[str, Any], successCb: Callable[[str], None], errorCb: Callable[[str], None]) -> None:
-        """Run one prompt, preserving the Codex conversation thread."""
+    def runChat(self, work: dict[str, Any], successCb: Callable[[str], None],
+                errorCb: Callable[[str], None]) -> None:
+        """Start one serialized Codex chat request.
+
+        Args:
+            work: Prepared prompt, context, attachment, model, and service options.
+            successCb: Callback receiving generated text.
+            errorCb: Callback receiving an error message.
+        """
         def runner() -> None:
             try:
                 with self.promptLock:
-                    self.runtimeOptions = self.getRuntimeOptions(work)
+                    self.options = dict(DEFAULT_OPTIONS) | work.get('serviceOptions', {})
                     self.ensureRuntime()
-                    successCb(self.runPrompt(self.preparePrompt(work), work['codexModel']))
-            except Exception as e:
-                errorCb(str(e))
+                    successCb(self.runPrompt(self.preparePrompt(work), work['model']))
+            except Exception as error:
+                errorCb(str(error))
         threading.Thread(target=runner, daemon=True).start()
 
 
     def getModels(self, successCb: Callable[[list[str]], None], errorCb: Callable[[str], None]) -> None:
-        """Get models available to the signed-in Codex account."""
+        """Fetch models available from the signed-in Codex account.
+
+        Args:
+            successCb: Callback receiving visible model names.
+            errorCb: Callback receiving an error message.
+        """
         def runner() -> None:
             try:
                 with self.promptLock:
                     self.ensureRuntime()
                     data = self.request('model/list', {})['data']
                 successCb([model['model'] for model in data if not model['hidden']])
-            except Exception as e:
-                errorCb(str(e))
+            except Exception as error:
+                errorCb(str(error))
         threading.Thread(target=runner, daemon=True).start()
 
 
-    def getRuntimeOptions(self, work: dict[str, Any]) -> dict[str, Any]:
-        """Merge Codex service options with defaults."""
-        options = dict(DEFAULT_CODEX_OPTIONS)
-        options |= work.get('codexOptions', {})
-        return options
-
-
     def ensureRuntime(self) -> None:
-        """Start and initialize the Codex App Server once per app run."""
+        """Start and initialize the Codex App Server if needed.
+        """
         with self.runtimeLock:
             if self.proc is not None and self.proc.poll() is None:
                 return
-            executable = self.runtimeOptions['executable']
-            args = [executable, *shlex.split(self.runtimeOptions['arg'])]
-            self.proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,  # pylint: disable=consider-using-with
-                                         stderr=subprocess.DEVNULL, text=True, bufsize=1)
+            args = [self.options['executable'], *shlex.split(self.options['arg'])]
+            self.proc = subprocess.Popen( # pylint: disable=consider-using-with
+                args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                text=True, bufsize=1)
             self.request('initialize', {'clientInfo': {'name': 'wallo', 'title': 'WALLO', 'version': '0.2.0'}})
             self.send({'method': 'initialized', 'params': {}})
-            thread = self.request('thread/start', {'cwd': self.tmpDir, 'sandbox': 'read-only'})['thread']
-            self.threadId = thread['id']
+            self.threadId = self.request('thread/start', {'cwd': self.tmpDir, 'sandbox': 'read-only'})['thread']['id']
 
 
     def send(self, message: dict[str, Any]) -> None:
-        """Write one JSON-RPC message to Codex App Server."""
+        """Write one JSON-RPC message to Codex.
+
+        Args:
+            message: JSON-RPC request or response payload.
+        """
         if self.proc is None or self.proc.stdin is None:
             raise RuntimeError('Codex App Server is not running')
         self.proc.stdin.write(json.dumps(message) + '\n')
@@ -84,7 +91,14 @@ class CodexWorker:
 
 
     def request(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
-        """Send a request and wait for its JSON-RPC result."""
+        """Send a JSON-RPC request and wait for its response.
+
+        Args:
+            method: Codex App Server method name.
+            params: Parameters for the method.
+        Returns:
+            Server result object.
+        """
         self.requestId += 1
         requestId = self.requestId
         self.send({'method': method, 'id': requestId, 'params': params})
@@ -99,24 +113,41 @@ class CodexWorker:
 
 
     def readMessage(self) -> dict[str, Any]:
-        """Read one JSON-RPC message from the server."""
+        """Read one JSON-RPC message from Codex stdout.
+
+        Returns:
+            Decoded JSON-RPC message.
+        """
         if self.proc is None or self.proc.stdout is None:
             raise RuntimeError('Codex App Server is not running')
-        if line:= self.proc.stdout.readline():
+        if line := self.proc.stdout.readline():
             return cast(dict[str, Any], json.loads(line))
         raise RuntimeError('Codex App Server stopped unexpectedly')
 
 
     def replyToServerRequest(self, message: dict[str, Any]) -> None:
-        """Deny unsolicited tool approvals; WALLO uses Codex for safe text work."""
+        """Deny unsolicited Codex tool approvals.
+
+        Args:
+            message: Server request that may require a denial response.
+        """
         if 'id' in message and 'method' in message:
             self.send({'id': message['id'], 'result': {'decision': 'deny'}})
 
 
     def runPrompt(self, prompt: str, model: str) -> str:
-        """Start a turn and collect the streamed agent message."""
-        params = {'threadId': self.threadId, 'input': [{'type': 'text', 'text': prompt}],
-                  'approvalPolicy': 'never', 'sandboxPolicy': {'type': 'readOnly', 'networkAccess': False}}
+        """Run a Codex turn and collect its streamed text.
+
+        Args:
+            prompt: Fully prepared prompt.
+            model: Optional selected Codex model.
+        Returns:
+            Combined agent response text.
+        """
+        params: dict[str, Any] = {
+            'threadId': self.threadId, 'input': [{'type': 'text', 'text': prompt}],
+            'approvalPolicy': 'never', 'sandboxPolicy': {'type': 'readOnly', 'networkAccess': False}
+        }
         if model:
             params['model'] = model
         turn = self.request('turn/start', params)['turn']
@@ -133,7 +164,13 @@ class CodexWorker:
 
 
     def preparePrompt(self, work: dict[str, Any]) -> str:
-        """Stage attached content and add optional RAG context to the prompt."""
+        """Stage attachments and build a Codex prompt.
+
+        Args:
+            work: Prepared chat inputs including optional RAG and attachment context.
+        Returns:
+            Prompt text sent to Codex.
+        """
         prompt = work['prompt']
         selectedText = work['selectedText']
         ragContext = ''
@@ -146,13 +183,14 @@ class CodexWorker:
             if target.resolve() != Path(attachFilePath).resolve():
                 shutil.copy2(attachFilePath, target)
             fileContext = f'\n\nAttached file staged at: {target.name}\n'
-        with open(Path(self.tmpDir) / 'current_prompt_context.md', 'w', encoding='utf-8') as fh:
-            fh.write(prompt + ragContext + selectedText)
+        with open(Path(self.tmpDir) / 'current_prompt_context.md', 'w', encoding='utf-8') as fileHandle:
+            fileHandle.write(prompt + ragContext + selectedText)
         return f'{prompt}{ragContext}{fileContext}{selectedText}'
 
 
     def stop(self) -> None:
-        """Stop Codex App Server and remove its staged workspace."""
+        """Stop Codex and remove its temporary workspace.
+        """
         if self.proc is not None:
             self.proc.terminate()
             try:

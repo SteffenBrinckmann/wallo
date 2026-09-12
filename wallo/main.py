@@ -12,23 +12,20 @@ from PySide6.QtGui import QAction, QKeySequence, QKeyEvent, QCloseEvent  # pylin
 from PySide6.QtWidgets import (QApplication,  QComboBox, QFileDialog, QMainWindow, QMessageBox, QScrollArea, # pylint: disable=no-name-in-module
                                QToolBar, QVBoxLayout, QWidget)
 
-from .acpWorker import ACPWorker
-from .codexWorker import CodexWorker
 from .configMain import ConfigurationWidget
 from .configManager import ConfigurationManager
 from .exchange import Exchange
 from .llmProcessor import LLMProcessor
 from .misc import invertIcon, HELP_TEXT
 from .worker import Worker
+from .services.service import Service, createService
 
 class Wallo(QMainWindow):
     """Main window for the Wallo application, providing a text editor with LLM assistance."""
-    acpFinished = Signal(str, str, str)
-    acpError = Signal(str, str, str)
-    codexFinished = Signal(str, str, str)
-    codexError = Signal(str, str, str)
-    codexModels = Signal(list)
-    codexModelError = Signal(str)
+    serviceFinished = Signal(str, str, str)
+    serviceError = Signal(str, str, str)
+    serviceModels = Signal(list)
+    serviceModelError = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -45,14 +42,11 @@ class Wallo(QMainWindow):
         self.serviceCB = QComboBox()
         self.profileCB = QComboBox()
         self.modelsCB = QComboBox()
-        self.acpWorker = ACPWorker()
-        self.codexWorker = CodexWorker()
-        self.acpFinished.connect(self.onWorkerFinished)
-        self.acpError.connect(self.onWorkerError)
-        self.codexFinished.connect(self.onWorkerFinished)
-        self.codexError.connect(self.onWorkerError)
-        self.codexModels.connect(self._onCodexModels)
-        self.codexModelError.connect(self._onCodexModelError)
+        self.activeService: Service | None = None
+        self.serviceFinished.connect(self.onWorkerFinished)
+        self.serviceError.connect(self.onWorkerError)
+        self.serviceModels.connect(self._onServiceModels)
+        self.serviceModelError.connect(self._onServiceModelError)
 
         # GUI
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
@@ -66,6 +60,7 @@ class Wallo(QMainWindow):
 
         # Setup exchanges
         recoveredExchanges = self._loadRecovery()
+        # WALLO documents are ordered exchanges, also called conversation turns.
         self.exchanges: list[Exchange] = []
         if recoveredExchanges:
             for recoveredExchange in recoveredExchanges:
@@ -294,12 +289,15 @@ class Wallo(QMainWindow):
             workType (str): The type of work to be performed (e.g., 'chatAPI', 'pdfExtraction').
             work (dict): The work parameters, such as client, model, prompt, and fileName.
         """
-        service = self.configManager.get('service')
-        if workType == 'chatAPI' and service['type'] == 'ACP':
-            self.runWorkerAcp(work)
-            return
-        if workType == 'chatAPI' and service['type'] == 'Codex':
-            self.runWorkerCodex(work)
+        # A chat request completes the active exchange/turn.
+        if workType == 'chatAPI':
+            if self.activeService is None:
+                self.onWorkerError('No active service', work['senderID'], workType)
+                return
+            senderID = work['senderID']
+            self.activeService.runChat(work,
+                lambda content: self.serviceFinished.emit(content, senderID, workType),
+                lambda errorMsg: self.serviceError.emit(errorMsg, senderID, workType))
             return
         self.runWorkerLangchain(workType, work)
 
@@ -321,28 +319,14 @@ class Wallo(QMainWindow):
         thread.start()
 
 
-    def runWorkerAcp(self, work: dict[str, Any]) -> None:
-        """Run ACP prompt path with a shared session and serialized prompts."""
-        senderID = work['senderID']
-        self.acpWorker.runChat(work,
-            lambda content: self.acpFinished.emit(content, senderID, 'chatAPI'),
-            lambda errorMsg: self.acpError.emit(errorMsg, senderID, 'chatAPI')
-        )
-
-
-    def runWorkerCodex(self, work: dict[str, Any]) -> None:
-        """Run the Codex App Server path with its shared conversation thread."""
-        senderID = work['senderID']
-        self.codexWorker.runChat(work,
-            lambda content: self.codexFinished.emit(content, senderID, 'chatAPI'),
-            lambda errorMsg: self.codexError.emit(errorMsg, senderID, 'chatAPI')
-        )
-
-
     def closeEvent(self, event: QCloseEvent) -> None:
-        """Close app and clean up agent runtime resources."""
-        self.acpWorker.stop()
-        self.codexWorker.stop()
+        """Close the app and clean up active service resources.
+
+        Args:
+            event: Qt close event to pass to the base window.
+        """
+        if self.activeService is not None:
+            self.activeService.stop()
         super().closeEvent(event)
         if event.isAccepted():
             try:
@@ -353,17 +337,20 @@ class Wallo(QMainWindow):
                 pass
 
 
-    def _loadCodexModels(self) -> None:
-        """Load models available from the signed-in Codex App Server."""
+    def _loadServiceModels(self) -> None:
+        """Load models from the active service."""
         self.modelsCB.clear()
         self.modelsCB.setEnabled(False)
-        self.codexWorker.getModels(self.codexModels.emit, self.codexModelError.emit)
+        if self.activeService is not None:
+            self.activeService.getModels(self.serviceModels.emit, self.serviceModelError.emit)
 
 
-    def _onCodexModels(self, models: list[str]) -> None:
-        """Populate the model selector with models reported by Codex."""
-        if self.configManager.get('service')['type'] != 'Codex':
-            return
+    def _onServiceModels(self, models: list[str]) -> None:
+        """Populate the model selector with service-reported models.
+
+        Args:
+            models: Model names reported by the active service.
+        """
         self.modelsCB.clear()
         self.modelsCB.addItems(models)
         self.modelsCB.setEnabled(bool(models))
@@ -371,9 +358,13 @@ class Wallo(QMainWindow):
             self.configManager.set('model', models[0])
 
 
-    def _onCodexModelError(self, errorMsg: str) -> None:
-        """Show an error if Codex cannot report its available models."""
-        QMessageBox.critical(self, 'Codex Error', errorMsg)
+    def _onServiceModelError(self, errorMsg: str) -> None:
+        """Show an error if the active service cannot report models.
+
+        Args:
+            errorMsg: Error returned by the active service.
+        """
+        QMessageBox.critical(self, 'Service Error', errorMsg)
 
 
     def _onThreadFinished(self, thread: QThread, worker: Worker) -> None:
@@ -382,6 +373,16 @@ class Wallo(QMainWindow):
             self.activeThreads.remove(thread)
         if worker in self.activeWorkers:
             self.activeWorkers.remove(worker)
+
+
+    def _activateService(self) -> None:
+        """Replace the active service and reset its chat state."""
+        if self.activeService is not None:
+            self.activeService.stop()
+        # Switching service starts a fresh conversation rather than sharing turns across backends.
+        self.llmProcessor.resetChat()
+        self.activeService = createService(self.configManager)
+        self._loadServiceModels()
 
 
     def onWorkerFinished(self, content: str, senderID: str, workType: str) -> None:
@@ -456,7 +457,11 @@ class Wallo(QMainWindow):
 
 
     def onConfigChanged(self, dType:str='initialize') -> None:
-        """Handle configuration changes."""
+        """Apply a configuration or toolbar selection change.
+
+        Args:
+            dType: Changed configuration category or initialization marker.
+        """
         if dType=='reread':
             self.configManager.loadConfig()
             dType = 'initialize'
@@ -472,36 +477,14 @@ class Wallo(QMainWindow):
             currentService = list(services.keys())[0]
             self.configManager.set('service', currentService)
 
-            self.modelsCB.clear()
-            serviceType = services[currentService]['type']
-            if serviceType == 'ACP':
-                self.modelsCB.setEnabled(False)
-                self.configManager.set('model', '')
-            elif serviceType == 'Codex':
-                self._loadCodexModels()
-            else:
-                self.modelsCB.setEnabled(True)
-                self.modelsCB.addItems(list(services[currentService]['models'].keys()))
-                currentModel = list(services[currentService]['models'].keys())[0]
-                self.configManager.set('model', currentModel)
+            del services
+            self._activateService()
         if dType=='profile':
             self.configManager.set(dType, self.profileCB.currentText())
         if dType=='service':
             currentService = self.serviceCB.currentText()
             self.configManager.set(dType, currentService)
-            self.modelsCB.clear()
-            services = self.configManager.get('services')
-            serviceType = services[currentService]['type']
-            if serviceType == 'ACP':
-                self.modelsCB.setEnabled(False)
-                self.configManager.set('model', '')
-            elif serviceType == 'Codex':
-                self._loadCodexModels()
-            else:
-                self.modelsCB.setEnabled(True)
-                self.modelsCB.addItems(list(services[currentService]['models'].keys()))
-                currentModel = list(services[currentService]['models'].keys())[0]
-                self.configManager.set('model', currentModel)
+            self._activateService()
         if dType=='model':
             self.configManager.set(dType, self.modelsCB.currentText())
 

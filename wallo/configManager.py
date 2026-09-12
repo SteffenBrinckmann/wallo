@@ -39,20 +39,21 @@ DEFAULT_CONFIGURATION = {
         'openAI': {
             'url': '',
             'api': None,
-            'type': 'openAI',
+            'type': 'api',
+            'provider': 'openai',
             'models': {
                 'gpt-4o': {}
             }
         },
         'ACP': {
-            'type': 'ACP',
+            'type': 'acp',
             'options': {
                 'executable': 'opencode',
                 'arg': 'acp'
             }
         },
         'Codex': {
-            'type': 'Codex',
+            'type': 'codex',
             'options': {
                 'executable': 'codex',
                 'arg': 'app-server'
@@ -114,10 +115,26 @@ class ConfigurationManager:
                 self._config = json.load(confFile)
         except (json.JSONDecodeError, OSError) as e:
             raise ValueError(f"Error loading configuration file: {e}") from e
+        self._migrateServices()
         self.validateConfig()
         profiles = [profile['name'] for profile in self._config.get('profiles', [])]
         if not self._currentProfile or self._currentProfile not in profiles:
             self._currentProfile = profiles[0] if profiles else ''
+
+
+    def _migrateServices(self) -> None:
+        """Normalize legacy service type names in loaded configuration."""
+        for service in self._config.get('services', {}).values():
+            if service['type'] == 'openAI':
+                service['type'] = 'api'
+                service['provider'] = 'openai'
+            elif service['type'] == 'Gemini':
+                service['type'] = 'api'
+                service['provider'] = 'gemini'
+            elif service['type'] == 'ACP':
+                service['type'] = 'acp'
+            elif service['type'] == 'Codex':
+                service['type'] = 'codex'
 
     def validateConfig(self) -> None:
         """Validate configuration file format and required fields."""
@@ -182,9 +199,14 @@ class ConfigurationManager:
         return services[name]  # type: ignore
 
     def getOpenAiServices(self) -> list[str]:
-        """Return all services of type 'openAI'."""
+        """Return direct OpenAI API services.
+
+        Returns:
+            Names of configured OpenAI services without a custom endpoint.
+        """
         services = self._config['services']
-        return [name for name, service in services.items() if service['type'] == 'openAI' and service['url'] == '']
+        return [name for name, service in services.items()
+                if service['type'] == 'api' and service.get('provider') == 'openai' and service['url'] == '']
 
     def getProfilesData(self) -> list[dict[str, Any]]:
         """Return deep copy of all profile entries."""

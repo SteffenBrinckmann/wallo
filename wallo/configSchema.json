@@ -67,6 +67,9 @@
           "type": {
             "type": "string"
           },
+          "provider": {
+            "type": "string"
+          },
           "models": {
             "type": "object",
             "additionalProperties":{

@@ -6,12 +6,11 @@ from langchain_community.document_loaders.parsers.audio import OpenAIWhisperPars
 from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_openai import ChatOpenAI
-from langchain_google_genai import ChatGoogleGenerativeAI
 from PySide6.QtWidgets import QMessageBox  # pylint: disable=no-name-in-module
 from .agents import Agents
 from .configManager import ConfigurationManager
 from .ragIndexer import RagIndexer
+from .services.api.service import ApiService
 
 
 class LLMProcessor:
@@ -54,26 +53,11 @@ class LLMProcessor:
             pass
 
 
-    def createClientFromConfig(self) -> Any:
-        """Create a LangChain LLM from service config.
-
-        Supported types:
-        - openai (OpenAI + compatible endpoints)
-        - gemini (Google Gemini)
-        """
-        service = self.configManager.get('service')
-        serviceType = service['type']
-        model       = self.configManager.get('model')
-        parameter   = self.configManager.get('parameter')
-        apiKey      = service['api']
-        baseUrl     = service.get('url') or None  #None if url-string==''
-        if not apiKey:
-            raise ValueError('API key not configured for the service')
-        if serviceType == 'openAI':
-            return ChatOpenAI(model=model, api_key=apiKey, base_url=baseUrl, **parameter)
-        if serviceType == 'Gemini':
-            return ChatGoogleGenerativeAI(model=model, google_api_key=apiKey, **parameter)
-        raise ValueError(f"Unknown service type '{serviceType}'")
+    def resetChat(self) -> None:
+        """Reset API chat state when the active service changes."""
+        self.messageHistory = InMemoryChatMessageHistory()
+        self.runnable = None
+        self._injectSystemPrompt(self.systemPrompt)
 
 
     def setSystemPrompt(self, prompt: str) -> None:
@@ -107,10 +91,11 @@ class LLMProcessor:
         Raises:
             ValueError: If prompt or service is not found.
         """
+        # Each prepared prompt is the input for one exchange, also called a turn.
         service = self.configManager.get('service')
         llm: Any = None
-        if service['type'] not in {'ACP', 'Codex'}:
-            llm = self.createClientFromConfig()
+        if service['type'] == 'api':
+            llm = ApiService.createClient(self.configManager)
             # since LLM is defined, check if message-history defined. If not, define it
             if self.runnable is None:
                 self.runnable = RunnableWithMessageHistory(llm, lambda: self.messageHistory)
@@ -132,9 +117,8 @@ class LLMProcessor:
             'attachFilePath': attachFilePath,
             'ragRunnable'   : self.ragIndexer if ragUsage else None,
             'agentTools'    : self.agents.getAgentTools(),
-            'acpOptions'    : service.get('options', {}) if service['type'] == 'ACP' else {},
-            'codexOptions'  : service.get('options', {}) if service['type'] == 'Codex' else {},
-            'codexModel'    : self.configManager.get('model') if service['type'] == 'Codex' else ''
+            'serviceOptions': service.get('options', {}),
+            'model'         : self.configManager.get('model')
         }
 
 

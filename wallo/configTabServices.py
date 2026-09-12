@@ -268,7 +268,7 @@ class ServiceEditDialog(QDialog):
         self.loadService()
 
     def setupUI(self) -> None:
-        """Setup the dialog UI."""
+        """Create the controls for editing one service."""
         layout = QVBoxLayout(self)
         formLayout = QFormLayout()
         self.nameEdit = QLineEdit()
@@ -278,9 +278,12 @@ class ServiceEditDialog(QDialog):
         self.apiEdit = QLineEdit()
         formLayout.addRow('API Key:', self.apiEdit)
         self.typeEdit = QComboBox()
-        self.typeEdit.addItems(['openAI', 'Gemini', 'ACP', 'Codex'])
-        self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
+        self.typeEdit.addItems(['api', 'acp', 'codex'])
+        self.typeEdit.setCurrentText(self.service.get('type', 'api'))
         formLayout.addRow('Type:', self.typeEdit)
+        self.providerEdit = QComboBox()
+        self.providerEdit.addItems(['openai', 'gemini'])
+        formLayout.addRow('Provider:', self.providerEdit)
         self.executableEdit = QLineEdit()
         formLayout.addRow('Executable:', self.executableEdit)
         self.argumentEdit = QLineEdit()
@@ -313,14 +316,15 @@ class ServiceEditDialog(QDialog):
         layout.addWidget(buttonBox)
 
     def loadService(self) -> None:
-        """Load service data into form fields."""
+        """Load the edited service values into form fields."""
         self.nameEdit.setText(self.serviceName)
         self.urlEdit.setText(self.service.get('url', ''))
         self.apiEdit.setText(self.service.get('api', '') or '')
-        self.typeEdit.setCurrentText(self.service.get('type', 'openAI'))
+        self.typeEdit.setCurrentText(self.service.get('type', 'api'))
+        self.providerEdit.setCurrentText(self.service.get('provider', 'openai'))
         options = self.service.get('options', {})
-        defaultExecutable = 'codex' if self.service.get('type') == 'Codex' else 'opencode'
-        defaultArgument = 'app-server' if self.service.get('type') == 'Codex' else 'acp'
+        defaultExecutable = 'codex' if self.service.get('type') == 'codex' else 'opencode'
+        defaultArgument = 'app-server' if self.service.get('type') == 'codex' else 'acp'
         self.executableEdit.setText(options.get('executable', defaultExecutable))
         self.argumentEdit.setText(options.get('arg', defaultArgument))
         self.models = {name: dict(params) for name, params in self.service.get('models', {}).items()}
@@ -329,14 +333,19 @@ class ServiceEditDialog(QDialog):
 
 
     def onTypeChanged(self, serviceType: str) -> None:
-        """Toggle fields for agent or model-based services."""
-        if serviceType == 'Codex' and self.executableEdit.text() == 'opencode':
+        """Toggle fields appropriate for the selected service type.
+
+        Args:
+            serviceType: Normalized service type selected in the dialog.
+        """
+        if serviceType == 'codex' and self.executableEdit.text() == 'opencode':
             self.executableEdit.setText('codex')
             self.argumentEdit.setText('app-server')
-        if serviceType == 'ACP' and self.executableEdit.text() == 'codex':
+        if serviceType == 'acp' and self.executableEdit.text() == 'codex':
             self.executableEdit.setText('opencode')
             self.argumentEdit.setText('acp')
-        isAgent = serviceType in {'ACP', 'Codex'}
+        isAgent = serviceType in {'acp', 'codex'}
+        self.providerEdit.setHidden(serviceType != 'api')
         self.urlEdit.setHidden(isAgent)
         self.apiEdit.setHidden(isAgent)
         self.modelsList.setHidden(isAgent)
@@ -405,13 +414,18 @@ class ServiceEditDialog(QDialog):
         self._refreshModelList()
 
     def getService(self) -> tuple[str, dict[str, Any]]:
-        """Get the service configuration from form fields."""
+        """Build a normalized service configuration from form fields.
+
+        Returns:
+            Service name and configuration data suitable for persistence.
+        """
         name = self.nameEdit.text().strip()
         service = {
             'url': self.urlEdit.text().strip(),
             'api': self.apiEdit.text().strip() or None,
             'models': copy.deepcopy(self.models),
             'type': self.typeEdit.currentText(),
+            'provider': self.providerEdit.currentText(),
             'options': {
                 'executable': self.executableEdit.text().strip(),
                 'arg': self.argumentEdit.text().strip()
@@ -420,12 +434,12 @@ class ServiceEditDialog(QDialog):
         return name, service
 
     def accept(self) -> None:
-        """Validate and accept the dialog."""
+        """Validate service fields and accept the dialog."""
         name, service = self.getService()
         if not name:
             QMessageBox.warning(self, 'Validation Error', 'Service name cannot be empty')
             return
-        if service['type'] in {'ACP', 'Codex'}:
+        if service['type'] in {'acp', 'codex'}:
             if not service['options']['executable']:
                 QMessageBox.warning(self, 'Validation Error', 'Agent executable cannot be empty')
                 return

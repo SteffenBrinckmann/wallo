@@ -22,6 +22,7 @@ BUTTON_LAYOUT = {1:(1, 3), 2:(2, 3), 3:(3, 3), 4:(1, 2), 5:(2, 2), 6:(3, 2), 7:(
 BUTTON_WIDTH = 140
 
 class Exchange(QWidget):
+    # An exchange is one user/assistant interaction, also called a turn.
     """A tiny prototype exchange widget that echoes messages.
 
     - `QTextEdit` shows the conversation history (read-only).
@@ -35,6 +36,7 @@ class Exchange(QWidget):
             parent (QWidget): The parent widget.
         """
         super().__init__(None)
+        # The UUID identifies this exchange/turn when its reply is delivered asynchronously.
         self.uuid       = uuid.uuid4().hex
         self.btnState   = 'hidden'
         self.mainWidget = parent
