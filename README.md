@@ -58,11 +58,12 @@ Prompts, services and the other configuration settings are saved in .wallo.json 
 All issues are tracked only in this README file. Do not use an external repository issue tracker.
 
 ### Open issues
-- Clean up code structure: each service (API, ACP, Codex, Claude), gets own folder with all functionality in that folder.
-- Clean up code, main.py is overly complicated, separate out toolbar with configuration/recovery; one service-instance
-  - body section to include all exchanges and their functions; main only contains save etc.
-- Make clear that exchange is turn
 - My default should answer shorter
+
+### Things that are not neccessary and might be retired soon
+- STT and TTS: STT exists in the OS, TTS is anyhow for fun
+- RAG: not used much
+- PDF extraction: rarely used
 
 ### Things I do not want to add
 - pyInstaller to easily install on windows (only makes sense if finished program. Not the goal of this **Evolutionary Software**)

@@ -16,7 +16,7 @@ import qtawesome as qta
 from .editor import TextEdit
 from .misc import ACCENT_COLOR, PushToTalkRecorder
 if TYPE_CHECKING:
-    from .main import Wallo
+    from .conversation import Conversation
 
 BUTTON_LAYOUT = {1:(1, 3), 2:(2, 3), 3:(3, 3), 4:(1, 2), 5:(2, 2), 6:(3, 2), 7:(1, 1), 8:(2, 1),9:(3, 1)}
 BUTTON_WIDTH = 140
@@ -30,7 +30,7 @@ class Exchange(QWidget):
     - Replies are simulated with a short delay (echo/backwards text).
     """
 
-    def __init__(self, parent: 'Wallo', text: str = ''):
+    def __init__(self, parent: 'Conversation', text: str = ''):
         """Initialization
         Args:
             parent (QWidget): The parent widget.

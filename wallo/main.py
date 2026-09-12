@@ -5,20 +5,17 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 import pypandoc
-import qtawesome as qta
-from PySide6.QtCore import QThread, Qt, Signal  # pylint: disable=no-name-in-module
-from PySide6.QtGui import QAction, QKeySequence, QKeyEvent, QCloseEvent  # pylint: disable=no-name-in-module
-from PySide6.QtWidgets import (QApplication,  QComboBox, QFileDialog, QMainWindow, QMessageBox, QScrollArea, # pylint: disable=no-name-in-module
-                               QToolBar, QVBoxLayout, QWidget)
+from PySide6.QtCore import QThread, Signal  # pylint: disable=no-name-in-module
+from PySide6.QtGui import QCloseEvent  # pylint: disable=no-name-in-module
+from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox  # pylint: disable=no-name-in-module
 
-from .configMain import ConfigurationWidget
 from .configManager import ConfigurationManager
-from .exchange import Exchange
+from .conversation import Conversation
 from .llmProcessor import LLMProcessor
-from .misc import invertIcon, HELP_TEXT
 from .worker import Worker
 from .services.service import Service, createService
-from .walloFiles import DocumentData, ExchangeData, SelectionData, WalloFiles
+from .toolbar import Toolbar
+from .walloFiles import DocumentData, SelectionData, WalloFiles
 
 # pylint: disable=too-many-statements
 class Wallo(QMainWindow):
@@ -36,276 +33,57 @@ class Wallo(QMainWindow):
         if self.beginner:
             self.configManager.updateConfig({'startCounts': self.configManager.get('startCounts') - 1})
         self.llmProcessor = LLMProcessor(self.configManager)
-        self.configWidget: ConfigurationWidget | None = None
         self.activeThreads: list[QThread] = []
         self.activeWorkers: list[Worker] = []
-        self.spellcheck = True
-        self.serviceCB = QComboBox()
-        self.profileCB = QComboBox()
-        self.modelsCB = QComboBox()
         self.activeService: Service | None = None
-        self.pendingModel = ''
         self.serviceFinished.connect(self.onWorkerFinished)
         self.serviceError.connect(self.onWorkerError)
-        self.serviceModels.connect(self._onServiceModels)
-        self.serviceModelError.connect(self._onServiceModelError)
 
         # GUI
         self.setWindowTitle('WALLO - Writing Assistance by Large Language mOdel')
-        container = QWidget(self)
-        self.mainLayout = QVBoxLayout(container)
-        self.mainLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        scrollArea = QScrollArea(self)
-        scrollArea.setWidgetResizable(True)
-        scrollArea.setWidget(container)
-        self.setCentralWidget(scrollArea)
-
-        # Setup exchanges
         recoveredDocument = self.walloFiles.loadRecovery()
         recoveredExchanges = recoveredDocument['exchanges'] if recoveredDocument is not None else []
-        # WALLO documents are ordered exchanges, also called conversation turns.
-        self.exchanges: list[Exchange] = []
-        if recoveredExchanges:
-            for recoveredExchange in recoveredExchanges:
-                exchange = Exchange(self, recoveredExchange['text1'])
-                if recoveredExchange['text2']:
-                    exchange.text2.setPlainText(recoveredExchange['text2'])
-                    exchange.text2.show()
-                self.exchanges.append(exchange)
-        else:
-            self.exchanges = [Exchange(self) for _ in range(2)]
-        for exchange in self.exchanges:
-            self._connectRecovery(exchange)
-        self.layoutExchanges()
-        self.exchanges[0].showButtons()
-        if self.beginner and not recoveredExchanges:
-            self.exchanges[0].text1.setMarkdown(HELP_TEXT)
+        self.conversation = Conversation(self.configManager, self.llmProcessor, self.runWorker,
+                                         recoveredExchanges, self.beginner)
+        self.conversation.changed.connect(self.saveRecovery)
+        self.setCentralWidget(self.conversation)
 
-        self.toolbar = QToolBar('Main')
+        self.toolbar = Toolbar(self)
         self.addToolBar(self.toolbar)
-        self.spellIcon = qta.icon('fa5s.spell-check')
-        self.spellIconInverted = invertIcon(self.spellIcon)
-        self.spellcheckAction = QAction('', self, icon=self.spellIconInverted, checkable=True,
-                                        toolTip='Toggle spellchecker')
-        self.spellcheckAction.setChecked(self.spellcheck)
-        self.spellcheckAction.triggered.connect(self.toggleSpellcheck)
-        self.toolbar.addAction(self.spellcheckAction)
-        self.toolbar.addWidget(self._toolbarSpacer())
-        openAction = QAction('', self, icon=qta.icon('fa5.folder-open'), toolTip='Open WALLO document')
-        openAction.triggered.connect(lambda: self.walloFiles.openDocument(self, self._loadDocument))
-        self.toolbar.addAction(openAction)
-        saveAction = QAction('', self, icon=qta.icon('fa5.save'), toolTip='Save WALLO document')
-        saveAction.triggered.connect(lambda: self.walloFiles.saveDocument(self, self._documentData()))
-        self.toolbar.addAction(saveAction)
-        exportAction = QAction('', self, icon=qta.icon('fa5.file-export'), toolTip='Export as docx or markdown')
-        exportAction.triggered.connect(lambda: self.saveToFile('text'))
-        self.toolbar.addAction(exportAction)
-        ttsAction = QAction('', self, icon=qta.icon('fa5.file-audio'), toolTip='Save to mp3 file')
-        ttsAction.triggered.connect(lambda: self.saveToFile('tts'))
-        self.toolbar.addAction(ttsAction)
-        self.toolbar.addWidget(self._toolbarSpacer())
-        self.toolbar.addWidget(self.profileCB)
-        self.profileCB.activated.connect(lambda: self.onConfigChanged('profile'))
-        self.toolbar.addSeparator()
-        self.toolbar.addWidget(self.serviceCB)
-        self.serviceCB.activated.connect(lambda: self.onConfigChanged('service'))
-        self.toolbar.addWidget(self.modelsCB)
-        self.modelsCB.activated.connect(lambda: self.onConfigChanged('model'))
-        self.toolbar.addWidget(self._toolbarSpacer())
-        ragAction = QAction('', self, icon=qta.icon('mdi.database-plus'), toolTip='Add files to knowledge base')
-        ragAction.triggered.connect(self.addRagSources)
-        self.toolbar.addAction(ragAction)
-        self.toolbar.addWidget(self._toolbarSpacer())
-        self.agentIcon = qta.icon('fa5s.robot')
-        self.agentIconInverted = invertIcon(self.agentIcon)
-        self.agentUseAction = QAction('', self, icon=self.agentIcon, toolTip='Allow to use LLM Agents')
-        self.agentUseAction.triggered.connect(self.toggleAgentsUse)
-        self.toolbar.addAction(self.agentUseAction)
-        self.pastaUseIcon = qta.icon('mdi.pasta')
-        self.pastaUseIconInverted = invertIcon(self.pastaUseIcon)
-        self.pastaUseAction = QAction('', self, icon=self.pastaUseIcon, toolTip='Link and use PASTA-ELN database')
-        self.pastaUseAction.triggered.connect(self.linkPastaELN)
-        self.toolbar.addAction(self.pastaUseAction)
-        self.toolbar.addWidget(self._toolbarSpacer())
-        configAction = QAction('', self, icon=qta.icon('fa5s.cog'), toolTip='Configuration',
-                               shortcut=QKeySequence('Ctrl+0'))
-        configAction.triggered.connect(self.showConfiguration)
-        self.toolbar.addAction(configAction)
-        self.onConfigChanged()
+        self.serviceModels.connect(self.toolbar.setModels)
+        self.serviceModelError.connect(self.toolbar.showModelError)
+        self.toolbar.initialize()
         if recoveredDocument is not None:
-            self._restoreSelection(recoveredDocument['selection'])
+            self.toolbar.restoreSelection(recoveredDocument['selection'])
 
 
-    def _toolbarSpacer(self, width: int = 20) -> QWidget:
-        spacer = QWidget()
-        spacer.setFixedWidth(width)
-        return spacer
-
-
-    def _connectRecovery(self, exchange: Exchange) -> None:
-        """Save a recovery draft whenever exchange text changes."""
-        exchange.text1.textChanged.connect(self._saveRecovery)
-        exchange.text2.textChanged.connect(self._saveRecovery)
-
-
-    def _documentData(self) -> DocumentData:
+    def documentData(self) -> DocumentData:
         """Build persisted data from current exchanges and selections.
 
         Returns:
             Current versioned WALLO document.
         """
-        exchanges: list[ExchangeData] = [{'text1': exchange.text1.toPlainText(),
-                                          'text2': exchange.text2.toPlainText()} for exchange in self.exchanges]
+        exchanges = self.conversation.exchangeData()
         currentSelection = self.configManager.getSelection()
         selection: SelectionData = {'profile': currentSelection['profile'], 'service': currentSelection['service'],
                                     'model': currentSelection['model']}
         return self.walloFiles.documentData(exchanges, selection)
 
 
-    def _saveRecovery(self) -> None:
+    def saveRecovery(self) -> None:
         """Save the current versioned document as crash recovery."""
-        self.walloFiles.saveRecovery(self._documentData())
+        self.walloFiles.saveRecovery(self.documentData())
 
 
-    def layoutExchanges(self) -> None:
-        """Put the exchanges into the main layout."""
-        while self.mainLayout.count():
-            item = self.mainLayout.takeAt(0)
-            if item is None:
-                continue
-            widget = item.widget()
-            if widget is not None:
-                widget.setParent(None)
-        for exchange in self.exchanges:
-            self.mainLayout.addWidget(exchange)
-        self.mainLayout.addStretch(2)
-
-
-    def changeActive(self) -> None:
-        """For all exchanges: change the showing of the buttons."""
-        for exchange in self.exchanges:
-            if exchange.btnState == 'waiting':
-                exchange.showButtons()
-            else:
-                exchange.hideButtons()
-
-
-    def keyPressEvent(self, event: QKeyEvent) -> None:
-        """Handle key press events.
-
-        Args:
-            event (QKeyEvent): The key press event.
-        """
-        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            if event.key() == Qt.Key.Key_PageDown:
-                self._moveActiveExchange(1)
-                return
-            if event.key() == Qt.Key.Key_PageUp:
-                self._moveActiveExchange(-1)
-                return
-        super().keyPressEvent(event)
-
-    def _moveActiveExchange(self, step: int) -> None:
-        activeIdx = None
-        for idx, exchange in enumerate(self.exchanges):
-            if exchange.btnState == 'show':
-                activeIdx = idx
-        if activeIdx is None:
-            return
-        newIdx = activeIdx + step
-        if not 0 <= newIdx < len(self.exchanges):
-            return
-        self.exchanges[activeIdx].hideButtons()
-        self.exchanges[newIdx].showButtons()
-        self.exchanges[newIdx].focusForTyping()
-
-
-
-
-    def addExchanges(self, uuid: str, texts: list[str]) -> None:
-        """Add exchanges.
-
-        Args:
-          uuid (str): The UUID of the exchange.
-          texts (list[str]): texts to be added into new exchanges
-        """
-        idx = [exchange.uuid for exchange in self.exchanges].index(uuid)
-        insertPos = idx + 1
-        newExchanges = [Exchange(self, text) for text in texts]
-        for exchange in newExchanges:
-            self._connectRecovery(exchange)
-        self.exchanges[insertPos:insertPos] = newExchanges
-        self.layoutExchanges()
-        self._saveRecovery()
-
-
-    def deleteExchange(self, uuid: str) -> None:
-        """Add exchanges.
-
-        Args:
-          uuid (str): The UUID of the exchange.
-        """
-        idx = [exchange.uuid for exchange in self.exchanges].index(uuid)
-        self.exchanges[idx].deleteLater()
-        del self.exchanges[idx]
-        self._saveRecovery()
-
-
-    def _loadDocument(self, document: DocumentData) -> None:
+    def loadDocument(self, document: DocumentData) -> None:
         """Apply a validated WALLO document to the main window.
 
         Args:
             document: Loaded versioned document to display.
         """
-        self._replaceExchanges(document['exchanges'])
-        self._restoreSelection(document['selection'])
-        self._saveRecovery()
-
-
-    def _replaceExchanges(self, exchangesData: list[ExchangeData]) -> None:
-        """Rebuild exchange widgets from persisted document data.
-
-        Args:
-            exchangesData: Ordered persisted exchanges to display.
-        """
-        for exchange in self.exchanges:
-            exchange.deleteLater()
-        self.exchanges = []
-        for exchangeData in exchangesData:
-            exchange = Exchange(self, exchangeData['text1'])
-            if exchangeData['text2']:
-                exchange.text2.setPlainText(exchangeData['text2'])
-                exchange.text2.show()
-            self.exchanges.append(exchange)
-        if not self.exchanges:
-            self.exchanges = [Exchange(self) for _ in range(2)]
-        for exchange in self.exchanges:
-            self._connectRecovery(exchange)
-        self.layoutExchanges()
-        self.exchanges[0].showButtons()
-
-
-    def _restoreSelection(self, selection: SelectionData) -> None:
-        """Restore available document toolbar selections.
-
-        Args:
-            selection: Saved profile, service, and model names.
-        """
-        unavailable: list[str] = []
-        if selection['profile'] in self.configManager.get('profiles'):
-            self.profileCB.setCurrentText(selection['profile'])
-            self.configManager.set('profile', selection['profile'])
-        else:
-            unavailable.append(f"profile '{selection['profile']}'")
-        if selection['service'] in self.configManager.get('services'):
-            self.serviceCB.setCurrentText(selection['service'])
-            self.configManager.set('service', selection['service'])
-        else:
-            unavailable.append(f"service '{selection['service']}'")
-        self.pendingModel = selection['model']
-        self._activateService()
-        if unavailable:
-            QMessageBox.warning(self, 'Document Selection', 'Unavailable: ' + ', '.join(unavailable))
+        self.conversation.replaceExchanges(document['exchanges'])
+        self.toolbar.restoreSelection(document['selection'])
+        self.saveRecovery()
 
 
     def saveToFile(self, dType: str) -> None:
@@ -318,7 +96,7 @@ class Wallo(QMainWindow):
         filename, _ = QFileDialog.getSaveFileName(self, 'Save to File', str(Path.home()), filterText)
         if not filename:
             return
-        content = ''.join(str(exchange) for exchange in self.exchanges)
+        content = self.conversation.content()
         reply = QMessageBox.question(self, 'Structure content?',
                 'Should I structure the content by adding headings and creating bullet points when appropriate?',
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
@@ -389,44 +167,6 @@ class Wallo(QMainWindow):
             self.walloFiles.removeRecovery()
 
 
-    def _loadServiceModels(self) -> None:
-        """Load models from the active service."""
-        self.modelsCB.clear()
-        self.modelsCB.setEnabled(False)
-        if self.activeService is not None:
-            self.activeService.getModels(self.serviceModels.emit, self.serviceModelError.emit)
-
-
-    def _onServiceModels(self, models: list[str]) -> None:
-        """Populate the model selector with service-reported models.
-
-        Args:
-            models: Model names reported by the active service.
-        """
-        self.modelsCB.clear()
-        self.modelsCB.addItems(models)
-        self.modelsCB.setEnabled(bool(models))
-        if models:
-            model = self.pendingModel if self.pendingModel in models else models[0]
-            if self.pendingModel and self.pendingModel not in models:
-                QMessageBox.warning(self, 'Document Selection', f"Unavailable model '{self.pendingModel}'")
-            self.modelsCB.setCurrentText(model)
-            self.configManager.set('model', model)
-        else:
-            self.configManager.set('model', '')
-        self.pendingModel = ''
-        self._saveRecovery()
-
-
-    def _onServiceModelError(self, errorMsg: str) -> None:
-        """Show an error if the active service cannot report models.
-
-        Args:
-            errorMsg: Error returned by the active service.
-        """
-        QMessageBox.critical(self, 'Service Error', errorMsg)
-
-
     def _onThreadFinished(self, thread: QThread, worker: Worker) -> None:
         """Drop finished thread/worker references to allow cleanup."""
         if thread in self.activeThreads:
@@ -435,14 +175,14 @@ class Wallo(QMainWindow):
             self.activeWorkers.remove(worker)
 
 
-    def _activateService(self) -> None:
+    def activateService(self) -> None:
         """Replace the active service and reset its chat state."""
         if self.activeService is not None:
             self.activeService.stop()
         # Switching service starts a fresh conversation rather than sharing turns across backends.
         self.llmProcessor.resetChat()
         self.activeService = createService(self.configManager)
-        self._loadServiceModels()
+        self.activeService.getModels(self.serviceModels.emit, self.serviceModelError.emit)
 
 
     def onWorkerFinished(self, content: str, senderID: str, workType: str) -> None:
@@ -454,8 +194,7 @@ class Wallo(QMainWindow):
             workType (str): The type of work performed (e.g., 'chatAPI', 'pdfExtraction')
         """
         processContent = self.llmProcessor.processLLMResponse(content)
-        for exchange in self.exchanges:
-            exchange.setReply(processContent, senderID, workType)
+        self.conversation.setReply(processContent, senderID, workType)
 
 
     def onWorkerError(self, errorMsg: str, senderID: str, workType: str = '') -> None:
@@ -468,88 +207,6 @@ class Wallo(QMainWindow):
         """
         info = f'{errorMsg} by senderID {senderID}'
         QMessageBox.critical(self, 'Worker Error', f'{info} ({workType})' if workType else info)
-
-
-    def toggleSpellcheck(self) -> None:
-        """Toggle spell checking on or off."""
-        self.spellcheck = not self.spellcheck
-        for exchange in self.exchanges:
-            exchange.text1.setSpellCheckEnabled(self.spellcheck)
-            exchange.text2.setSpellCheckEnabled(self.spellcheck)
-        self.spellcheckAction.setIcon(self.spellIconInverted if self.spellcheck else self.spellIcon)
-
-
-    def toggleAgentsUse(self) -> None:
-        """Toggle agent use on or off."""
-        self.llmProcessor.agents.useAgents = not self.llmProcessor.agents.useAgents
-        self.agentUseAction.setIcon(self.agentIconInverted if self.llmProcessor.agents.useAgents else self.agentIcon)
-
-
-    def linkPastaELN(self) -> None:
-        """Toggle PASTA-ELN use on or off."""
-        filename, _ = QFileDialog.getOpenFileName(self, 'Select a PASTA-ELN database', str(Path.home()),
-                                                  'SQLite Files (*.db)')
-        if filename:
-            self.llmProcessor.agents.usePastaEln = filename
-            self.pastaUseAction.setIcon(self.pastaUseIconInverted)
-
-
-    def addRagSources(self) -> None:
-        """Open a file or folder dialog to add sources to the RAG knowledge base."""
-        filePaths, _ = QFileDialog.getOpenFileNames(self, 'Select files to add to knowledge base', '', 'All Files (*)')
-        if not filePaths:
-            if directory := QFileDialog.getExistingDirectory(self, 'Select folder to add to knowledge base'):
-                filePaths = [directory]
-        if not filePaths:
-            return
-        self.runWorker('ingestRAG', {'runnable': self.llmProcessor.ragIndexer, 'filePaths': filePaths,
-                                     'senderID': 'ingestRAG'})
-
-
-    def showConfiguration(self) -> None:
-        """Show the configuration widget."""
-        if self.configWidget is None:
-            self.configWidget = ConfigurationWidget(self.configManager)
-            self.configWidget.configChanged.connect(lambda: self.onConfigChanged('reread'))
-        self.configWidget.show()
-        self.configWidget.raise_()
-        self.configWidget.activateWindow()
-
-
-    def onConfigChanged(self, dType:str='initialize') -> None:
-        """Apply a configuration or toolbar selection change.
-
-        Args:
-            dType: Changed configuration category or initialization marker.
-        """
-        if dType=='reread':
-            self.configManager.loadConfig()
-            dType = 'initialize'
-        if dType == 'initialize':
-            self.profileCB.clear()
-            self.profileCB.addItems(self.configManager.get('profiles'))
-            currentProfile = self.configManager.get('profiles')[0]
-            self.configManager.set('profile', currentProfile)
-
-            self.serviceCB.clear()
-            services = self.configManager.get('services')
-            self.serviceCB.addItems(list(services.keys()))
-            currentService = list(services.keys())[0]
-            self.configManager.set('service', currentService)
-
-            del services
-            self._activateService()
-        if dType=='profile':
-            self.configManager.set(dType, self.profileCB.currentText())
-            self._saveRecovery()
-        if dType=='service':
-            currentService = self.serviceCB.currentText()
-            self.configManager.set(dType, currentService)
-            self._activateService()
-            self._saveRecovery()
-        if dType=='model':
-            self.configManager.set(dType, self.modelsCB.currentText())
-            self._saveRecovery()
 
 
 if __name__ == '__main__':
