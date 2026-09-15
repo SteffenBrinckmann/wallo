@@ -57,7 +57,6 @@ Prompts, services and the other configuration settings are saved in .wallo.json 
 ### Open issues
 All issues are tracked only in this README file. Do not use an external repository issue tracker.
 
-### Open issues
 - My default should answer shorter
 
 ### Things that are not neccessary and might be retired soon
