@@ -54,9 +54,11 @@ Usage:
 Prompts, services and the other configuration settings are saved in .wallo.json file in your home folder.
 
 ## Development
-### Open issues
+### Issues
 All issues are tracked only in this README file. Do not use an external repository issue tracker.
 
+
+### Notes
 - My default should answer shorter
 
 ### Things that are not neccessary and might be retired soon
