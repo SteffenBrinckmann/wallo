@@ -176,7 +176,7 @@ class CodexService:
         ragContext = ''
         if ragRunnable := work['ragRunnable']:
             if retrieved := ragRunnable.retrieve(selectedText or prompt):
-                ragContext = f"\n\nContext:\n---\n{ '\n\n'.join(retrieved) }\n---\n"
+                ragContext = "\n\nContext:\n---\n" + '\n\n'.join(retrieved) + "\n---\n"
         fileContext = ''
         if attachFilePath := work['attachFilePath']:
             target = Path(self.tmpDir) / Path(attachFilePath).name

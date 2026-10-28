@@ -235,5 +235,5 @@ class AcpService:
             Formatted context block, or an empty string.
         """
         if ragRunnable is not None and (retrieved := ragRunnable.retrieve(query)):
-            return f"\n\nContext:\n---\n{ '\n\n'.join(retrieved) }\n---\n"
+            return "\n\nContext:\n---\n" + '\n\n'.join(retrieved) + "\n---\n"
         return ''

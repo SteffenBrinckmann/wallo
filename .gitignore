@@ -11,3 +11,4 @@ __pycache__/
 assistant*/
 
 temp_debug.html
+build/

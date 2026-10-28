@@ -61,7 +61,7 @@ All issues are tracked only in this README file. Do not use an external reposito
 ### Notes
 - My default should answer shorter
 
-### Things that are not neccessary and might be retired soon
+### Things that are not necessary and might be retired soon
 - STT and TTS: STT exists in the OS, TTS is anyhow for fun
 - RAG: not used much
 - PDF extraction: rarely used

@@ -52,7 +52,7 @@ class ApiWorker(QObject):
         ragRunnable = self.work['ragRunnable']
         if ragRunnable is not None:
             if retrieved := ragRunnable.retrieve(selectedText or prompt):
-                ragContext = f"\n\nContext:\n---\n{ '\n\n'.join(retrieved) }\n---\n"
+                ragContext = "\n\nContext:\n---\n" + '\n\n'.join(retrieved) + "\n---\n"
         fileContext = ''
         attachFilePath = self.work['attachFilePath']
         if attachFilePath.endswith('.pdf'):
