@@ -6,6 +6,7 @@ authors = [
     { name = "Steffen", email = "sbrinckm@gmail.com" }
 ]
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "PySide6",
